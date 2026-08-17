@@ -1,0 +1,85 @@
+{
+  "data": {
+    "CY-THERMOS-001": {
+      "productNo": "CY-THERMOS-001",
+      "productName": "Cyndi Thermal Bottle Gift Set",
+      "productNameZh": "\u4fdd\u6e29\u676f\u793c\u76d2",
+      "status": "in_transit",
+      "lastUpdated": "2026-08-10T09:30:00+08:00",
+      "origin": "Shenzhen, China",
+      "originZh": "\u4e2d\u56fd \u00b7 \u6df1\u5733",
+      "destination": "Hong Kong, China",
+      "destinationZh": "\u4e2d\u56fd \u00b7 \u9999\u6e2f",
+      "carrier": "Cyndi Global Logistics",
+      "trackingNo": "CYG20260810001",
+      "eta": "2026-08-13",
+      "packages": 12,
+      "quantity": 480,
+      "warehouseLocation": "HK Warehouse · A-03-18",
+      "warehouseLocationZh": "\u9999\u6e2f\u4ed3 · A-03-18",
+      "warehouseUpdated": "2026-08-09T16:20:00+08:00",
+      "events": [
+        {
+          "time": "2026-08-10T09:30:00+08:00",
+          "status": "current",
+          "title": "Shipment in transit",
+          "titleZh": "\u8d27\u7269\u8fd0\u8f93\u4e2d",
+          "description": "The shipment has departed the Shenzhen distribution centre.",
+          "descriptionZh": "\u8d27\u7269\u5df2\u79bb\u5f00\u6df1\u5733\u5206\u62e8\u4e2d\u5fc3\u3002",
+          "location": "Shenzhen, China",
+          "locationZh": "\u4e2d\u56fd \u00b7 \u6df1\u5733"
+        },
+        {
+          "time": "2026-08-09T16:20:00+08:00",
+          "status": "completed",
+          "title": "Stored in warehouse",
+          "titleZh": "\u5df2\u5165\u4ed3",
+          "description": "Quantity checked and stored in the assigned warehouse location.",
+          "descriptionZh": "\u5df2\u5b8c\u6210\u6570\u91cf\u6838\u5bf9\uff0c\u5e76\u5b58\u653e\u81f3\u6307\u5b9a\u4ed3\u4f4d\u3002",
+          "location": "HK Warehouse · A-03-18",
+          "locationZh": "\u9999\u6e2f\u4ed3 · A-03-18"
+        },
+        {
+          "time": "2026-08-08T11:00:00+08:00",
+          "status": "completed",
+          "title": "Quality inspection completed",
+          "titleZh": "\u8d28\u68c0\u5b8c\u6210",
+          "description": "Final packaging and quality inspection have been completed.",
+          "descriptionZh": "\u6700\u7ec8\u5305\u88c5\u53ca\u8d28\u91cf\u68c0\u67e5\u5df2\u5b8c\u6210\u3002",
+          "location": "Shenzhen, China",
+          "locationZh": "\u4e2d\u56fd \u00b7 \u6df1\u5733"
+        },
+        {
+          "time": "2026-08-05T14:40:00+08:00",
+          "status": "completed",
+          "title": "Production completed",
+          "titleZh": "\u751f\u4ea7\u5b8c\u6210",
+          "description": "Production quantity has been confirmed against the order.",
+          "descriptionZh": "\u751f\u4ea7\u6570\u91cf\u5df2\u6309\u8ba2\u5355\u5b8c\u6210\u786e\u8ba4\u3002",
+          "location": "Shenzhen, China",
+          "locationZh": "\u4e2d\u56fd \u00b7 \u6df1\u5733"
+        }
+      ],
+      "warehouseImages": [
+        {
+          "url": "../assets/images/showcase/thermos-set.jpg",
+          "caption": "Thermal bottle gift set · front view",
+          "captionZh": "\u4fdd\u6e29\u676f\u793c\u76d2 · \u6b63\u9762",
+          "date": "2026-08-09"
+        },
+        {
+          "url": "../assets/images/showcase/s3.jpg",
+          "caption": "Packed cartons ready for dispatch",
+          "captionZh": "\u5df2\u6253\u5305\u3001\u5f85\u53d1\u8fd0\u7684\u7eb8\u7bb1",
+          "date": "2026-08-09"
+        },
+        {
+          "url": "../assets/images/showcase/s7.jpg",
+          "caption": "Warehouse shelf · A-03-18",
+          "captionZh": "\u4ed3\u5e93\u8d27\u67b6 · A-03-18",
+          "date": "2026-08-09"
+        }
+      ]
+    }
+  }
+}
