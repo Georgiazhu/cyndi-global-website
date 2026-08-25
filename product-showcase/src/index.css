@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@theme {
+  /* Ocean / Seal palette (inspired by cyndiglobal.com) */
+  --color-deep-blue: #0f1f3a;
+  --color-navy: #162d50;
+  --color-ocean: #1e5a8a;
+  --color-water: #4a9fd4;
+  --color-sky: #8cc5e0;
+  --color-ice: #d0e8f5;
+  --color-foam: #eef6fb;
+  --color-seal-white: #f5f0eb;
+  --color-gold: #f5d76e;
+
+  /* Semantic tokens (keep existing utility class names working) */
+  --color-primary: #0f1f3a;
+  --color-accent: #e07a3a;
+  --color-accent-light: #f5a66e;
+  --color-light-gray: #eef6fb;
+  --color-border: #dbe7f0;
+
+  --font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --animate-slide-in: slide-in 0.3s ease-out;
+  --animate-fade-up: fade-up 0.6s ease-out both;
+  --animate-float: float 6s ease-in-out infinite;
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    transform: translateY(18px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-primary);
+    background-color: #ffffff;
+    -webkit-font-smoothing: antialiased;
+  }
+}

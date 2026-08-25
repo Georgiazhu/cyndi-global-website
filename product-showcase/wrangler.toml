@@ -1,0 +1,9 @@
+name = "product-showcase"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "dist"
+
+# D1 database binding — accessed in Functions via env.DB
+[[d1_databases]]
+binding = "DB"
+database_name = "showcase-db"
+database_id = "54981ef3-f71c-4405-a2b2-348825e5ffe1"

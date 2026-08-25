@@ -8,3 +8,7 @@ dist/
 *.log
 *.pem
 *.key
+
+# D1 database backups (contain admin password hash + business data — never commit)
+*-backup.sql
+cyndi-logistics-backup.sql

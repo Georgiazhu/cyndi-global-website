@@ -1,0 +1,6 @@
+{
+  "name": "hrt-swag-store-showcase",
+  "framework": "vite",
+  "buildCommand": "vite build",
+  "outputDirectory": "dist"
+}
