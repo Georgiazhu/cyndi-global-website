@@ -695,32 +695,46 @@
   .nav-links li.has-mega{position:relative}
 .mega{position:absolute;right:0;top:calc(100% + 10px);width:max-content;max-width:760px;background:#ffffff;backdrop-filter:blur(20px);border:1px solid #e7e5e4;border-radius:0;opacity:0;visibility:hidden;transform:translateY(8px);transition:all 0.3s ease;padding:28px 32px;z-index:1000;box-shadow:0 20px 50px rgba(0,0,0,0.12)}
 .nav-links li.has-mega:hover .mega{opacity:1;visibility:visible;transform:translateY(0)}
+.mega-swag.force-open{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+.mega-swag.force-open.stage-open{transform:none}
 .mega-inner{display:grid;grid-template-columns:repeat(3,minmax(140px,1fr));gap:24px 36px}
 .mega-sm .mega-inner{grid-template-columns:1fr;max-width:360px;margin:0}
 .mega-col h4{font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--orange);margin-bottom:14px}
 .mega-col a{display:block;font-size:14px;color:#57534e;text-decoration:none;padding:5px 0;transition:color 0.2s;letter-spacing:0}
 .mega-col a::after{display:none}.mega-col a:hover{color:#1c1917}
 /* ── Swag two-level menu ── */
-.mega-swag{max-width:none;width:640px;padding:20px}
-.mega-2col{display:grid;grid-template-columns:150px 1fr;grid-auto-rows:min-content;align-items:start;align-content:start}
-.mega-cat{grid-column:1;display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:8px 14px;background:none;border:none;font-family:inherit;font-size:15px;font-weight:600;color:#1c1917;text-align:left;cursor:pointer;border-radius:8px;transition:background 0.15s,color 0.15s}
-.cat-arrow{width:16px;height:16px;flex-shrink:0;opacity:0;transition:opacity 0.15s;color:var(--orange)}
+.mega-swag{position:fixed;left:50%;right:auto;top:80px;transform:translateX(-50%) translateY(8px);width:1280px;max-width:calc(100vw - 48px);padding:24px 28px;transition:opacity 0.25s ease,transform 0.25s ease}
+.mega-swag::before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px}
+.nav-links li.has-mega:hover .mega-swag{transform:translateX(-50%) translateY(0)}
+
+.mega-2col{display:block}
+.mega-catbar{display:flex;gap:4px}
+.mega-catbar .mega-cat{flex:1;justify-content:center}
+.mega-swag.stage-open,.nav-links li.has-mega:hover .mega-swag.stage-open{width:260px;max-width:260px;transform:none;padding:20px 22px}
+.mega-swag.stage-open .mega-catbar{display:none}
+.mega-back{display:none;align-items:center;gap:6px;padding:6px 10px;margin-bottom:14px;background:none;border:none;font-family:inherit;font-size:13px;font-weight:500;color:#78716c;cursor:pointer;border-radius:8px;transition:background 0.15s,color 0.15s}
+.mega-back:hover{background:#f5f5f4;color:#1c1917}
+.mega-back svg{width:15px;height:15px}
+.mega-swag.stage-open .mega-panel.active .mega-back{display:inline-flex}
+.mega-cat{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:9px 14px;background:none;border:none;font-family:inherit;font-size:15px;font-weight:600;color:#1c1917;white-space:nowrap;cursor:pointer;border-radius:8px;transition:background 0.15s,color 0.15s}
+.cat-arrow{display:none}
 .cat-ico{display:flex;flex-shrink:0;color:#78716c}
 .cat-ico svg{width:19px;height:19px;display:block}
 .cat-label{flex:1;text-align:left}
 .mega-cat:hover{background:#f5f5f4;color:#1c1917}
 .mega-cat:hover .cat-arrow{opacity:1}
 .mega-cat:hover .cat-ico,.mega-cat.active .cat-ico{color:var(--orange)}
-.mega-stage{grid-column:2;grid-row:1 / 10;position:relative;min-height:230px;border-left:1px solid #ececeb;margin-left:4px;padding-left:0}
-.mega-panel{position:absolute;top:0;left:40px;right:0;bottom:0;opacity:0;visibility:hidden;transition:opacity 0.2s ease}
+.mega-stage{position:relative}
+.mega-panel{display:none}
 .mega-panel h4{font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--orange);margin-bottom:16px}
-.mega-panel-links{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 32px}
+.mega-panel-links{display:flex;flex-direction:column;gap:2px}
 .mega-panel-links a{font-size:14px;color:#57534e;text-decoration:none;padding:4px 0;transition:color 0.2s}
 .mega-panel-links a::after{display:none}
 .mega-panel-links a:hover{color:#1c1917}
 .mega-cat.active{background:#f5f5f4;color:#1c1917}
 .mega-cat.active .cat-arrow{opacity:1}
-.mega-panel.active{opacity:1;visibility:visible}
+.mega-panel.active{display:block}
+@keyframes megaPanelIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
 .mega-sm .svc-menu{grid-template-columns:1fr;max-width:420px;margin:0;gap:4px}
 .svc-menu-item{display:flex;align-items:flex-start;gap:14px;padding:12px 10px;border-radius:12px;transition:background 0.2s}
@@ -757,8 +771,9 @@
     </a>
     <div class="nav-right">
       <ul class="nav-links">
-<li class="has-mega"><a href="#" class="nav-top">Swag</a>
+<li class="has-mega has-swag"><a href="#" class="nav-top" id="swagTop">Swag</a>
 <div class="mega mega-swag"><div class="mega-inner mega-2col">
+<div class="mega-catbar">
 <button class="mega-cat"><span class="cat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4L4 7l2 3 2-1v8h8V9l2 1 2-3-4-3-2 2H10z"/></svg></span><span class="cat-label">Apparel</span><svg class="cat-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
 <button class="mega-cat"><span class="cat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16c0-5 3.5-8 8-8s8 3 8 8"/><path d="M3 16h18"/></svg></span><span class="cat-label">Headwear</span><svg class="cat-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
 <button class="mega-cat"><span class="cat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l1 12H5z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span><span class="cat-label">Bags</span><svg class="cat-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
@@ -768,16 +783,17 @@
 <button class="mega-cat"><span class="cat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13v-1a8 8 0 0 1 16 0v1"/><rect x="3" y="13" width="4" height="6" rx="1"/><rect x="17" y="13" width="4" height="6" rx="1"/></svg></span><span class="cat-label">Tech</span><svg class="cat-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
 <button class="mega-cat"><span class="cat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18L14 8l-3 5-2-3z"/></svg></span><span class="cat-label">Lifestyle &amp; Outdoor</span><svg class="cat-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
 <button class="mega-cat"><span class="cat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18"/><path d="M5 4h11l-2 3 2 3H5"/></svg></span><span class="cat-label">Events Essentials</span><svg class="cat-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+</div>
 <div class="mega-stage">
-<div class="mega-panel"><h4>Apparel</h4><div class="mega-panel-links"><a href="#">T-shirts</a><a href="#">Polos</a><a href="#">Hoodies &amp; Crewnecks</a><a href="#">Zips</a><a href="#">Jackets &amp; Outerwear</a><a href="#">Sports Shorts</a></div></div>
-<div class="mega-panel"><h4>Headwear</h4><div class="mega-panel-links"><a href="#">Hats</a><a href="#">Beanies</a><a href="#">Bucket Hats</a><a href="#">Visors</a></div></div>
-<div class="mega-panel"><h4>Bags</h4><div class="mega-panel-links"><a href="#">Backpacks</a><a href="#">Totes</a><a href="#">Duffels</a><a href="#">Drawstring Bags</a><a href="#">Luggage</a><a href="#">Pouches</a></div></div>
-<div class="mega-panel"><h4>Footwear</h4><div class="mega-panel-links"><a href="#">Socks</a><a href="#">Sneakers</a><a href="#">Slippers</a><a href="#">Sandals</a><a href="#">FlipFlops &amp; Clogs</a></div></div>
-<div class="mega-panel"><h4>Drinkware</h4><div class="mega-panel-links"><a href="#">Water Bottles</a><a href="#">Tumblers</a><a href="#">Mugs</a><a href="#">Camp Cups</a><a href="#">Can Coolers</a><a href="#">Accessories</a></div></div>
-<div class="mega-panel"><h4>Office</h4><div class="mega-panel-links"><a href="#">Notebooks &amp; Pens</a><a href="#">Desk Accessories</a></div></div>
-<div class="mega-panel"><h4>Tech</h4><div class="mega-panel-links"><a href="#">Audio</a><a href="#">Chargers</a><a href="#">Wearables</a><a href="#">Travel Adapters</a><a href="#">Tech Accessories</a></div></div>
-<div class="mega-panel"><h4>Lifestyle &amp; Outdoor</h4><div class="mega-panel-links"><a href="#">Home &amp; Wellness</a><a href="#">Towels &amp; Blankets</a><a href="#">Travel Accessories</a><a href="#">Outdoor Living</a><a href="#">Sun &amp; Rain</a></div></div>
-<div class="mega-panel"><h4>Events Essentials</h4><div class="mega-panel-links"><a href="#">Signage &amp; Banners</a><a href="#">Flash Cards</a><a href="#">Stickers</a><a href="#">Booklets</a><a href="#">Standup Displays</a><a href="#">Themed Balloons</a></div></div>
+<div class="mega-panel"><button class="mega-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>All categories</button><h4>Apparel</h4><div class="mega-panel-links"><a href="#">T-shirts</a><a href="#">Polos</a><a href="#">Hoodies &amp; Crewnecks</a><a href="#">Zips</a><a href="#">Jackets &amp; Outerwear</a><a href="#">Sports Shorts</a></div></div>
+<div class="mega-panel"><button class="mega-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>All categories</button><h4>Headwear</h4><div class="mega-panel-links"><a href="#">Hats</a><a href="#">Beanies</a><a href="#">Bucket Hats</a><a href="#">Visors</a></div></div>
+<div class="mega-panel"><button class="mega-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>All categories</button><h4>Bags</h4><div class="mega-panel-links"><a href="#">Backpacks</a><a href="#">Totes</a><a href="#">Duffels</a><a href="#">Drawstring Bags</a><a href="#">Luggage</a><a href="#">Pouches</a></div></div>
+<div class="mega-panel"><button class="mega-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>All categories</button><h4>Footwear</h4><div class="mega-panel-links"><a href="#">Socks</a><a href="#">Sneakers</a><a href="#">Slippers</a><a href="#">Sandals</a><a href="#">FlipFlops &amp; Clogs</a></div></div>
+<div class="mega-panel"><button class="mega-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>All categories</button><h4>Drinkware</h4><div class="mega-panel-links"><a href="#">Water Bottles</a><a href="#">Tumblers</a><a href="#">Mugs</a><a href="#">Camp Cups</a><a href="#">Can Coolers</a><a href="#">Accessories</a></div></div>
+<div class="mega-panel"><button class="mega-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>All categories</button><h4>Office</h4><div class="mega-panel-links"><a href="#">Notebooks &amp; Pens</a><a href="#">Desk Accessories</a></div></div>
+<div class="mega-panel"><button class="mega-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>All categories</button><h4>Tech</h4><div class="mega-panel-links"><a href="#">Audio</a><a href="#">Chargers</a><a href="#">Wearables</a><a href="#">Travel Adapters</a><a href="#">Tech Accessories</a></div></div>
+<div class="mega-panel"><button class="mega-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>All categories</button><h4>Lifestyle &amp; Outdoor</h4><div class="mega-panel-links"><a href="#">Home &amp; Wellness</a><a href="#">Towels &amp; Blankets</a><a href="#">Travel Accessories</a><a href="#">Outdoor Living</a><a href="#">Sun &amp; Rain</a></div></div>
+<div class="mega-panel"><button class="mega-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>All categories</button><h4>Events Essentials</h4><div class="mega-panel-links"><a href="#">Signage &amp; Banners</a><a href="#">Flash Cards</a><a href="#">Stickers</a><a href="#">Booklets</a><a href="#">Standup Displays</a><a href="#">Themed Balloons</a></div></div>
 </div>
 </div></div></li>
 <li class="has-mega"><a href="#" class="nav-top">Service</a><div class="mega mega-sm"><div class="mega-inner svc-menu"><a href="#" class="svc-menu-item"><span class="svc-menu-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4"/></svg></span><span class="svc-menu-txt"><strong>Swag Platform</strong><em>Everything you need to manage swag well</em></span></a><a href="#" class="svc-menu-item"><span class="svc-menu-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4"/><path d="M5 10h14a1 1 0 0 1 1 1v3H4v-3a1 1 0 0 1 1-1z"/><path d="M6 14v6M18 14v6"/></svg></span><span class="svc-menu-txt"><strong>Office Furniture Procurement</strong><em>Source and outfit your workspace end to end</em></span></a><a href="#" class="svc-menu-item"><span class="svc-menu-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/></svg></span><span class="svc-menu-txt"><strong>Booth Construction &amp; Exhibit Fabrication</strong><em>Custom builds that make your brand stand out</em></span></a><a href="#" class="svc-menu-item"><span class="svc-menu-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V9l9-5 9 5v12"/><path d="M8 21v-6h8v6"/><path d="M8 12h8"/></svg></span><span class="svc-menu-txt"><strong>Warehousing &amp; Fulfillment</strong><em>Vertically integrated warehousing, ships same day</em></span></a><a href="#" class="svc-menu-item"><span class="svc-menu-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5h11v11H1z"/><path d="M12 8h5l4 4v4h-9z"/><circle cx="5.5" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg></span><span class="svc-menu-txt"><strong>Shipping</strong><em>Lower costs, better deliverability, fewer problems</em></span></a><a href="#" class="svc-menu-item"><span class="svc-menu-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span><span class="svc-menu-txt"><strong>Employee Purchase Platform</strong><em>Let your team order branded gear on demand</em></span></a></div></div></li>
@@ -1468,18 +1484,32 @@
         function reset() {
           cats.forEach(function(c) { c.classList.remove('active'); });
           panels.forEach(function(p) { p.classList.remove('active'); });
+          swagMega.classList.remove('stage-open');
+          swagMega.style.left = '';
         }
 
         cats.forEach(function(cat, i) {
           cat.addEventListener('click', function(e) {
             e.preventDefault();
+            var catLeft = cat.getBoundingClientRect().left;
             reset();
             cat.classList.add('active');
             if (panels[i]) panels[i].classList.add('active');
+            swagMega.classList.add('stage-open');
+            var w = 260;
+            var maxLeft = window.innerWidth - w - 16;
+            swagMega.style.left = Math.max(16, Math.min(catLeft, maxLeft)) + 'px';
           });
         });
 
-        if (parentLi) parentLi.addEventListener('mouseleave', reset);
+        swagMega.querySelectorAll('.mega-back').forEach(function(btn) {
+          btn.addEventListener('click', function(e) { e.preventDefault(); reset(); });
+        });
+
+        if (parentLi) {
+          parentLi.addEventListener('mouseenter', function() { swagMega.classList.add('force-open'); });
+          parentLi.addEventListener('mouseleave', function() { reset(); swagMega.classList.remove('force-open'); });
+        }
       })();
     });
   </script>
