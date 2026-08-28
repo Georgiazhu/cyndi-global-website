@@ -119,3 +119,56 @@ LIMIT=27 DELAY=330 PATAGONIA_PROFILE="$HOME/.crawl4ai/profiles/patagonia" \
 - **单 IP + 单会话批量抓有风控硬上限**。之前密集请求会让 Akamai 拦截该 IP，导致连正常商品页也返回 404。
 - 遇到批量第一个就 404，通常是 **IP 处于风控冷却期** —— 先停手，隔几小时后**手动**用浏览器确认能打开商品页，再重新喂一次会话、然后跑。
 - 长期/大量抓取建议：住宅代理 IP 轮换、官方数据源/feed、或分散到多天极低频跑。
+
+---
+
+## CDP 模式：连接你手动打开的浏览器（批量抓取的关键）
+
+实测发现：反反爬功能（stealth / Undetected Browser）对部分商品的 404 无效 —— 站点是「无有效人工会话就 404」。**唯一稳定的批量方案是连接你手动打开的真实浏览器会话（CDP）**，借你的会话逐个抓，全程不关你的窗口。
+
+### 步骤
+
+**1. 你手动启动带调试端口的浏览器**（保持窗口打开，别关）：
+
+```bash
+"$HOME/Library/Caches/ms-playwright/chromium-1234/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" \
+  --remote-debugging-port=9222 \
+  --user-data-dir="$HOME/.crawl4ai/profiles/patagonia" \
+  "https://www.patagonia.com/product/<任一商品>"
+```
+
+在窗口里确认能看到商品（浏览一下、点几个颜色，喂新鲜会话）。
+
+**2. 确认 CDP 连通**：
+
+```bash
+curl -s http://localhost:9222/json/version    # 返回 Browser: Chrome/... 即可
+```
+
+**3. 分批跑**（连接 CDP，复用你的会话）：
+
+```bash
+# 分批小跑更稳；每批跑完浏览器不关，可直接接着跑下一批
+LIMIT=5 DELAY=240 PATAGONIA_CDP="http://localhost:9222" \
+  .crawl-venv/bin/python scripts/crawl_patagonia_batch.py
+```
+
+CDP 模式下脚本**只断开连接、绝不关闭你的浏览器**（`own_context=False`）。已抓的自动跳过，可反复接批直到全部完成。
+
+### 新增环境变量
+
+- `PATAGONIA_CDP`：CDP 端点（如 `http://localhost:9222`）。给了就连你的浏览器，不自己启。
+- `ONLY`：只抓 URL 含此 pid 的商品（补抓单个用，如 `ONLY=22766`）。
+- `GOTO_TIMEOUT`：页面加载超时毫秒（默认 60000；遇到加载慢的商品补抓时调大，如 `120000`）。
+
+### 抗断行为
+
+- **浏览器/CDP 断连** → 干净退出、保住已抓进度，重连后重跑自动续跑（不丢数据）。
+- **单页面加载超时（非 404）** → 跳过该商品继续，不中断整批。可事后用 `ONLY=<pid> GOTO_TIMEOUT=120000` 补抓。
+- **明确 404 / Not found** → 判定风控，立即停整批，不硬刚。
+
+### 实测经验
+
+- 分批 + 4 分钟间隔，连续抓 15+ 个商品零风控、零封 IP。
+- Chrome 启动时刷的 `DEPRECATED_ENDPOINT`（GCM 推送注册）日志无害，与抓取无关。
+- 每个商品独立存 `output/products/<pid>_<slug>/`（data.json + raw.html + images/）。

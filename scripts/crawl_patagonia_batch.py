@@ -39,8 +39,12 @@ from crawl4ai.extraction_strategy import JsonCssExtractionStrategy
 
 XLSX = "/Users/gufe/Downloads/品类选择表.xlsx"
 PROFILE_DIR = os.environ.get("PATAGONIA_PROFILE", "").strip()
+# 连接你已手动打开的浏览器（带 --remote-debugging-port 启动）。给了就复用，不自己启。
+CDP_ENDPOINT = os.environ.get("PATAGONIA_CDP", "").strip()
 LIMIT = int(os.environ.get("LIMIT", "3"))          # 本次最多抓几个（默认 3，先小批量）
 DELAY = float(os.environ.get("DELAY", "330"))       # 商品之间的间隔秒数（默认 5.5 分钟，规避风控）
+ONLY = os.environ.get("ONLY", "").strip()           # 只抓 URL 含此 pid 的商品（补抓单个用）
+GOTO_TIMEOUT = int(os.environ.get("GOTO_TIMEOUT", "60000"))  # goto 超时 ms（慢页面可调大）
 
 OUTPUT_DIR = Path(__file__).parent / "output"
 PRODUCTS_DIR = OUTPUT_DIR / "products"
@@ -212,8 +216,8 @@ async def download_images_in_session(page, image_urls, dest_dir):
 
 
 async def main():
-    if not PROFILE_DIR:
-        print("FAILED: 需要 PATAGONIA_PROFILE。", file=sys.stderr)
+    if not PROFILE_DIR and not CDP_ENDPOINT:
+        print("FAILED: 需要 PATAGONIA_PROFILE 或 PATAGONIA_CDP。", file=sys.stderr)
         return
 
     items = read_urls()
@@ -225,14 +229,24 @@ async def main():
 
     processed = 0
     async with async_playwright() as p:
-        context = await p.chromium.launch_persistent_context(
-            user_data_dir=profile_path,
-            headless=False,
-            locale="en-US",
-            timezone_id="America/New_York",
-            viewport={"width": 1440, "height": 900},
-        )
-        page = context.pages[0] if context.pages else await context.new_page()
+        if CDP_ENDPOINT:
+            # === 连接你已手动打开的浏览器（会话最真，窗口不用关）===
+            print(f"[MODE] 连接已开浏览器 CDP: {CDP_ENDPOINT}")
+            browser = await p.chromium.connect_over_cdp(CDP_ENDPOINT)
+            context = browser.contexts[0] if browser.contexts else await browser.new_context()
+            page = context.pages[0] if context.pages else await context.new_page()
+            own_context = False
+        else:
+            # === 自己启动 persistent context ===
+            context = await p.chromium.launch_persistent_context(
+                user_data_dir=profile_path,
+                headless=False,
+                locale="en-US",
+                timezone_id="America/New_York",
+                viewport={"width": 1440, "height": 900},
+            )
+            page = context.pages[0] if context.pages else await context.new_page()
+            own_context = True
 
         for i, item in enumerate(items):
             if processed >= LIMIT:
@@ -241,6 +255,9 @@ async def main():
 
             url = item["url"]
             pid = pid_from_url(url)
+            # ONLY 模式：只抓指定 pid，其它跳过（不计入 processed）
+            if ONLY and ONLY not in url:
+                continue
             folder = folder_from_url(url)
             pdir = PRODUCTS_DIR / folder
             data_path = pdir / "data.json"
@@ -253,21 +270,44 @@ async def main():
             print(f"\n[{i+1}/{len(items)}] {folder}  {item['cat1']}/{item['cat2']}")
             print(f"        {url}")
 
+            html = ""
+            status = None
             try:
-                resp = await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                resp = await page.goto(url, wait_until="domcontentloaded", timeout=GOTO_TIMEOUT)
                 status = resp.status if resp else None
                 await page.wait_for_timeout(1500)
                 await page.mouse.wheel(0, 4000)
                 await page.wait_for_timeout(2000)
                 html = await page.content()
             except Exception as e:
-                print(f"        [ERROR] goto 失败：{e} -> 停止批量。", file=sys.stderr)
-                break
+                msg = str(e).lower()
+                # 浏览器/CDP 断连 —— 干净退出，保住已抓进度，提示重连续跑（不丢数据）
+                if any(k in msg for k in ("closed", "disconnected", "connection", "crash", "target")):
+                    print(f"        [DISCONNECTED] 浏览器/CDP 断开：{e}", file=sys.stderr)
+                    print(f"        已抓 {processed} 个（本次会话）。重连浏览器后重跑即可续跑，"
+                          f"已抓的会自动跳过。", file=sys.stderr)
+                    break
+                # 页面偶发加载失败（超时等）不停整批，跳过该商品继续
+                print(f"        [SKIP-ERROR] goto 失败：{e} -> 跳过该商品，继续。", file=sys.stderr)
+                if processed < LIMIT and i < len(items) - 1:
+                    print(f"        ... 等待 {DELAY}s 再抓下一个 ...")
+                    await page.wait_for_timeout(int(DELAY * 1000))
+                continue
 
-            if "product-title" not in html or len(html) < 5000:
-                print(f"        [BLOCKED] 只拿到 {len(html)} bytes（Not found / 风控）。"
+            # 明确的 404 / Not found（风控信号）才停整批
+            is_notfound = ("Not found" in html and len(html) < 500) or (status == 404)
+            if is_notfound:
+                print(f"        [BLOCKED] {len(html)} bytes / status={status}（Not found / 风控）。"
                       f"停止批量以免加深风控。已完成 {processed} 个。", file=sys.stderr)
                 break
+            # 拿到页面但结构不符（非 404）：跳过该商品，不停整批
+            if "product-title" not in html or len(html) < 5000:
+                print(f"        [SKIP-BAD] 页面结构异常（{len(html)} bytes, status={status}），跳过。",
+                      file=sys.stderr)
+                if processed < LIMIT and i < len(items) - 1:
+                    print(f"        ... 等待 {DELAY}s 再抓下一个 ...")
+                    await page.wait_for_timeout(int(DELAY * 1000))
+                continue
 
             # 抽取
             record, image_urls = await extract_from_html(html)
@@ -294,7 +334,9 @@ async def main():
                 print(f"        ... 等待 {DELAY}s 再抓下一个 ...")
                 await page.wait_for_timeout(int(DELAY * 1000))
 
-        await context.close()
+        # CDP 模式：只断开连接，不关你手动开的浏览器
+        if own_context:
+            await context.close()
 
     print(f"\n=== BATCH DONE === 本次成功 {processed} 个，输出目录：{PRODUCTS_DIR}")
 
