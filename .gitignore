@@ -12,3 +12,12 @@ dist/
 # D1 database backups (contain admin password hash + business data — never commit)
 *-backup.sql
 cyndi-logistics-backup.sql
+
+# macOS
+.DS_Store
+
+# Python virtualenv for crawler
+.crawl-venv/
+
+# Crawler outputs (raw HTML, images, third-party product data — regenerable, not for VCS)
+scripts/output/
