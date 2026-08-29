@@ -172,3 +172,73 @@ CDP 模式下脚本**只断开连接、绝不关闭你的浏览器**（`own_cont
 - 分批 + 4 分钟间隔，连续抓 15+ 个商品零风控、零封 IP。
 - Chrome 启动时刷的 `DEPRECATED_ENDPOINT`（GCM 推送注册）日志无害，与抓取无关。
 - 每个商品独立存 `output/products/<pid>_<slug>/`（data.json + raw.html + images/）。
+
+---
+
+## 1688 商品抓取（阿里系，方法与 Patagonia 完全不同）
+
+1688（阿里巴巴批发）的数据结构、反爬机制都与 Patagonia 不同，用独立的脚本：
+
+| 文件 | 作用 |
+|---|---|
+| `probe_1688.py` | 探路：dump HTML + 分析数据藏在哪（首次调研用） |
+| `crawl_1688.py` | 单商品抓取（从 `window.context` 运行时对象读数据） |
+| `crawl_1688_batch.py` | 批量抓取（从 xlsx 读 1688 URL，随机间隔，弹滑块即停） |
+
+### 数据在哪：`window.context`（不在 DOM 属性里）
+
+1688 商品数据在 JS 运行时对象里，用 `page.evaluate` 直接读（比解析 HTML 里的巨型 JSON 干净）：
+
+| 数据 | JS 路径 |
+|---|---|
+| 标题 | `context.result.data.gallery.fields.subject` |
+| 图片 | `context.result.data.gallery.fields.offerImgList` |
+| SKU（颜色/尺码/组合库存） | `context.result.data.Root.fields.dataJson.skuModel`（`skuProps` + `skuInfoMap`） |
+| 价格 | `context.result.data.mainPrice.fields.priceModel` |
+| 商品详情 | `context.result.global.globalData.model.offerDetail` |
+
+### 反爬：滑块验证码（关键）
+
+1688 打开商品页会弹滑块验证码。应对方式（实测有效）：
+
+1. 手动开带调试端口的浏览器，打开任一 1688 商品页
+2. **手动用鼠标滑过验证码**（你是真人，能过）
+3. 保持窗口打开 —— **滑一次后，同会话内脚本导航其它 1688 商品短期内不再弹滑块**
+
+### 运行
+
+```bash
+# 1. 手动开浏览器 + 滑验证（保持窗口打开）
+"$HOME/Library/Caches/ms-playwright/chromium-1234/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" \
+  --remote-debugging-port=9222 --user-data-dir="$HOME/.crawl4ai/profiles/patagonia" \
+  "https://detail.1688.com/offer/<任一offerId>.html"
+
+# 2. 批量抓（随机 2-3 分钟间隔，弹滑块即停，断点续跑）
+LIMIT=8 DELAY_MIN=120 DELAY_MAX=180 PATAGONIA_CDP=http://localhost:9222 \
+  .crawl-venv/bin/python scripts/crawl_1688_batch.py
+```
+
+环境变量：`LIMIT`（本次抓几个）、`DELAY_MIN`/`DELAY_MAX`（间隔随机区间秒）、`GOTO_TIMEOUT`（加载超时 ms）。
+
+### 输出结构
+
+```
+output/products_1688/<offerId>/
+├── data.json    # 标题/价格区间/颜色(带色图)/尺码/SKU组合(含skuId+库存)/图片/属性/品类
+├── raw.html     # 原始页面
+└── images/      # 商品图
+```
+
+### 实测经验
+
+- 滑一次验证后，随机 2-3 分钟间隔可连续抓 23 个商品，零滑块复发、零断连。
+- 若中途弹滑块，脚本检测到空数据会**立即停整批**；手动滑过后重跑即可续（已抓的自动跳过）。
+- 数据比 Patagonia 更细：每个「颜色×尺码」组合都有独立 skuId + 实时库存（canBookCount）。
+
+## 输出目录总览
+
+```
+output/products_patagonia/   27 个 Patagonia 商品
+output/products_1688/        23 个 1688 商品
+```
+（均 gitignored，不入库。）

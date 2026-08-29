@@ -11,7 +11,7 @@
 - 失败（拿到 Not found / 非有效页）即【停止】，不重试、不硬刚，避免激发风控。
 - 断点续跑：已成功的商品（存在 data.json）自动跳过。
 - LIMIT 控制本次最多抓几个（先小批量验证）。
-- 每个商品独立存 output/products/<pid>/，绝不覆盖之前单品抓的 output/patagonia_pdp.json。
+- 每个商品独立存 output/products_patagonia/<pid>/，绝不覆盖之前单品抓的 output/patagonia_pdp.json。
 
 用法：
   # 先抓前 3 个，间隔 60 秒
@@ -47,7 +47,7 @@ ONLY = os.environ.get("ONLY", "").strip()           # 只抓 URL 含此 pid 的�
 GOTO_TIMEOUT = int(os.environ.get("GOTO_TIMEOUT", "60000"))  # goto 超时 ms（慢页面可调大）
 
 OUTPUT_DIR = Path(__file__).parent / "output"
-PRODUCTS_DIR = OUTPUT_DIR / "products"
+PRODUCTS_DIR = OUTPUT_DIR / "products_patagonia"
 
 # 抽取 schema（同单品脚本，baseSelector 用 body 最稳）
 SCHEMA = {
