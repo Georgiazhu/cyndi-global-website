@@ -16,6 +16,7 @@ export default function ProductDetail({ product, initialColor }) {
   const [activeColor, setActiveColor] = useState(initialIdx)
   const [activeSize, setActiveSize] = useState(null)
   const [activeImg, setActiveImg] = useState(0)
+  const [qty, setQty] = useState(1)
   const [showToast, setShowToast] = useState(false)
 
   // 当前颜色对应的图集；无 colorOptions 时用整体 gallery
@@ -33,7 +34,7 @@ export default function ProductDetail({ product, initialColor }) {
   const handleAddToCart = () => {
     if (!canAdd) return                    // 没选尺码：不加购
     const colorName = options ? options[activeColor]?.name : undefined
-    addToCart({ ...product, selectedColor: colorName, selectedSize: activeSize })
+    addToCart({ ...product, selectedColor: colorName, selectedSize: activeSize }, qty)
     setShowToast(true)
   }
 
@@ -145,6 +146,36 @@ export default function ProductDetail({ product, initialColor }) {
                 </div>
               </div>
             )}
+
+            {/* Quantity 步进器 */}
+            <div className="mt-6">
+              <p className="text-sm font-medium text-stone-700 mb-2">Quantity</p>
+              <div className="inline-flex items-center border border-stone-300">
+                <button
+                  onClick={() => setQty(q => Math.max(1, q - 1))}
+                  className="w-11 h-11 text-lg text-stone-700 hover:bg-stone-100 disabled:text-stone-300"
+                  disabled={qty <= 1}
+                  aria-label="Decrease quantity"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min={1}
+                  value={qty}
+                  onChange={e => setQty(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-14 h-11 text-center text-sm border-x border-stone-300 focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                  aria-label="Quantity"
+                />
+                <button
+                  onClick={() => setQty(q => q + 1)}
+                  className="w-11 h-11 text-lg text-stone-700 hover:bg-stone-100"
+                  aria-label="Increase quantity"
+                >
+                  +
+                </button>
+              </div>
+            </div>
 
             {/* Add to cart —— 有尺码未选时禁用并提示 */}
             <button

@@ -44,12 +44,23 @@ export default function Navbar() {
       <nav className="bg-[#faf9f6]/95 backdrop-blur border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-4">
-            {/* Logo */}
-            <a href="#top" className="flex items-center flex-shrink-0">
-              <span className="font-semibold text-xl text-stone-900 tracking-tight uppercase">
-                Swag
-              </span>
-            </a>
+            {/* Back to Cyndi + Logo */}
+            <div className="flex items-center gap-4 flex-shrink-0">
+              <a
+                href="/cyndi.html"
+                className="flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors"
+                title="Back to Cyndi"
+              >
+                <span className="text-base leading-none">←</span>
+                <span className="hidden sm:inline">Cyndi</span>
+              </a>
+              <span className="h-5 w-px bg-stone-300 hidden sm:block" />
+              <a href="#top" className="flex items-center">
+                <span className="font-semibold text-xl text-stone-900 tracking-tight uppercase">
+                  Swag
+                </span>
+              </a>
+            </div>
 
             {/* Desktop category nav */}
             <div className="hidden md:flex items-center gap-6">
