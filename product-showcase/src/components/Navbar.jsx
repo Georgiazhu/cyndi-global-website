@@ -4,12 +4,12 @@ import { useAuth } from '../context/AuthContext'
 import AuthModal from './AuthModal'
 import TrackOrderModal from './TrackOrderModal'
 import MyOrdersModal from './MyOrdersModal'
+import { groupOrder } from '../data/products'
 
+// 顶部品类菜单：All Products + 一级品类（Apparel / Headwear），锚点指向 group div
 const categories = [
   { label: 'All Products', href: '#products' },
-  { label: 'Tote Bags', href: '#tote-bags' },
-  { label: 'Water Bottles', href: '#water-bottles' },
-  { label: 'Umbrellas', href: '#umbrellas' },
+  ...groupOrder.map(g => ({ label: g.group, href: `#${g.group.toLowerCase()}` })),
 ]
 
 export default function Navbar() {

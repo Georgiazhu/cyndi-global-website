@@ -28,3 +28,9 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# 商品图片（抓取生成，166MB）—— 不入库。
+# 本地开发：跑 scripts/build_store_products.py 会引用这些路径，图片由抓取脚本下载后
+#   复制到此目录（见 scripts/README_patagonia_pdp.md）。
+# 生产部署：计划改用 Cloudflare R2 托管，届时 products.js 图片路径改为 R2 公开 URL。
+public/images/products/

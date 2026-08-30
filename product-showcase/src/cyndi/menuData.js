@@ -1,3 +1,14 @@
+// Swag 二级菜单项 -> store 页(index.html)对应品类锚点。
+// 仅这些品类当前有商品；未列出的项暂无商品，链接为占位。
+export const swagItemLinks = {
+  'T-shirts': '/index.html#tshirts',
+  'Polos': '/index.html#polos',
+  'Hoodies & Crewnecks': '/index.html#hoodies',
+  'Jackets & Outerwear': '/index.html#jackets',
+  'Sports Shorts': '/index.html#shorts',
+  'Beanies': '/index.html#beanies',
+}
+
 // Swag two-level categories
 export const swagCategories = [
   {

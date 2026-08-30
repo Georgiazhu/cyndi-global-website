@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'react'
-import { swagCategories, serviceItems, solutionItems, brandLogos } from './menuData'
+import { swagCategories, serviceItems, solutionItems, brandLogos, swagItemLinks } from './menuData'
 
 // Stroke-icon helper. Multi-subpath strings are split on each "M" (moveto) command.
 function Icon({ d, className = 'w-[22px] h-[22px]' }) {
@@ -146,11 +146,20 @@ function SwagMega({ activeCat, setActiveCat, onEnter, onLeave }) {
           }}
         >
           <div className="flex flex-col gap-0.5">
-            {cat.items.map(item => (
-              <a key={item} href="#" className="text-sm text-stone-600 hover:text-stone-900 py-1 transition-colors">
-                {item}
-              </a>
-            ))}
+            {cat.items.map(item => {
+              const link = swagItemLinks[item]
+              return (
+                <a
+                  key={item}
+                  href={link || '#'}
+                  className={`text-sm py-1 transition-colors ${
+                    link ? 'text-stone-600 hover:text-[#e07a3a]' : 'text-stone-400 cursor-default'
+                  }`}
+                >
+                  {item}
+                </a>
+              )
+            })}
           </div>
         </div>
       )}

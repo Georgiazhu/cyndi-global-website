@@ -1,23 +1,16 @@
-const categories = [
-  {
-    title: 'Tote Bags',
-    href: '#tote-bags',
-    image: '/images/tote-canvas-green.jpg',
-    blurb: 'Canvas & waterproof styles',
-  },
-  {
-    title: 'Water Bottles',
-    href: '#water-bottles',
-    image: '/images/bottle-adult.jpg',
-    blurb: 'LocknLock, adult & kids',
-  },
-  {
-    title: 'Umbrellas',
-    href: '#umbrellas',
-    image: '/images/umbrella.jpg',
-    blurb: 'Auto-open, logo print',
-  },
-]
+import { products, sectionOrder } from '../data/products'
+
+// 每个品类取第一个商品的图做封面，链接到对应 section 锚点
+const categories = sectionOrder.map(section => {
+  const first = products.find(p => p.category === section.key)
+  const count = products.filter(p => p.category === section.key).length
+  return {
+    title: section.title,
+    href: `#${section.key}`,
+    image: first ? first.image : '',
+    blurb: `${count} styles`,
+  }
+})
 
 export default function Categories() {
   return (
@@ -27,7 +20,7 @@ export default function Categories() {
         <h2 className="mt-3 text-3xl md:text-4xl font-semibold text-stone-900 tracking-tight">Find your next favorite piece</h2>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
         {categories.map(cat => (
           <a
             key={cat.href}
@@ -38,15 +31,12 @@ export default function Categories() {
               <img
                 src={cat.image}
                 alt={cat.title}
-                className="h-full w-full object-contain p-8 transition-transform duration-500 group-hover:scale-[1.04]"
+                className="h-full w-full object-contain p-4 transition-transform duration-500 group-hover:scale-[1.04]"
               />
             </div>
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/60 to-transparent">
-              <h3 className="font-semibold text-white text-lg">{cat.title}</h3>
-              <p className="text-sm text-stone-200">{cat.blurb}</p>
-              <span className="mt-2 inline-block text-xs font-medium uppercase tracking-wide text-white underline underline-offset-4 decoration-white/50 group-hover:decoration-white transition-colors">
-                Shop now
-              </span>
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent">
+              <h3 className="font-semibold text-white text-sm">{cat.title}</h3>
+              <p className="text-xs text-stone-200">{cat.blurb}</p>
             </div>
           </a>
         ))}

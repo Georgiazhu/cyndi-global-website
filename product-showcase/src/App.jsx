@@ -1,3 +1,4 @@
+import { useState, useEffect, useLayoutEffect } from 'react'
 import { CartProvider } from './context/CartContext'
 import { AuthProvider } from './context/AuthContext'
 import Navbar from './components/Navbar'
@@ -5,18 +6,82 @@ import Hero from './components/Hero'
 import Categories from './components/Categories'
 import Features from './components/Features'
 import Products from './components/Products'
+import ProductDetail from './components/ProductDetail'
 import Cart from './components/Cart'
+import { products } from './data/products'
+
+// 解析 hash：#product/<id>?color=<name> -> { productId, color }
+function parseHash() {
+  const h = window.location.hash || ''
+  const m = h.match(/^#product\/(\d+)(?:\?color=([^&]*))?/)
+  if (!m) return null
+  return { productId: Number(m[1]), color: m[2] ? decodeURIComponent(m[2]) : null }
+}
+
+// 品类锚点（#tshirts 等）：section 由 JS 异步渲染，浏览器原生锚点滚动会赶不上，
+// 这里重试直到元素出现再滚过去。
+function scrollToCurrentHash() {
+  const id = (window.location.hash || '').replace(/^#/, '')
+  if (!id || id.startsWith('product/')) return
+  let tries = 0
+  const tick = () => {
+    const el = document.getElementById(id)
+    if (el) {
+      // 临时禁用全局 scroll-behavior:smooth，实现即时定位（不滚动动画）
+      const html = document.documentElement
+      const prev = html.style.scrollBehavior
+      html.style.scrollBehavior = 'auto'
+      el.scrollIntoView({ block: 'start' })
+      // 下一帧恢复，保留页面内其他锚点的平滑效果
+      requestAnimationFrame(() => { html.style.scrollBehavior = prev })
+    } else if (tries++ < 30) {
+      setTimeout(tick, 80)
+    }
+  }
+  tick()
+}
 
 function App() {
+  const [route, setRoute] = useState(parseHash())
+
+  useEffect(() => {
+    const onHash = () => {
+      const r = parseHash()
+      setRoute(r)
+      if (r) window.scrollTo(0, 0)        // 进入 PDP：回顶部
+      else scrollToCurrentHash()          // 品类锚点：滚到对应 section
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+
+  // 首次加载（从 cyndi 菜单跳来带 #tshirts）：渲染后滚到品类
+  // 首次加载（从 cyndi 菜单带 #tshirts 跳来）：用 useLayoutEffect 在浏览器绘制前
+  // 同步定位，避免先在顶部绘一帧再跳过去的"闪一下顶部"。
+  useLayoutEffect(() => {
+    if (!parseHash()) scrollToCurrentHash()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const activeProduct = route ? products.find(p => p.id === route.productId) : null
+
   return (
     <AuthProvider>
     <CartProvider>
       <div className="min-h-screen bg-[#faf9f6]">
         <Navbar />
-        <Hero />
-        <Categories />
-        <Products />
-        <Features />
+        {activeProduct ? (
+          <div className="pt-20">
+            <ProductDetail product={activeProduct} initialColor={route.color} />
+          </div>
+        ) : (
+          <>
+            <Hero />
+            <Categories />
+            <Products />
+            <Features />
+          </>
+        )}
         <Cart />
 
         {/* Footer */}

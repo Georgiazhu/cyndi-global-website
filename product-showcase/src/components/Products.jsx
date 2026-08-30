@@ -1,181 +1,122 @@
+import { useState, useMemo } from 'react'
 import ProductCard from './ProductCard'
+import Filters from './Filters'
+import { products, groupOrder, sectionOrder } from '../data/products'
 
-const umbrellas = [
-  {
-    id: 1,
-    name: 'Umbrella - Transparent',
-    brand: 'HRT Phuket Logo - Orange',
-    image: '/images/umbrella.jpg',
-    description: 'Transparent umbrella with HRT Phuket 2026 logo print. Orange accent frame with clear canopy for stylish rain protection.',
-    features: [
-      'Transparent POE canopy',
-      'Orange frame accent',
-      'HRT Phuket logo on panels',
-      'Auto-open mechanism',
-      'Curved handle',
-    ],
-    colors: ['Transparent/Orange'],
-    colorValues: ['#e85d2f'],
-    sizes: '52.45cm (W) × 18.78cm (H) × 38.89cm (L), 3cm fold',
-    quantity: [300],
-    price: ['12.50'],
-    priceIncludes: '1-color logo print on 2 panels.',
-    additionalCharges: ['Setup: $50'],
-  },
-]
+const PRICE_MAX = Math.ceil(Math.max(...products.map(p => parseFloat(p.price[0]) || 0)) / 10) * 10
 
-const waterBottles = [
-  {
-    id: 2,
-    name: 'Water Bottle - Adults 1000ml',
-    brand: 'LocknLock',
-    image: '/images/bottle-adult.jpg',
-    description: 'LocknLock water bottle with HRT Lettermark + Heart Icon in orange. Double-walled construction with matte spray paint finish.',
-    features: [
-      '52mm Wide Caliber',
-      'Quiet Non-slip Coaster',
-      'Matte Spray Paint',
-      'Smooth Anti-evaporation Button',
-      'BPA free',
-    ],
-    colors: ['White'],
-    colorValues: ['#ffffff'],
-    sizes: '80mm × 315mm, Vol=1000ml',
-    quantity: [300],
-    price: ['18.90'],
-    priceIncludes: 'Full-color digital print, 1 location.\nBottle body printing done by LocknLock factory with original manufacturing quality guaranteed.',
-    additionalCharges: ['Setup: $65'],
-  },
-  {
-    id: 3,
-    name: 'Water Bottle - Kids 530ml',
-    brand: 'LocknLock',
-    image: '/images/bottle-kids.jpg',
-    description: 'LocknLock kids water bottle with HRT Lettermark + Heart Icon in orange. Perfect size for children with safe materials.',
-    features: [
-      '52mm Wide Caliber',
-      'Quiet Non-slip Coaster',
-      'Matte Spray Paint',
-      'Smooth Anti-evaporation Button',
-      'BPA free',
-      'Kid-friendly size',
-    ],
-    colors: ['White'],
-    colorValues: ['#ffffff'],
-    sizes: '75mm × 210mm, Vol=530ml',
-    quantity: [300],
-    price: ['15.60'],
-    priceIncludes: 'Full-color digital print, 1 location.\nBottle body printing done by LocknLock factory with original manufacturing quality guaranteed.',
-    additionalCharges: ['Setup: $65'],
-  },
-]
+// 统一的响应式商品网格：手机1列 → sm2 → lg3 → xl4
+const GRID = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12'
 
-const toteBags = [
-  {
-    id: 4,
-    name: 'Tote Bag - Waterproof styles2',
-    brand: 'HRT Hudson River Trading - Light Blue',
-    image: '/images/tote-waterproof.jpg',
-    description: 'Waterproof tote bag in light blue with HRT logo. Features composite cloth exterior with lining fabric interior. Multiple compartments for organization.',
-    features: [
-      'Composite cloth + lining fabric',
-      '1 independent zippered inner pocket with lining',
-      '1 magnetic snap for main closure',
-      '1 No.5 zipper for inner pocket',
-      '1 No.5 zipper for the outer small pouch',
-      'Front and back magnetic snap pockets',
-    ],
-    colors: ['Light Blue', 'Cream'],
-    colorValues: ['#a8d4e6', '#f5f0e0'],
-    sizes: 'Length: 47cm × Width: 15cm × Height: 35cm',
-    quantity: [300],
-    price: ['28.50'],
-    priceIncludes: 'Full-color digital transfer imprint, 1 location.',
-    additionalCharges: ['Setup (full color): $95'],
-  },
-  {
-    id: 5,
-    name: 'Tote Bag - Canvas styles1（Orange）',
-    brand: 'HRT Phuket Logo - Orange Trim',
-    image: '/images/tote-canvas-orange.jpg',
-    description: 'Canvas tote bag with orange trim and HRT Phuket logo. Made from durable polyester-cotton canvas with magnetic snap closure.',
-    features: [
-      '16oz Polyester-Cotton Canvas',
-      'Rubber Sole base',
-      '1 Independent zippered pocket',
-      'Mini Zipper Pocket',
-      '1 Magnetic Snap closure',
-      '#3 Zipper for Inner Pocket',
-    ],
-    materials: '16安涤棉帆布+四方格纹 (Poly Polyester-Cotton Canvas)',
-    colors: ['White/Orange'],
-    colorValues: ['#e85d2f'],
-    sizes: 'Length: 50cm × Width: 15cm × Height: 35cm',
-    quantity: [300],
-    price: ['25.80'],
-    priceIncludes: 'Full-color digital transfer imprint, 1 location.',
-    additionalCharges: ['Setup (full color): $95'],
-  },
-  {
-    id: 6,
-    name: 'Tote Bag - Canvas styles2（Medium Green）',
-    brand: 'HRT Phuket Logo - Green Trim',
-    image: '/images/tote-canvas-green.jpg',
-    description: 'Canvas tote bag with medium green trim and HRT Phuket logo. Same premium construction as styles1 with a nature-inspired color accent.',
-    features: [
-      '16oz Polyester-Cotton Canvas',
-      'Rubber Sole base',
-      '1 Independent zippered pocket',
-      'Mini Zipper Pocket',
-      '1 Magnetic Snap closure',
-      '#3 Zipper for Inner Pocket',
-    ],
-    materials: '16安涤棉帆布+四方格纹 (Poly Polyester-Cotton Canvas)',
-    colors: ['White/Green'],
-    colorValues: ['#2d7a4f'],
-    sizes: 'Length: 50cm × Width: 15cm × Height: 35cm',
-    quantity: [300],
-    price: ['25.80'],
-    priceIncludes: 'Full-color digital transfer imprint, 1 location.',
-    additionalCharges: ['Setup (full color): $95'],
-  },
-]
-
-function ProductSection({ id, title, count, products }) {
+function ProductSection({ id, title, items }) {
+  if (!items.length) return null
   return (
-    <div id={id} className="mb-20 scroll-mt-28">
-      {/* Category Title */}
-      <div className="flex items-baseline justify-between border-b border-stone-300 mb-10 pb-3">
-        <h2 className="text-xl font-semibold uppercase tracking-wide text-stone-900">{title}</h2>
-        <span className="text-xs uppercase tracking-wide text-stone-400">{count} items</span>
+    <div id={id} className="mb-16 scroll-mt-28">
+      <div className="flex items-baseline justify-between border-b border-stone-300 mb-8 pb-3">
+        <h3 className="text-lg font-semibold uppercase tracking-wide text-stone-900">{title}</h3>
+        <span className="text-xs uppercase tracking-wide text-stone-400">{items.length} items</span>
       </div>
-
-      {/* Products Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
-        {products.map(product => (
-          <ProductCard key={product.id} product={product} />
-        ))}
+      <div className={GRID}>
+        {items.map(product => <ProductCard key={product.id} product={product} />)}
       </div>
     </div>
   )
 }
 
 export default function Products() {
+  const [filters, setFilters] = useState({ category: [], brand: [], size: [], maxPrice: PRICE_MAX })
+  const [filterOpen, setFilterOpen] = useState(false)   // 窄屏折叠面板开关
+
+  const brands = useMemo(() => [...new Set(products.map(p => p.brand))], [])
+  const sizeSet = useMemo(() => {
+    const s = new Set()
+    products.forEach(p => (p.sizeNorm || []).forEach(x => s.add(x)))
+    return [...s]
+  }, [])
+
+  const filtered = useMemo(() => products.filter(p => {
+    if (filters.category.length && !filters.category.includes(p.category)) return false
+    if (filters.brand.length && !filters.brand.includes(p.brand)) return false
+    if (filters.size.length && !(p.sizeNorm || []).some(s => filters.size.includes(s))) return false
+    if (parseFloat(p.price[0]) > filters.maxPrice) return false
+    return true
+  }), [filters])
+
+  const activeCount =
+    filters.category.length + filters.brand.length + filters.size.length + (filters.maxPrice < PRICE_MAX ? 1 : 0)
+  const hasActive = activeCount > 0
+
+  const filtersEl = (
+    <Filters
+      categories={sectionOrder}
+      brands={brands}
+      sizes={sizeSet}
+      priceMax={PRICE_MAX}
+      filters={filters}
+      setFilters={setFilters}
+      resultCount={filtered.length}
+      totalCount={products.length}
+    />
+  )
+
   return (
     <section id="products" className="bg-[#faf9f6]">
-      <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-20 scroll-mt-24">
-        <div className="max-w-2xl mb-16">
+      <div className="px-4 sm:px-6 lg:px-10 max-w-[1600px] mx-auto py-20 scroll-mt-24">
+        <div className="max-w-2xl mb-10">
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-stone-400">The collection</p>
           <h2 className="mt-3 text-3xl md:text-4xl font-semibold text-stone-900 tracking-tight">All swag</h2>
           <p className="mt-4 text-sm text-stone-500 leading-relaxed">
             Prices are pre-tax and pre-shipping, considered confidential, and valid for 30 days.
-            Pricing and availability are subject to change without notice.
           </p>
         </div>
 
-        <ProductSection id="tote-bags" title="Tote Bags" count={toteBags.length} products={toteBags} />
-        <ProductSection id="water-bottles" title="Water Bottles" count={waterBottles.length} products={waterBottles} />
-        <ProductSection id="umbrellas" title="Umbrellas" count={umbrellas.length} products={umbrellas} />
+        {/* 窄屏(<lg)：Filter 折叠按钮 */}
+        <div className="lg:hidden mb-6">
+          <button
+            onClick={() => setFilterOpen(v => !v)}
+            className="w-full flex items-center justify-between border border-stone-300 rounded-lg px-4 py-3 text-sm font-medium text-stone-900"
+          >
+            <span>Filter{activeCount ? ` · ${activeCount}` : ''}</span>
+            <span className="text-stone-400">{filterOpen ? '▲' : '▼'}</span>
+          </button>
+          {filterOpen && <div className="mt-3">{filtersEl}</div>}
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-10">
+          {/* 宽屏(≥lg)：左侧 sticky 侧栏 */}
+          <div className="hidden lg:block lg:w-64 lg:shrink-0">
+            {filtersEl}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            {hasActive ? (
+              filtered.length ? (
+                <div className={GRID}>
+                  {filtered.map(product => <ProductCard key={product.id} product={product} />)}
+                </div>
+              ) : (
+                <p className="text-sm text-stone-500 py-20 text-center">No products match your filters.</p>
+              )
+            ) : (
+              groupOrder.map(group => (
+                <div key={group.group} id={group.group.toLowerCase()} className="mb-24 scroll-mt-24">
+                  <div className="mb-10">
+                    <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-stone-900">{group.group}</h2>
+                    <div className="mt-2 h-px w-16 bg-stone-900" />
+                  </div>
+                  {group.sections.map(section => (
+                    <ProductSection
+                      key={section.key}
+                      id={section.key}
+                      title={section.title}
+                      items={products.filter(p => p.category === section.key)}
+                    />
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </section>
   )

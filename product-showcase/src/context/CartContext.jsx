@@ -1,10 +1,31 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 
 const CartContext = createContext()
 
+const CART_KEY = 'swag_cart_v1'
+
+// 初始化：从 localStorage 恢复购物车（跨页面/刷新不丢）
+function loadCart() {
+  try {
+    const raw = localStorage.getItem(CART_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
 export function CartProvider({ children }) {
-  const [cart, setCart] = useState([])
+  const [cart, setCart] = useState(loadCart)
   const [isCartOpen, setIsCartOpen] = useState(false)
+
+  // cart 变化时写入 localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(CART_KEY, JSON.stringify(cart))
+    } catch {
+      // 忽略配额/隐私模式错误
+    }
+  }, [cart])
 
   const addToCart = (product, quantity = 1) => {
     setCart(prev => {
