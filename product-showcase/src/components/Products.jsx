@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import ProductCard from './ProductCard'
 import Filters from './Filters'
+import { useSearch } from '../context/SearchContext'
 import { products, groupOrder, sectionOrder } from '../data/products'
 
 const PRICE_MAX = Math.ceil(Math.max(...products.map(p => parseFloat(p.price[0]) || 0)) / 10) * 10
@@ -26,6 +27,8 @@ function ProductSection({ id, title, items }) {
 export default function Products() {
   const [filters, setFilters] = useState({ category: [], brand: [], size: [], maxPrice: PRICE_MAX })
   const [filterOpen, setFilterOpen] = useState(false)   // 窄屏折叠面板开关
+  const { query } = useSearch()
+  const q = query.trim().toLowerCase()
 
   const brands = useMemo(() => [...new Set(products.map(p => p.brand))], [])
   const sizeSet = useMemo(() => {
@@ -39,12 +42,18 @@ export default function Products() {
     if (filters.brand.length && !filters.brand.includes(p.brand)) return false
     if (filters.size.length && !(p.sizeNorm || []).some(s => filters.size.includes(s))) return false
     if (parseFloat(p.price[0]) > filters.maxPrice) return false
+    // 搜索词：匹配商品名 / 品牌 / 分类
+    if (q) {
+      const hay = `${p.name} ${p.brand} ${p.category}`.toLowerCase()
+      if (!hay.includes(q)) return false
+    }
     return true
-  }), [filters])
+  }), [filters, q])
 
   const activeCount =
     filters.category.length + filters.brand.length + filters.size.length + (filters.maxPrice < PRICE_MAX ? 1 : 0)
-  const hasActive = activeCount > 0
+  // 有筛选项或有搜索词时，都走"扁平网格"视图
+  const hasActive = activeCount > 0 || q.length > 0
 
   const filtersEl = (
     <Filters
@@ -95,7 +104,9 @@ export default function Products() {
                   {filtered.map(product => <ProductCard key={product.id} product={product} />)}
                 </div>
               ) : (
-                <p className="text-sm text-stone-500 py-20 text-center">No products match your filters.</p>
+                <p className="text-sm text-stone-500 py-20 text-center">
+                  {q ? `No products match “${query.trim()}”.` : 'No products match your filters.'}
+                </p>
               )
             ) : (
               groupOrder.map(group => (

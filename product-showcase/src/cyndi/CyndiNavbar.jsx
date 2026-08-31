@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useLayoutEffect } from 'react'
-import { swagCategories, serviceItems, solutionItems, brandLogos, swagItemLinks } from './menuData'
+import { useState, useEffect, useRef } from 'react'
+import { serviceItems, solutionItems, brandLogos } from './menuData'
 
 // Stroke-icon helper. Multi-subpath strings are split on each "M" (moveto) command.
 function Icon({ d, className = 'w-[22px] h-[22px]' }) {
@@ -14,8 +14,7 @@ function Icon({ d, className = 'w-[22px] h-[22px]' }) {
 
 export default function CyndiNavbar() {
   const [scrolled, setScrolled] = useState(false)
-  const [openMenu, setOpenMenu] = useState(null)   // 'swag' | 'service' | 'solution' | null
-  const [activeCat, setActiveCat] = useState(null) // Swag category index or null
+  const [openMenu, setOpenMenu] = useState(null)   // 'service' | 'solution' | 'brand' | null
   const closeTimer = useRef(null)
 
   useEffect(() => {
@@ -31,7 +30,7 @@ export default function CyndiNavbar() {
     setOpenMenu(menu)
   }
   function scheduleClose() {
-    closeTimer.current = setTimeout(() => { setOpenMenu(null); setActiveCat(null) }, 260)
+    closeTimer.current = setTimeout(() => { setOpenMenu(null) }, 260)
   }
   function cancelClose() {
     if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null }
@@ -54,16 +53,8 @@ export default function CyndiNavbar() {
 
         {/* Nav links */}
         <ul className="hidden md:flex items-center" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
-          <li className="h-20 flex items-center px-4" onMouseEnter={() => { openWith('swag'); setActiveCat(null) }}>
-            <span className={navLink}>Swag</span>
-            {openMenu === 'swag' && (
-              <SwagMega
-                activeCat={activeCat}
-                setActiveCat={setActiveCat}
-                onEnter={cancelClose}
-                onLeave={scheduleClose}
-              />
-            )}
+          <li className="relative h-20 flex items-center px-4" onMouseEnter={() => openWith(null)}>
+            <a href="/shop.html" className={navLink}>Swag</a>
           </li>
 
           <li className="relative h-20 flex items-center px-4" onMouseEnter={() => openWith('service')}>
@@ -88,82 +79,6 @@ export default function CyndiNavbar() {
         </button>
       </nav>
     </header>
-  )
-}
-
-// ── Swag mega: full-width centered; level 1 stays, level 2 shows below ──
-function SwagMega({ activeCat, setActiveCat, onEnter, onLeave }) {
-  const btnRefs = useRef([])
-  const [stageLeft, setStageLeft] = useState(0)
-  const inStage = activeCat !== null
-  const cat = inStage ? swagCategories[activeCat] : null
-
-  // Keep the level-2 card aligned to the active category button, recomputed
-  // whenever activeCat changes (so moving out and back never misaligns it).
-  useLayoutEffect(() => {
-    if (activeCat !== null && btnRefs.current[activeCat]) {
-      setStageLeft(btnRefs.current[activeCat].offsetLeft)
-    }
-  }, [activeCat])
-
-  return (
-    <div
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
-      className="fixed top-20 left-1/2 -translate-x-1/2 bg-white border border-stone-200 shadow-[0_20px_50px_rgba(0,0,0,0.12)]"
-      style={{ width: 1280, maxWidth: 'calc(100vw - 48px)', padding: '24px 28px' }}
-    >
-      {/* Small transparent hover bridge over the tiny gap above the panel */}
-      <span className="absolute left-0 right-0 -top-3 h-3 block" />
-
-      {/* Level 1: category row (always visible) */}
-      <div className="flex gap-1">
-        {swagCategories.map((c, i) => (
-          <button
-            key={c.name}
-            ref={el => (btnRefs.current[i] = el)}
-            onClick={() => setActiveCat(i)}
-            className={`group flex-1 flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-[15px] font-semibold transition-colors ${
-              i === activeCat ? 'bg-stone-100 text-stone-900' : 'text-stone-900 hover:bg-stone-100'
-            }`}
-          >
-            <span className={`shrink-0 transition-colors group-hover:text-[#e07a3a] ${i === activeCat ? 'text-[#e07a3a]' : 'text-stone-500'}`}>
-              <Icon d={c.icon} className="w-[19px] h-[19px]" />
-            </span>
-            <span className="whitespace-nowrap">{c.name}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Level 2: separate narrow panel below level 1, aligned under the clicked category */}
-      {inStage && (
-        <div
-          className="absolute top-full -mt-px bg-white border border-stone-200 border-t-0 shadow-[0_20px_50px_rgba(0,0,0,0.12)] p-5"
-          style={{
-            left: Math.min(stageLeft, 1280 - 240 - 24),
-            width: 240,
-            maxWidth: 'calc(100% - 24px)',
-          }}
-        >
-          <div className="flex flex-col gap-0.5">
-            {cat.items.map(item => {
-              const link = swagItemLinks[item]
-              return (
-                <a
-                  key={item}
-                  href={link || '#'}
-                  className={`text-sm py-1 transition-colors ${
-                    link ? 'text-stone-600 hover:text-[#e07a3a]' : 'text-stone-400 cursor-default'
-                  }`}
-                >
-                  {item}
-                </a>
-              )
-            })}
-          </div>
-        </div>
-      )}
-    </div>
   )
 }
 

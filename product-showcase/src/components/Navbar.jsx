@@ -1,27 +1,36 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import AuthModal from './AuthModal'
 import TrackOrderModal from './TrackOrderModal'
 import MyOrdersModal from './MyOrdersModal'
-import { groupOrder } from '../data/products'
-
-// 顶部品类菜单：All Products + 一级品类（Apparel / Headwear），锚点指向 group div
-const categories = [
-  { label: 'All Products', href: '#products' },
-  ...groupOrder.map(g => ({ label: g.group, href: `#${g.group.toLowerCase()}` })),
-]
+import SwagMenu from './SwagMenu'
+import { useSearch } from '../context/SearchContext'
+import { swagCategories, swagItemLinks } from '../cyndi/menuData'
 
 export default function Navbar() {
   const { cartCount, setIsCartOpen } = useCart()
   const { user, loading, logout } = useAuth()
+  const { query, setQuery } = useSearch()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [trackOpen, setTrackOpen] = useState(false)
   const [trackInitial, setTrackInitial] = useState('')
   const [ordersOpen, setOrdersOpen] = useState(false)
+  const [swagOpen, setSwagOpen] = useState(false)   // "All Products" 两级目录展开状态
+  const swagWrapRef = useRef(null)
 
   const openTrack = (no = '') => { setTrackInitial(no); setTrackOpen(true) }
+
+  // 点击面板外部时关闭 Swag 两级目录
+  useEffect(() => {
+    if (!swagOpen) return
+    const onDown = (e) => {
+      if (swagWrapRef.current && !swagWrapRef.current.contains(e.target)) setSwagOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [swagOpen])
 
   // Auto-open tracking if the URL carries ?orderNo= (e.g. from the cart success screen).
   useEffect(() => {
@@ -33,6 +42,13 @@ export default function Navbar() {
     }
   }, [])
 
+  // 其他组件（如购物车"Sign in to Order"）派发 open-auth 事件时打开登录框
+  useEffect(() => {
+    const openAuth = () => setAuthOpen(true)
+    window.addEventListener('open-auth', openAuth)
+    return () => window.removeEventListener('open-auth', openAuth)
+  }, [])
+
   return (
     <header className="sticky top-0 z-40">
       {/* Promo bar */}
@@ -41,13 +57,13 @@ export default function Navbar() {
       </div>
 
       {/* Main nav */}
-      <nav className="bg-[#faf9f6]/95 backdrop-blur border-b border-stone-200">
+      <nav ref={swagWrapRef} className="relative bg-[#faf9f6]/95 backdrop-blur border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-4">
             {/* Back to Cyndi + Logo */}
             <div className="flex items-center gap-4 flex-shrink-0">
               <a
-                href="/cyndi.html"
+                href="/"
                 className="flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors"
                 title="Back to Cyndi"
               >
@@ -64,20 +80,17 @@ export default function Navbar() {
 
             {/* Desktop category nav */}
             <div className="hidden md:flex items-center gap-6">
-              {categories.map(cat => (
-                <a
-                  key={cat.href}
-                  href={cat.href}
-                  className="text-sm font-medium text-stone-600 hover:text-stone-900 transition-colors"
-                >
-                  {cat.label}
-                </a>
-              ))}
               <button
-                onClick={() => { setTrackInitial(''); setTrackOpen(true) }}
-                className="text-sm font-medium text-stone-600 hover:text-stone-900 transition-colors"
+                onClick={() => setSwagOpen(v => !v)}
+                aria-expanded={swagOpen}
+                className={`flex items-center gap-1 text-sm font-medium transition-colors ${
+                  swagOpen ? 'text-stone-900' : 'text-stone-600 hover:text-stone-900'
+                }`}
               >
-                Track order
+                All Products
+                <svg className={`w-3.5 h-3.5 transition-transform ${swagOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </button>
             </div>
 
@@ -88,10 +101,30 @@ export default function Navbar() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
                 </svg>
                 <input
-                  type="search"
-                  placeholder="Search"
-                  className="w-full bg-transparent border-b border-stone-300 pl-6 pr-4 py-1.5 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:border-stone-900 transition-colors"
+                  type="text"
+                  placeholder="Search products"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onFocus={() => {
+                    // 聚焦搜索时，若不在商品区则跳到商品列表，方便看到过滤结果
+                    if (!window.location.hash.startsWith('#product/')) {
+                      const el = document.getElementById('products')
+                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }
+                  }}
+                  className="w-full bg-transparent border-b border-stone-300 pl-6 pr-6 py-1.5 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:border-stone-900 transition-colors"
                 />
+                {query && (
+                  <button
+                    onClick={() => setQuery('')}
+                    aria-label="Clear search"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -155,22 +188,36 @@ export default function Navbar() {
           {/* Mobile category menu */}
           {mobileOpen && (
             <div className="md:hidden pb-4 flex flex-col gap-1">
-              {categories.map(cat => (
-                <a
-                  key={cat.href}
-                  href={cat.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="px-1 py-2 text-sm font-medium text-stone-600 hover:text-stone-900 transition-colors"
-                >
-                  {cat.label}
-                </a>
-              ))}
-              <button
-                onClick={() => { setMobileOpen(false); setTrackInitial(''); setTrackOpen(true) }}
-                className="text-left px-1 py-2 text-sm font-medium text-stone-600 hover:text-stone-900"
-              >
-                Track order
-              </button>
+              <details className="group">
+                <summary className="px-1 py-2 text-sm font-medium text-stone-600 hover:text-stone-900 cursor-pointer list-none flex items-center justify-between">
+                  All Products
+                  <svg className="w-4 h-4 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </summary>
+                <div className="pl-3 pb-2 flex flex-col gap-2 mt-1">
+                  {swagCategories.map(c => (
+                    <div key={c.name}>
+                      <p className="text-xs font-semibold text-stone-900 uppercase tracking-wide mt-2 mb-1">{c.name}</p>
+                      <div className="flex flex-col gap-0.5">
+                        {c.items.map(item => {
+                          const link = swagItemLinks[item]
+                          return (
+                            <a
+                              key={item}
+                              href={link || '#'}
+                              onClick={() => setMobileOpen(false)}
+                              className={`text-sm py-0.5 ${link ? 'text-stone-600 hover:text-stone-900' : 'text-stone-400'}`}
+                            >
+                              {item}
+                            </a>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </details>
               {!loading && (
                 user ? (
                   <div className="flex items-center justify-between px-1 py-2 border-t border-stone-200 mt-1">
@@ -189,6 +236,13 @@ export default function Navbar() {
             </div>
           )}
         </div>
+
+        {/* All Products -> Swag 两级目录面板（桌面） */}
+        {swagOpen && (
+          <div className="hidden md:block">
+            <SwagMenu onNavigate={() => setSwagOpen(false)} />
+          </div>
+        )}
       </nav>
 
       <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />

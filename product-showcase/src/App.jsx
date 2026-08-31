@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect } from 'react'
 import { CartProvider } from './context/CartContext'
 import { AuthProvider } from './context/AuthContext'
+import { SearchProvider } from './context/SearchContext'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import Categories from './components/Categories'
@@ -68,6 +69,7 @@ function App() {
   return (
     <AuthProvider>
     <CartProvider>
+    <SearchProvider>
       <div className="min-h-screen bg-[#faf9f6]">
         <Navbar />
         {activeProduct ? (
@@ -76,8 +78,9 @@ function App() {
           </div>
         ) : (
           <>
-            <Hero />
-            <Categories />
+            {/* 暂时隐藏 Hero 和 Shop by category（Categories），先只展示商品 */}
+            {/* <Hero /> */}
+            {/* <Categories /> */}
             <Products />
             <Features />
           </>
@@ -119,6 +122,7 @@ function App() {
           </div>
         </footer>
       </div>
+    </SearchProvider>
     </CartProvider>
     </AuthProvider>
   )
