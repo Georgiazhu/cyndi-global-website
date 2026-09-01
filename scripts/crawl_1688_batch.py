@@ -31,7 +31,7 @@ from pathlib import Path
 
 import openpyxl
 
-XLSX = "/Users/gufe/Downloads/品类选择表 (1).xlsx"
+XLSX = os.environ.get("XLSX", "/Users/gufe/Downloads/品类选择表 (1).xlsx").strip()
 CDP = os.environ.get("PATAGONIA_CDP", "http://localhost:9222").strip()
 LIMIT = int(os.environ.get("LIMIT", "5"))
 DELAY_MIN = float(os.environ.get("DELAY_MIN", "120"))
@@ -53,6 +53,9 @@ EXTRACT_JS = r"""
     const out = {};
     try { out.subject = d.gallery.fields.subject; } catch(e) {}
     try { if (!out.subject) out.subject = model.offerDetail.subject; } catch(e) {}
+    try { if (!out.subject) out.subject = d.productTitle.fields.subject; } catch(e) {}
+    try { if (!out.subject) out.subject = d.productTitle.fields.title; } catch(e) {}
+    try { if (!out.subject) out.subject = document.title.replace(/\s*-\s*阿里巴巴\s*$/,'').trim(); } catch(e) {}
     try { out.offerId = model.offerDetail.offerId; } catch(e) {}
     try {
         const pm = d.mainPrice.fields.priceModel;
@@ -168,6 +171,16 @@ async def main():
                 await page.wait_for_timeout(2500)
                 await page.mouse.wheel(0, 3000)
                 await page.wait_for_timeout(1500)
+                # 轮询等待页面数据填充（window.context.result.data 就绪），最多 ~15s。
+                # 1688 部分页面 JS 数据填充较慢，固定等待会导致抽取到空 -> 误判 BLOCKED。
+                for _ in range(15):
+                    ready = await page.evaluate(
+                        """() => { try { const d = window.context.result.data;
+                            return !!(d && (d.gallery || d.productTitle || d.Root)); } catch(e){ return false; } }"""
+                    )
+                    if ready:
+                        break
+                    await page.wait_for_timeout(1000)
                 data = await page.evaluate(EXTRACT_JS)
                 html = await page.content()
             except Exception as e:

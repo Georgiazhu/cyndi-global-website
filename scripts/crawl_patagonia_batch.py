@@ -37,7 +37,7 @@ import openpyxl
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 from crawl4ai.extraction_strategy import JsonCssExtractionStrategy
 
-XLSX = "/Users/gufe/Downloads/品类选择表.xlsx"
+XLSX = os.environ.get("XLSX", "/Users/gufe/Downloads/品类选择表.xlsx").strip()
 PROFILE_DIR = os.environ.get("PATAGONIA_PROFILE", "").strip()
 # 连接你已手动打开的浏览器（带 --remote-debugging-port 启动）。给了就复用，不自己启。
 CDP_ENDPOINT = os.environ.get("PATAGONIA_CDP", "").strip()
