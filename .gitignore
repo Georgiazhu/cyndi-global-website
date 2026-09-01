@@ -26,3 +26,4 @@ scripts/output/
 .kiro/
 HANDOFF.md
 _p.html
+__pycache__/

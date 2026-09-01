@@ -202,12 +202,14 @@ async def main():
         print(f"[MODE] CDP: {CDP}")
         browser = await p.chromium.connect_over_cdp(CDP)
         ctx = browser.contexts[0]
-        # 复用已打开的淘宝商品标签(不新开/不关闭其它标签)
+        # 复用已打开的淘宝商品标签(不新开/不关闭其它标签)；天猫标签也可复用(同阿里登录)
         page = next((pg for pg in ctx.pages if "taobao.com/item" in pg.url and "login" not in pg.url), None)
         if page is None:
             page = next((pg for pg in ctx.pages if "taobao.com" in pg.url), None)
         if page is None:
-            print("[ERR] 浏览器里没有淘宝标签页。请先在 9222 浏览器登录淘宝并打开一个商品页。", file=sys.stderr)
+            page = next((pg for pg in ctx.pages if "tmall.com" in pg.url and "login" not in pg.url), None)
+        if page is None:
+            print("[ERR] 浏览器里没有淘宝/天猫标签页。请先在 9222 浏览器登录并打开一个商品页。", file=sys.stderr)
             return
 
         for i, item in enumerate(items):
