@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Product Management | Cyndi Global</title>
+<style>
+:root{--navy:#0f1f3a;--blue:#1e5a8a;--sky:#eef6fb;--text:#1a2a3a;--muted:#71849a;--line:#dce8f0;--orange:#e07a3a}
+*{box-sizing:border-box}body{margin:0;background:var(--sky);color:var(--text);font-family:Arial,sans-serif}
+header{padding:16px 5%;background:var(--navy);color:#fff;display:flex;justify-content:space-between;align-items:center}
+header a{color:#8cc5e0;text-decoration:none;font-size:13px}
+main{max-width:1100px;margin:24px auto;padding:0 16px}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 8px 24px #0f1f3a12;margin-bottom:16px}
+.login-card{max-width:420px;margin:48px auto}
+.field{margin-bottom:12px}label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+button{border:0;border-radius:8px;padding:9px 14px;background:var(--navy);color:#fff;font-weight:700;cursor:pointer;font-size:13px}
+button.secondary{background:#fff;color:var(--navy);border:1px solid var(--line)}
+button.small{padding:5px 9px;font-size:12px}
+.msg{margin-top:10px;padding:10px;border-radius:8px;background:#e0f0f8;color:#176080;font-size:13px}
+.msg.err{background:#fff1eb;color:#9a3d22}.hidden{display:none!important}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:11px;text-transform:uppercase;color:var(--muted)}
+.thumb{width:44px;height:44px;object-fit:contain;background:#f2efe9;border-radius:6px}
+.pill{display:inline-block;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700}
+.pill.active{background:#e8f8ef;color:#217753}.pill.hidden{background:#f1e3e3;color:#9a3d22}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.toolbar input{width:auto;flex:1;min-width:180px}
+details{margin-top:6px}summary{cursor:pointer;color:var(--blue);font-size:12px}
+/* SKU 价格表：展开在整行下方，横向表格易读 */
+.sku-panel{background:#f7fafc;border:1px solid var(--line);border-radius:8px;padding:12px;margin:4px 0 2px}
+.sku-table{width:100%;border-collapse:collapse;font-size:12px}
+.sku-table th,.sku-table td{padding:6px 8px;border-bottom:1px solid #e6eef3;text-align:left}
+.sku-table th{font-size:10px;color:var(--muted);text-transform:uppercase}
+.sku-table input{width:100px;padding:6px 8px}
+.sku-table code{color:#8898a8;font-size:11px}
+.sku-actions{margin-top:10px;display:flex;gap:8px;align-items:center}
+/* 分页 */
+.pager{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.pager button{padding:6px 11px}
+.pager button:disabled{opacity:.4;cursor:default}
+.pager .pageinfo{color:var(--muted);font-size:12px;margin:0 6px}
+select#pageSize{width:auto}
+/* 编辑面板 */
+.edit-panel{background:#f7fafc;border:1px solid var(--line);border-radius:8px;padding:14px}
+.edit-panel label{display:block;font-size:11px;color:var(--muted);margin:8px 0 2px}
+.edit-panel input,.edit-panel textarea,.edit-panel select{width:100%;padding:7px 9px;font-size:13px}
+.ep-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.colors-head{display:flex;align-items:center;gap:10px;margin:14px 0 8px}
+.color-block{border:1px solid #e6eef3;border-radius:8px;padding:10px;margin-bottom:10px;background:#fff}
+.cb-row{display:flex;gap:10px;align-items:flex-end}
+.cb-row label{flex:1;margin-top:0}
+.cb-row .c-del{flex:0 0 auto;white-space:nowrap}
+</style>
+</head>
+<body>
+<header>
+  <strong>CYNDI GLOBAL — PRODUCTS</strong>
+  <div class="row" style="gap:16px">
+    <a href="./logistics.html">Logistics admin</a>
+    <a href="#" id="logout">Log out</a>
+  </div>
+</header>
+<main>
+  <!-- Login -->
+  <section id="loginView" class="card login-card">
+    <h1 style="margin:0 0 6px">Admin login</h1>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 16px">Sign in to manage products, prices and visibility.</p>
+    <form id="loginForm">
+      <div class="field"><label for="username">Admin username</label><input id="username" type="text" autocomplete="username" required></div>
+      <div class="field"><label for="password">Admin password</label><input id="password" type="password" autocomplete="current-password" required></div>
+      <button type="submit">Sign in</button>
+    </form>
+    <div id="loginMsg" class="msg err hidden"></div>
+  </section>
+
+  <!-- Editor -->
+  <section id="editorView" class="hidden">
+    <div class="card">
+      <div class="toolbar">
+        <input id="search" placeholder="Filter by name / SPU / brand…">
+        <select id="statusFilter">
+          <option value="">All status</option>
+          <option value="active">Active only</option>
+          <option value="hidden">Hidden only</option>
+        </select>
+        <button class="secondary small" id="reload">Reload</button>
+        <select id="pageSize" title="Per page">
+          <option value="20">20 / page</option>
+          <option value="50">50 / page</option>
+          <option value="100">100 / page</option>
+        </select>
+        <span id="count" style="color:var(--muted);font-size:12px"></span>
+      </div>
+      <div id="msg" class="msg hidden"></div>
+      <table>
+        <thead><tr><th></th><th>SPU</th><th>Name</th><th>Brand</th><th>Price</th><th>Status</th><th>Tiered</th><th>Actions</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div id="pager" class="pager"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+function $(id){return document.getElementById(id)}
+function show(el,text,err){el.textContent=text;el.className='msg'+(err?' err':'');el.classList.remove('hidden')}
+function hide(el){el.classList.add('hidden')}
+async function api(url,opts){const r=await fetch(url,opts||{});const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.error||'Request failed');return b}
+
+let ALL=[];
+let PAGE=1;
+let PAGESIZE=20;
+let EXPANDED=null;   // 当前展开价格的 spu
+let EDITING=null;    // 当前编辑的 spu
+let EDITDATA=null;   // 当前编辑商品的详情(含 colorOptions/skus)
+
+function cur(c){return c==='CNY'?'¥':'$'}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function filtered(){
+  const q=$('search').value.trim().toLowerCase();
+  const sf=$('statusFilter').value;
+  return ALL.filter(p=>{
+    if(sf&&p.status!==sf)return false;
+    if(q){const hay=(p.name+' '+p.spu+' '+p.brand).toLowerCase();if(!hay.includes(q))return false;}
+    return true;
+  });
+}
+
+function skuPanel(p){
+  const rows=p.skus.map(s=>
+    '<tr>'
+    +'<td>'+(s.colorName||s.colorCode)+'</td>'
+    +'<td>'+s.size+'</td>'
+    +'<td><code>'+s.sku+'</code></td>'
+    +'<td><input type="number" min="0" step="0.01" value="'+s.price+'" data-sku="'+s.sku+'"></td>'
+    +'<td>'+cur(s.currency)+'</td>'
+    +'</tr>'
+  ).join('');
+  return '<tr class="sku-expand" data-for="'+p.spu+'"><td colspan="8"><div class="sku-panel">'
+    +'<table class="sku-table"><thead><tr><th>Color</th><th>Size</th><th>SKU</th><th>Price</th><th>Cur</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div class="sku-actions"><button class="small savePrices">Save prices</button>'
+    +'<span style="color:var(--muted);font-size:12px">'+p.skuCount+' SKUs</span></div>'
+    +'</div></td></tr>';
+}
+
+// 完整编辑面板：文字/主图 + 颜色(名/swatch/图URL) + 每颜色尺码(增删)
+function editPanel(p){
+  const d=EDITDATA;
+  if(!d||d.spu!==p.spu) return '<tr class="edit-expand" data-for="'+p.spu+'"><td colspan="8"><div class="edit-panel">Loading…</div></td></tr>';
+  const colorsHtml=(d.colorOptions||[]).map((c,idx)=>{
+    const imgs=(c.images||[]).join('\n');
+    const sizes=(c.skus||[]).map(s=>s.size).join(', ');
+    return '<div class="color-block" data-ci="'+idx+'">'
+      +'<div class="cb-row">'
+        +'<label>Color name<input class="c-name" value="'+esc(c.name)+'"></label>'
+        +'<label>Code<input class="c-code" value="'+esc(c.code||'')+'" placeholder="auto"></label>'
+        +'<button class="small secondary c-del" type="button">Remove color</button>'
+      +'</div>'
+      +'<div class="cb-row">'
+        +'<label>Swatch URL<input class="c-swatch" value="'+esc(c.swatch||'')+'"></label>'
+      +'</div>'
+      +'<label>Image URLs (one per line)<textarea class="c-images" rows="2">'+esc(imgs)+'</textarea></label>'
+      +'<label>Sizes (comma separated, e.g. S,M,L or OS)<input class="c-sizes" value="'+esc(sizes)+'"></label>'
+      +'</div>';
+  }).join('');
+  return '<tr class="edit-expand" data-for="'+p.spu+'"><td colspan="8"><div class="edit-panel">'
+    +'<div class="ep-grid">'
+      +'<label>Name<input class="e-name" value="'+esc(d.name)+'"></label>'
+      +'<label>Brand<input class="e-brand" value="'+esc(d.brand||'')+'"></label>'
+      +'<label>Default image URL<input class="e-image" value="'+esc(d.image||'')+'"></label>'
+      +'<label>Currency<select class="e-currency"><option value="USD"'+(d.currency==='USD'?' selected':'')+'>USD</option><option value="CNY"'+(d.currency==='CNY'?' selected':'')+'>CNY</option></select></label>'
+    +'</div>'
+    +'<label>Description<textarea class="e-desc" rows="3">'+esc(d.description||'')+'</textarea></label>'
+    +'<div class="colors-head"><strong>Colors & sizes</strong> <button class="small c-add" type="button">+ Add color</button></div>'
+    +'<div class="colors-list">'+colorsHtml+'</div>'
+    +'<div class="sku-actions"><button class="small saveEdit" type="button">Save changes</button>'
+    +'<span style="color:var(--muted);font-size:12px">New sizes/colors inherit current price</span></div>'
+    +'</div></td></tr>';
+}
+
+function render(){
+  const list=filtered();
+  const total=list.length;
+  const pages=Math.max(1,Math.ceil(total/PAGESIZE));
+  if(PAGE>pages)PAGE=pages;
+  const start=(PAGE-1)*PAGESIZE;
+  const pageItems=list.slice(start,start+PAGESIZE);
+  $('count').textContent=total+' / '+ALL.length+' products';
+
+  let html='';
+  for(const p of pageItems){
+    const price=cur(p.currency)+p.priceRange[0]+(p.priceRange[1]!==p.priceRange[0]?(' – '+cur(p.currency)+p.priceRange[1]):'');
+    html+='<tr data-spu="'+p.spu+'">'
+      +'<td><img class="thumb" src="'+(p.image||'')+'" alt=""></td>'
+      +'<td><a href="/shop.html#product/'+encodeURIComponent(p.spu)+'" target="_blank" rel="noopener" title="Open PDP"><code>'+p.spu+'</code></a></td>'
+      +'<td>'+p.name+'</td>'
+      +'<td>'+p.brand+'</td>'
+      +'<td>'+price+'</td>'
+      +'<td><span class="pill '+(p.status==='active'?'active':'hidden')+'">'+p.status+'</span></td>'
+      +'<td><label style="display:inline-flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" class="tierChk" style="width:auto" '+(p.tieredPricing?'checked':'')+'> tiered</label></td>'
+      +'<td class="row">'
+        +'<button class="small toggleStatus">'+(p.status==='active'?'Hide':'Show')+'</button>'
+        +'<button class="small secondary togglePrices">'+(EXPANDED===p.spu?'Hide prices':'Prices ('+p.skuCount+')')+'</button>'
+        +'<button class="small secondary editBtn">'+(EDITING===p.spu?'Close':'Edit')+'</button>'
+      +'</td></tr>';
+    if(EXPANDED===p.spu)html+=skuPanel(p);
+    if(EDITING===p.spu)html+=editPanel(p);
+  }
+  $('rows').innerHTML=html;
+  renderPager(pages);
+  bindRows();
+}
+
+function renderPager(pages){
+  const el=$('pager');
+  if(pages<=1){el.innerHTML='';return;}
+  el.innerHTML='<button id="prev" '+(PAGE<=1?'disabled':'')+'>‹ Prev</button>'
+    +'<span class="pageinfo">Page '+PAGE+' / '+pages+'</span>'
+    +'<button id="next" '+(PAGE>=pages?'disabled':'')+'>Next ›</button>';
+  $('prev').onclick=()=>{if(PAGE>1){PAGE--;render();}};
+  $('next').onclick=()=>{if(PAGE<pages){PAGE++;render();}};
+}
+
+function bindRows(){
+  document.querySelectorAll('#rows tr[data-spu]').forEach(tr=>{
+    const spu=tr.dataset.spu;
+    const btn=tr.querySelector('.toggleStatus');
+    if(btn)btn.onclick=async()=>{
+      const p=ALL.find(x=>x.spu===spu);
+      const next=p.status==='active'?'hidden':'active';
+      try{await api('../api/admin/products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({spu,status:next})});p.status=next;render();show($('msg'),spu+' → '+next);}catch(e){show($('msg'),e.message,true);}
+    };
+    const chk=tr.querySelector('.tierChk');
+    if(chk)chk.onchange=async()=>{
+      try{await api('../api/admin/products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({spu,tieredPricing:chk.checked})});const p=ALL.find(x=>x.spu===spu);p.tieredPricing=chk.checked;show($('msg'),spu+' tiered pricing '+(chk.checked?'on':'off'));}catch(e){show($('msg'),e.message,true);chk.checked=!chk.checked;}
+    };
+    const tp=tr.querySelector('.togglePrices');
+    if(tp)tp.onclick=()=>{EXPANDED=(EXPANDED===spu?null:spu);render();};
+    const eb=tr.querySelector('.editBtn');
+    if(eb)eb.onclick=async()=>{
+      if(EDITING===spu){EDITING=null;EDITDATA=null;render();return;}
+      EDITING=spu;EDITDATA=null;render();
+      try{const b=await api('../api/products/'+encodeURIComponent(spu));EDITDATA=b.product;render();}
+      catch(e){show($('msg'),e.message,true);EDITING=null;render();}
+    };
+  });
+  // 保存价格（在展开面板里）
+  document.querySelectorAll('#rows tr.sku-expand').forEach(tr=>{
+    const spu=tr.dataset.for;
+    const save=tr.querySelector('.savePrices');
+    if(save)save.onclick=async()=>{
+      const inputs=tr.querySelectorAll('input[data-sku]');
+      const skuPrices=[...inputs].map(i=>({sku:i.dataset.sku,price:parseFloat(i.value)})).filter(x=>x.price>=0);
+      try{const r=await api('../api/admin/products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({spu,skuPrices})});const p=ALL.find(x=>x.spu===spu);p.priceRange=r.product.priceRange;render();show($('msg'),'Saved prices for '+spu);}catch(e){show($('msg'),e.message,true);}
+    };
+  });
+  // 编辑面板：加颜色 / 删颜色 / 保存
+  document.querySelectorAll('#rows tr.edit-expand').forEach(tr=>{
+    const spu=tr.dataset.for;
+    const addBtn=tr.querySelector('.c-add');
+    if(addBtn)addBtn.onclick=()=>{
+      if(!EDITDATA)return;
+      EDITDATA.colorOptions=EDITDATA.colorOptions||[];
+      EDITDATA.colorOptions.push({name:'New color',code:'',swatch:'',images:[],skus:[{size:'OS'}]});
+      render();
+    };
+    tr.querySelectorAll('.c-del').forEach((btn,i)=>{
+      btn.onclick=()=>{ if(EDITDATA){EDITDATA.colorOptions.splice(i,1);render();} };
+    });
+    const save=tr.querySelector('.saveEdit');
+    if(save)save.onclick=async()=>{
+      const panel=tr.querySelector('.edit-panel');
+      const colors=[...panel.querySelectorAll('.color-block')].map(cb=>{
+        const sizes=(cb.querySelector('.c-sizes').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+        return {
+          colorName:cb.querySelector('.c-name').value.trim(),
+          colorCode:cb.querySelector('.c-code').value.trim()||undefined,
+          swatch:cb.querySelector('.c-swatch').value.trim(),
+          images:cb.querySelector('.c-images').value.split('\n').map(x=>x.trim()).filter(Boolean),
+          sizes:(sizes.length?sizes:['OS']).map(sz=>({size:sz})),
+        };
+      });
+      const payload={
+        spu,
+        name:panel.querySelector('.e-name').value.trim(),
+        brand:panel.querySelector('.e-brand').value.trim(),
+        defaultImage:panel.querySelector('.e-image').value.trim(),
+        currency:panel.querySelector('.e-currency').value,
+        description:panel.querySelector('.e-desc').value,
+        colors,
+      };
+      try{
+        const r=await api('../api/admin/products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        show($('msg'),'Saved '+spu);
+        EDITING=null;EDITDATA=null;
+        await load();
+      }catch(e){show($('msg'),e.message,true);}
+    };
+  });
+}
+
+async function load(){
+  try{const b=await api('../api/admin/products');ALL=b.products;render();}
+  catch(e){show($('msg'),e.message,true);}
+}
+
+$('loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();hide($('loginMsg'));
+  try{
+    await api('../api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('username').value.trim(),password:$('password').value})});
+    $('loginView').classList.add('hidden');$('editorView').classList.remove('hidden');
+    load();
+  }catch(err){show($('loginMsg'),err.message,true);}
+});
+$('logout').addEventListener('click',async e=>{e.preventDefault();await fetch('../api/admin/logout',{method:'POST'});location.reload();});
+$('reload').addEventListener('click',load);
+$('search').addEventListener('input',()=>{PAGE=1;render();});
+$('statusFilter').addEventListener('change',()=>{PAGE=1;render();});
+$('pageSize').addEventListener('change',()=>{PAGESIZE=parseInt($('pageSize').value)||20;PAGE=1;render();});
+
+// 已登录则直接进入
+(async()=>{try{await api('../api/admin/products');$('loginView').classList.add('hidden');$('editorView').classList.remove('hidden');load();}catch{}})();
+</script>
+</body>
+</html>

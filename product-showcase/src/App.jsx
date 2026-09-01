@@ -65,7 +65,11 @@ function AppBody() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const activeProduct = route ? products.find(p => p.id === route.spu) : null
+  // PDP 不依赖列表数据：有 route.spu 就渲染详情，由 ProductDetail 自行 fetch。
+  // 若列表已加载且有该商品，用它做初始占位(更快出图)，否则传最小对象靠 API 拉。
+  const activeProduct = route
+    ? (products.find(p => p.id === route.spu) || { spu: route.spu, id: route.spu, colorOptions: [] })
+    : null
 
   return (
     <>
