@@ -21,3 +21,8 @@ cyndi-logistics-backup.sql
 
 # Crawler outputs (raw HTML, images, third-party product data — regenerable, not for VCS)
 scripts/output/
+
+# Local session/handoff notes and scratch (not for VCS)
+.kiro/
+HANDOFF.md
+_p.html

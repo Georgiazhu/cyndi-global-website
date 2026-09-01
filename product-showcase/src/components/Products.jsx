@@ -2,9 +2,7 @@ import { useState, useMemo } from 'react'
 import ProductCard from './ProductCard'
 import Filters from './Filters'
 import { useSearch } from '../context/SearchContext'
-import { products, groupOrder, sectionOrder } from '../data/products'
-
-const PRICE_MAX = Math.ceil(Math.max(...products.map(p => parseFloat(p.price[0]) || 0)) / 10) * 10
+import { useProductsContext } from '../context/ProductsContext'
 
 // 统一的响应式商品网格：手机1列 → sm2 → lg3 → xl4
 const GRID = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12'
@@ -25,17 +23,22 @@ function ProductSection({ id, title, items }) {
 }
 
 export default function Products() {
-  const [filters, setFilters] = useState({ category: [], brand: [], size: [], maxPrice: PRICE_MAX })
+  const { products, loading, error, groupOrder, sectionOrder } = useProductsContext()
+  const PRICE_MAX = useMemo(
+    () => Math.ceil((Math.max(0, ...products.map(p => parseFloat(p.price[0]) || 0))) / 10) * 10 || 100,
+    [products]
+  )
+  const [filters, setFilters] = useState({ category: [], brand: [], size: [], maxPrice: Infinity })
   const [filterOpen, setFilterOpen] = useState(false)   // 窄屏折叠面板开关
   const { query } = useSearch()
   const q = query.trim().toLowerCase()
 
-  const brands = useMemo(() => [...new Set(products.map(p => p.brand))], [])
+  const brands = useMemo(() => [...new Set(products.map(p => p.brand))], [products])
   const sizeSet = useMemo(() => {
     const s = new Set()
     products.forEach(p => (p.sizeNorm || []).forEach(x => s.add(x)))
     return [...s]
-  }, [])
+  }, [products])
 
   const filtered = useMemo(() => products.filter(p => {
     if (filters.category.length && !filters.category.includes(p.category)) return false
@@ -48,7 +51,7 @@ export default function Products() {
       if (!hay.includes(q)) return false
     }
     return true
-  }), [filters, q])
+  }), [products, filters, q])
 
   const activeCount =
     filters.category.length + filters.brand.length + filters.size.length + (filters.maxPrice < PRICE_MAX ? 1 : 0)
@@ -61,7 +64,7 @@ export default function Products() {
       brands={brands}
       sizes={sizeSet}
       priceMax={PRICE_MAX}
-      filters={filters}
+      filters={{ ...filters, maxPrice: filters.maxPrice === Infinity ? PRICE_MAX : filters.maxPrice }}
       setFilters={setFilters}
       resultCount={filtered.length}
       totalCount={products.length}
@@ -98,7 +101,11 @@ export default function Products() {
           </div>
 
           <div className="flex-1 min-w-0">
-            {hasActive ? (
+            {loading ? (
+              <p className="text-sm text-stone-500 py-20 text-center">Loading products…</p>
+            ) : error ? (
+              <p className="text-sm text-red-600 py-20 text-center">Failed to load products: {error}</p>
+            ) : hasActive ? (
               filtered.length ? (
                 <div className={GRID}>
                   {filtered.map(product => <ProductCard key={product.id} product={product} />)}

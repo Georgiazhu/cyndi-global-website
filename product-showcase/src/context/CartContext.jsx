@@ -27,12 +27,16 @@ export function CartProvider({ children }) {
     }
   }, [cart])
 
+  // 购物车行的唯一键：优先 sku（同款不同色/码算不同行），回退 id
+  const lineKey = (item) => item.sku || item.id
+
   const addToCart = (product, quantity = 1) => {
+    const key = lineKey(product)
     setCart(prev => {
-      const existing = prev.find(item => item.id === product.id)
+      const existing = prev.find(item => lineKey(item) === key)
       if (existing) {
         return prev.map(item =>
-          item.id === product.id
+          lineKey(item) === key
             ? { ...item, quantity: item.quantity + quantity }
             : item
         )
@@ -41,18 +45,18 @@ export function CartProvider({ children }) {
     })
   }
 
-  const removeFromCart = (productId) => {
-    setCart(prev => prev.filter(item => item.id !== productId))
+  const removeFromCart = (key) => {
+    setCart(prev => prev.filter(item => lineKey(item) !== key))
   }
 
-  const updateQuantity = (productId, quantity) => {
+  const updateQuantity = (key, quantity) => {
     if (quantity <= 0) {
-      removeFromCart(productId)
+      removeFromCart(key)
       return
     }
     setCart(prev =>
       prev.map(item =>
-        item.id === productId ? { ...item, quantity } : item
+        lineKey(item) === key ? { ...item, quantity } : item
       )
     )
   }

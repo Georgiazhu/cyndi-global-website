@@ -4,9 +4,12 @@ import Toast from './Toast'
 
 // PLP 卡片（参考 Patagonia 列表页）：可切换颜色的主图 + swatch，点图进 PDP。
 // hover 图片底部滑出 Quick Add：展开尺寸 + 价格，选尺寸直接加购。
+const cur = (c) => (c === 'CNY' ? '¥' : '$')
+
 export default function ProductCard({ product }) {
   const { addToCart } = useCart()
   const options = product.colorOptions?.length ? product.colorOptions : null
+  const sym = cur(product.currency)
   const [activeColor, setActiveColor] = useState(0)
   const [quickOpen, setQuickOpen] = useState(false)
   const [showToast, setShowToast] = useState(false)
@@ -25,8 +28,17 @@ export default function ProductCard({ product }) {
   }
 
   const quickAdd = (size) => {
-    const colorName = options ? options[activeColor]?.name : undefined
-    addToCart({ ...product, selectedColor: colorName, selectedSize: size })
+    const opt = options ? options[activeColor] : null
+    const colorName = opt?.name
+    const code = opt?.code
+    const sku = code && size ? `${product.id}-${code}-${size}` : (code ? `${product.id}-${code}-OS` : undefined)
+    addToCart({
+      ...product,
+      sku,
+      currency: product.currency,
+      selectedColor: colorName,
+      selectedSize: size,
+    })
     setShowToast(true)
     setQuickOpen(false)
   }
@@ -75,9 +87,9 @@ export default function ProductCard({ product }) {
               <div className="bg-white/97 backdrop-blur border-t border-stone-200 p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-semibold text-stone-900">
-                    ${product.price[0]}
+                    {sym}{product.price[0]}
                     {product.price[1] && product.price[1] !== product.price[0] && (
-                      <span className="text-stone-500"> – ${product.price[1]}</span>
+                      <span className="text-stone-500"> – {sym}{product.price[1]}</span>
                     )}
                     <span className="text-xs font-normal text-stone-400"> /unit</span>
                   </span>
@@ -158,9 +170,9 @@ export default function ProductCard({ product }) {
           {/* Price */}
           <div className="mt-2">
             <p className="text-lg font-semibold text-stone-900">
-              ${product.price[0]}
+              {sym}{product.price[0]}
               {product.price[1] && product.price[1] !== product.price[0] && (
-                <span className="text-stone-500"> – ${product.price[1]}</span>
+                <span className="text-stone-500"> – {sym}{product.price[1]}</span>
               )}
               <span className="text-sm font-normal text-stone-400"> /unit</span>
             </p>

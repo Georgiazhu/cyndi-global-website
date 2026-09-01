@@ -1,0 +1,11 @@
+# 本地开发配置（wrangler pages dev）。
+# 线上 Cloudflare Pages 的绑定在控制台配置；此文件主要用于本地跑 functions + 本地 D1。
+name = "cyndi-global-website"
+compatibility_date = "2024-09-01"
+pages_build_output_dir = "product-showcase/dist"
+
+# D1 数据库绑定（本地 dev 用本地 SQLite；线上绑到 cyndi-logistics）
+[[d1_databases]]
+binding = "DB"
+database_name = "cyndi-logistics"
+database_id = "local-dev"

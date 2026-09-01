@@ -1,8 +1,21 @@
 import { useState } from 'react'
 import { useCart } from '../context/CartContext'
+import { useAuth } from '../context/AuthContext'
 
 export default function Cart() {
-  const { cart, isCartOpen, setIsCartOpen, removeFromCart, updateQuantity, clearCart, cartTotal } = useCart()
+  const { cart, isCartOpen, setIsCartOpen, removeFromCart, updateQuantity, clearCart } = useCart()
+  const { user } = useAuth()
+
+  // 按币种分别合计（购物车可能混 ¥ 和 $，不能直接相加）
+  const symOf = (c) => (c === 'CNY' ? '¥' : '$')
+  const totalsByCurrency = cart.reduce((acc, item) => {
+    const c = item.currency || 'USD'
+    acc[c] = (acc[c] || 0) + parseFloat(item.price[0]) * item.quantity
+    return acc
+  }, {})
+  const totalText = Object.entries(totalsByCurrency)
+    .map(([c, v]) => `${symOf(c)}${v.toFixed(2)}`)
+    .join(' + ') || '$0.00'
   const [showOrderForm, setShowOrderForm] = useState(false)
   const [orderNo, setOrderNo] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -22,11 +35,15 @@ export default function Cart() {
     setSubmitError('')
     setSubmitting(true)
     try {
+      // 已登录：name/email 由后端从会话账户取，不传；游客：用表单值
+      const payload = user
+        ? { phone: formData.phone, company: formData.company, notes: formData.notes, items: cart }
+        : { ...formData, items: cart }
       const res = await fetch('/api/orders', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, items: cart }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Could not place order')
@@ -99,28 +116,40 @@ export default function Cart() {
             </button>
           </div>
         ) : showOrderForm ? (
-          /* Order Form */
+          /* Order Form（已登录用户；name/email 来自账户，无需填写）*/
           <form onSubmit={handleSubmitOrder} className="p-6 space-y-4">
-            <div>
-              <label className="block text-xs font-medium uppercase tracking-wide text-stone-500 mb-1.5">Name *</label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                className="w-full border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-stone-900"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium uppercase tracking-wide text-stone-500 mb-1.5">Email *</label>
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={e => setFormData({ ...formData, email: e.target.value })}
-                className="w-full border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-stone-900"
-              />
-            </div>
+            {user && (
+              <div className="border border-stone-200 bg-white px-3 py-2.5 text-sm">
+                <p className="text-xs uppercase tracking-wide text-stone-400 mb-0.5">Ordering as</p>
+                <p className="font-medium text-stone-900">{user.displayName}</p>
+                <p className="text-stone-500">{user.email}</p>
+              </div>
+            )}
+            {/* 游客：填 name/email；已登录：来自账户，不显示 */}
+            {!user && (
+              <>
+                <div>
+                  <label className="block text-xs font-medium uppercase tracking-wide text-stone-500 mb-1.5">Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-stone-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium uppercase tracking-wide text-stone-500 mb-1.5">Email *</label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-stone-900"
+                  />
+                </div>
+              </>
+            )}
             <div>
               <label className="block text-xs font-medium uppercase tracking-wide text-stone-500 mb-1.5">Phone</label>
               <input
@@ -154,14 +183,14 @@ export default function Cart() {
             <div className="border-t border-stone-200 pt-4">
               <h4 className="font-medium text-xs uppercase tracking-wide text-stone-500 mb-3">Order Summary</h4>
               {cart.map(item => (
-                <div key={item.id} className="flex justify-between text-sm text-stone-500 mb-1">
-                  <span>{item.name} × {item.quantity}</span>
-                  <span>${(parseFloat(item.price[0]) * item.quantity).toFixed(2)}</span>
+                <div key={item.sku || item.id} className="flex justify-between text-sm text-stone-500 mb-1">
+                  <span>{item.name}{item.selectedColor ? ` · ${item.selectedColor}` : ''}{item.selectedSize ? ` · ${item.selectedSize}` : ''} × {item.quantity}</span>
+                  <span>{item.currency === 'CNY' ? '¥' : '$'}{(parseFloat(item.price[0]) * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
               <div className="flex justify-between font-semibold text-stone-900 mt-2 pt-2 border-t border-stone-200">
                 <span>Total</span>
-                <span>${cartTotal.toFixed(2)}</span>
+                <span>{totalText}</span>
               </div>
             </div>
 
@@ -200,27 +229,37 @@ export default function Cart() {
               <>
                 <div className="space-y-4 mb-6">
                   {cart.map(item => (
-                    <div key={item.id} className="flex gap-3 p-3 border border-stone-200 bg-white">
+                    <div key={item.sku || item.id} className="flex gap-3 p-3 border border-stone-200 bg-white">
                       <img src={item.image} alt={item.name} className="w-16 h-16 object-contain" />
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-medium text-stone-900 truncate">{item.name}</h4>
-                        <p className="text-xs text-stone-500">${item.price[0]} each</p>
+                        {(item.selectedColor || item.selectedSize) && (
+                          <p className="text-[11px] text-stone-400">
+                            {[item.selectedColor, item.selectedSize].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                        <p className="text-xs text-stone-500">{item.currency === 'CNY' ? '¥' : '$'}{item.price[0]} each</p>
+                        {item.tierPrices && item.tierPrices.length > 1 && (
+                          <p className="text-[11px] text-stone-400 mt-0.5">
+                            Bulk: {item.tierPrices.map((t, i) => `≥${t.beginAmount} ${item.currency === 'CNY' ? '¥' : '$'}${t.price}`).join(' · ')}
+                          </p>
+                        )}
                         <div className="flex items-center gap-2 mt-2">
                           <button
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            onClick={() => updateQuantity(item.sku || item.id, item.quantity - 1)}
                             className="w-6 h-6 border border-stone-300 text-xs flex items-center justify-center hover:bg-stone-100"
                           >
                             -
                           </button>
                           <span className="text-sm font-medium">{item.quantity}</span>
                           <button
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            onClick={() => updateQuantity(item.sku || item.id, item.quantity + 1)}
                             className="w-6 h-6 border border-stone-300 text-xs flex items-center justify-center hover:bg-stone-100"
                           >
                             +
                           </button>
                           <button
-                            onClick={() => removeFromCart(item.id)}
+                            onClick={() => removeFromCart(item.sku || item.id)}
                             className="ml-auto text-stone-400 hover:text-[#b7410e]"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -237,14 +276,32 @@ export default function Cart() {
                 <div className="border-t border-stone-200 pt-4">
                   <div className="flex justify-between items-center mb-4">
                     <span className="font-semibold text-stone-900">Total</span>
-                    <span className="text-xl font-semibold text-stone-900">${cartTotal.toFixed(2)}</span>
+                    <span className="text-xl font-semibold text-stone-900">{totalText}</span>
                   </div>
-                  <button
-                    onClick={() => setShowOrderForm(true)}
-                    className="w-full bg-stone-900 text-white py-3 text-sm font-medium uppercase tracking-wide hover:bg-stone-700 transition-colors"
-                  >
-                    Proceed to Order
-                  </button>
+                  {user ? (
+                    <button
+                      onClick={() => setShowOrderForm(true)}
+                      className="w-full bg-stone-900 text-white py-3 text-sm font-medium uppercase tracking-wide hover:bg-stone-700 transition-colors"
+                    >
+                      Proceed to Order
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => { setIsCartOpen(false); window.dispatchEvent(new CustomEvent('open-auth')) }}
+                        className="w-full bg-stone-900 text-white py-3 text-sm font-medium uppercase tracking-wide hover:bg-stone-700 transition-colors"
+                      >
+                        Sign in to Order
+                      </button>
+                      <button
+                        onClick={() => setShowOrderForm(true)}
+                        className="w-full mt-2 border border-stone-900 text-stone-900 py-3 text-sm font-medium uppercase tracking-wide hover:bg-stone-100 transition-colors"
+                      >
+                        Order as Guest
+                      </button>
+                      <p className="mt-2 text-center text-xs text-stone-400">Sign in to save your details, or check out as a guest.</p>
+                    </>
+                  )}
                   <button
                     onClick={clearCart}
                     className="w-full mt-2 text-sm text-stone-500 hover:text-[#b7410e] py-2"

@@ -9,14 +9,14 @@ import Features from './components/Features'
 import Products from './components/Products'
 import ProductDetail from './components/ProductDetail'
 import Cart from './components/Cart'
-import { products } from './data/products'
+import { ProductsProvider, useProductsContext } from './context/ProductsContext'
 
-// 解析 hash：#product/<id>?color=<name> -> { productId, color }
+// 解析 hash：#product/<spu>?color=<name> -> { spu, color }
 function parseHash() {
   const h = window.location.hash || ''
-  const m = h.match(/^#product\/(\d+)(?:\?color=([^&]*))?/)
+  const m = h.match(/^#product\/([^?]+)(?:\?color=([^&]*))?/)
   if (!m) return null
-  return { productId: Number(m[1]), color: m[2] ? decodeURIComponent(m[2]) : null }
+  return { spu: decodeURIComponent(m[1]), color: m[2] ? decodeURIComponent(m[2]) : null }
 }
 
 // 品类锚点（#tshirts 等）：section 由 JS 异步渲染，浏览器原生锚点滚动会赶不上，
@@ -42,7 +42,8 @@ function scrollToCurrentHash() {
   tick()
 }
 
-function App() {
+function AppBody() {
+  const { products } = useProductsContext()
   const [route, setRoute] = useState(parseHash())
 
   useEffect(() => {
@@ -64,12 +65,10 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const activeProduct = route ? products.find(p => p.id === route.productId) : null
+  const activeProduct = route ? products.find(p => p.id === route.spu) : null
 
   return (
-    <AuthProvider>
-    <CartProvider>
-    <SearchProvider>
+    <>
       <div className="min-h-screen bg-[#faf9f6]">
         <Navbar />
         {activeProduct ? (
@@ -122,6 +121,18 @@ function App() {
           </div>
         </footer>
       </div>
+    </>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+    <CartProvider>
+    <SearchProvider>
+    <ProductsProvider>
+      <AppBody />
+    </ProductsProvider>
     </SearchProvider>
     </CartProvider>
     </AuthProvider>

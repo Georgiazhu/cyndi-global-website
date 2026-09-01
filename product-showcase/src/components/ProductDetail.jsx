@@ -1,11 +1,32 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useCart } from '../context/CartContext'
 import Toast from './Toast'
 
+const cur = (c) => (c === 'CNY' ? '¥' : '$')
+
 // PDP 商品详情页（参考 Patagonia）：左多图画廊，右信息(颜色/尺码/价格/描述/加购)。
+// 从 /api/products/:spu 拉详情，拿到每个颜色下的 SKU(含变体价/阶梯价)。
 export default function ProductDetail({ product, initialColor }) {
   const { addToCart } = useCart()
-  const options = product.colorOptions?.length ? product.colorOptions : null
+  const spu = product.spu || product.id
+
+  // 详情(含 SKU)：优先用 API 拉，失败回退到列表传入的 product
+  const [detail, setDetail] = useState(product)
+  useEffect(() => {
+    let active = true
+    fetch(`/api/products/${encodeURIComponent(spu)}`)
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(data.error || 'load failed')
+        return data
+      })
+      .then((data) => { if (active && data.product) setDetail(data.product) })
+      .catch(() => {})
+    return () => { active = false }
+  }, [spu])
+
+  const options = detail.colorOptions?.length ? detail.colorOptions : null
+  const currency = detail.currency || 'USD'
 
   const initialIdx = useMemo(() => {
     if (!options || !initialColor) return 0
@@ -19,34 +40,72 @@ export default function ProductDetail({ product, initialColor }) {
   const [qty, setQty] = useState(1)
   const [showToast, setShowToast] = useState(false)
 
-  // 当前颜色对应的图集；无 colorOptions 时用整体 gallery
-  const images = options ? (options[activeColor]?.images || []) : (product.gallery || [product.image])
-  const sizes = product.sizeList || []
+  useEffect(() => { setActiveColor(initialIdx) }, [initialIdx])
+
+  const activeOpt = options ? options[activeColor] : null
+  const images = options ? (activeOpt?.images || []) : (detail.gallery || [detail.image])
+  // 该颜色下的 SKU（含 size/price/tierPrices）
+  const colorSkus = activeOpt?.skus || []
+  const sizes = colorSkus.length ? colorSkus.map(s => s.size) : (detail.sizeList || [])
+
+  // 当前选中的 SKU（按颜色+尺码定位）
+  const activeSku = useMemo(() => {
+    if (!colorSkus.length) return null
+    if (activeSize) return colorSkus.find(s => s.size === activeSize) || null
+    return colorSkus.length === 1 ? colorSkus[0] : null
+  }, [colorSkus, activeSize])
+
+  // 展示价：选中 SKU 用其价；否则用该颜色 SKU 的区间；再否则商品区间
+  const priceDisplay = useMemo(() => {
+    if (activeSku) return { min: activeSku.price, max: activeSku.price, curr: activeSku.currency || currency }
+    if (colorSkus.length) {
+      const ps = colorSkus.map(s => s.price).filter(v => v != null)
+      if (ps.length) return { min: Math.min(...ps), max: Math.max(...ps), curr: currency }
+    }
+    const [mn, mx] = detail.priceRange || []
+    return { min: mn, max: mx, curr: currency }
+  }, [activeSku, colorSkus, detail, currency])
+
+  const tierPrices = activeSku?.tierPrices || (colorSkus[0] && colorSkus[0].tierPrices) || null
 
   const selectColor = (idx) => {
     setActiveColor(idx)
     setActiveImg(0)
+    setActiveSize(null)
   }
 
-  const needSize = sizes.length > 0        // 有尺码的商品必须先选
+  const needSize = sizes.length > 1        // 多个尺码必须先选；单尺码/无尺码可直接加
   const canAdd = !needSize || !!activeSize
 
   const handleAddToCart = () => {
-    if (!canAdd) return                    // 没选尺码：不加购
-    const colorName = options ? options[activeColor]?.name : undefined
-    addToCart({ ...product, selectedColor: colorName, selectedSize: activeSize }, qty)
+    if (!canAdd) return
+    const colorName = activeOpt?.name
+    const sku = activeSku
+    addToCart({
+      id: detail.spu || detail.id,
+      spu: detail.spu || detail.id,
+      sku: sku?.sku,
+      name: detail.name,
+      brand: detail.brand,
+      image: images[0] || detail.image,
+      price: [String(sku?.price ?? priceDisplay.min ?? 0)],
+      currency: sku?.currency || currency,
+      tierPrices: sku?.tierPrices || tierPrices || null,
+      selectedColor: colorName,
+      selectedSize: activeSize || (sizes.length === 1 ? sizes[0] : null),
+    }, qty)
     setShowToast(true)
   }
 
   const goBack = () => {
     // 返回到列表页对应品类锚点
-    window.location.hash = product.category ? `#${product.category}` : ''
+    window.location.hash = detail.category ? `#${detail.category}` : ''
   }
 
   return (
     <>
       <Toast
-        message={`"${product.name}" added to cart!`}
+        message={`"${detail.name}" added to cart!`}
         isVisible={showToast}
         onClose={() => setShowToast(false)}
       />
@@ -57,7 +116,7 @@ export default function ProductDetail({ product, initialColor }) {
           onClick={goBack}
           className="mb-6 text-sm text-stone-500 hover:text-stone-900 transition-colors"
         >
-          ← Back to {product.categoryTitle || 'all swag'}
+          ← Back to {detail.categoryTitle || 'all swag'}
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
@@ -82,8 +141,8 @@ export default function ProductDetail({ product, initialColor }) {
             {/* Main image */}
             <div className="flex-1 aspect-[4/5] bg-[#f2efe9] flex items-center justify-center overflow-hidden">
               <img
-                src={images[activeImg] || product.image}
-                alt={product.name}
+                src={images[activeImg] || detail.image}
+                alt={detail.name}
                 className="h-full w-full object-contain p-8"
               />
             </div>
@@ -91,16 +150,29 @@ export default function ProductDetail({ product, initialColor }) {
 
           {/* Right: info */}
           <div className="flex flex-col">
-            <span className="text-[11px] font-medium uppercase tracking-wide text-stone-500">{product.brand}</span>
-            <h1 className="mt-2 text-2xl md:text-3xl font-semibold text-stone-900 leading-tight">{product.name}</h1>
+            <span className="text-[11px] font-medium uppercase tracking-wide text-stone-500">{detail.brand}</span>
+            <h1 className="mt-2 text-2xl md:text-3xl font-semibold text-stone-900 leading-tight">{detail.name}</h1>
 
             <p className="mt-4 text-2xl font-semibold text-stone-900">
-              ${product.price[0]}
-              {product.price[1] && product.price[1] !== product.price[0] && (
-                <span className="text-stone-500"> – ${product.price[1]}</span>
+              {cur(priceDisplay.curr)}{priceDisplay.min}
+              {priceDisplay.max != null && priceDisplay.max !== priceDisplay.min && (
+                <span className="text-stone-500"> – {cur(priceDisplay.curr)}{priceDisplay.max}</span>
               )}
               <span className="text-base font-normal text-stone-400"> /unit</span>
             </p>
+
+            {/* 阶梯价（1688 批发）：买越多越便宜 */}
+            {tierPrices && tierPrices.length > 1 && (
+              <div className="mt-2 text-xs text-stone-500">
+                {tierPrices.map((t, i) => (
+                  <span key={i} className="mr-3">≥{t.beginAmount}: {cur(priceDisplay.curr)}{t.price}</span>
+                ))}
+              </div>
+            )}
+
+            {activeSku && (
+              <p className="mt-1 text-[11px] text-stone-400">SKU: {activeSku.sku}</p>
+            )}
 
             {/* Colors */}
             {options && options.length > 0 && (
@@ -191,10 +263,10 @@ export default function ProductDetail({ product, initialColor }) {
             </button>
 
             {/* Description */}
-            {product.description && (
+            {detail.description && (
               <div className="mt-8 border-t border-stone-200 pt-6">
                 <p className="text-sm font-medium text-stone-800 mb-2">Description</p>
-                <p className="text-sm text-stone-500 leading-relaxed">{product.description}</p>
+                <p className="text-sm text-stone-500 leading-relaxed">{detail.description}</p>
               </div>
             )}
 
