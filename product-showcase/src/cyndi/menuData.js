@@ -1,12 +1,26 @@
 // Swag 二级菜单项 -> 商城页(shop.html)对应品类锚点。
 // 仅这些品类当前有商品；未列出的项暂无商品，链接为占位。
 export const swagItemLinks = {
+  // Apparel
   'T-shirts': '/shop.html#tshirts',
   'Polos': '/shop.html#polos',
   'Hoodies & Crewnecks': '/shop.html#hoodies',
   'Jackets & Outerwear': '/shop.html#jackets',
   'Sports Shorts': '/shop.html#shorts',
+  // Headwear
   'Beanies': '/shop.html#beanies',
+  // Bags
+  'Totes': '/shop.html#totes',
+  'Backpacks': '/shop.html#backpacks',
+  'Sling Bags': '/shop.html#sling',
+  'Drawstring Bags': '/shop.html#drawstring',
+  'Luggage': '/shop.html#luggage',
+  // Drinkware
+  'Tumblers': '/shop.html#tumblers',
+  'Water Bottles': '/shop.html#bottles',
+  'Mugs': '/shop.html#mugs',
+  'Camp Cups': '/shop.html#campcups',
+  'Accessories': '/shop.html#accessories',
 }
 
 // Swag two-level categories
@@ -24,7 +38,7 @@ export const swagCategories = [
   {
     name: 'Bags',
     icon: 'M6 8h12l1 12H5z M9 8V6a3 3 0 0 1 6 0v2',
-    items: ['Backpacks', 'Totes', 'Duffels', 'Drawstring Bags', 'Luggage', 'Pouches'],
+    items: ['Backpacks', 'Totes', 'Sling Bags', 'Drawstring Bags', 'Luggage', 'Duffels'],
   },
   {
     name: 'Footwear',
@@ -34,7 +48,7 @@ export const swagCategories = [
   {
     name: 'Drinkware',
     icon: 'M8 2h8l-1 3H9z M9 5h6l1 14a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2z M8 11h8',
-    items: ['Water Bottles', 'Tumblers', 'Mugs', 'Camp Cups', 'Can Coolers', 'Accessories'],
+    items: ['Water Bottles', 'Tumblers', 'Mugs', 'Camp Cups', 'Accessories'],
   },
   {
     name: 'Office',

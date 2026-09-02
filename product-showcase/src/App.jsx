@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { CartProvider } from './context/CartContext'
 import { AuthProvider } from './context/AuthContext'
 import { SearchProvider } from './context/SearchContext'
@@ -43,7 +43,7 @@ function scrollToCurrentHash() {
 }
 
 function AppBody() {
-  const { products } = useProductsContext()
+  const { products, loading } = useProductsContext()
   const [route, setRoute] = useState(parseHash())
 
   useEffect(() => {
@@ -57,13 +57,11 @@ function AppBody() {
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
-  // 首次加载（从 cyndi 菜单跳来带 #tshirts）：渲染后滚到品类
-  // 首次加载（从 cyndi 菜单带 #tshirts 跳来）：用 useLayoutEffect 在浏览器绘制前
-  // 同步定位，避免先在顶部绘一帧再跳过去的"闪一下顶部"。
-  useLayoutEffect(() => {
-    if (!parseHash()) scrollToCurrentHash()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  // 品类锚点定位：等商品数据加载完成、section 真正渲染后再定位，
+  // 避免在 loading 空白态先滚一次（那会"闪一下空白商品页"）。
+  useEffect(() => {
+    if (!loading && !parseHash()) scrollToCurrentHash()
+  }, [loading])
 
   // PDP 不依赖列表数据：有 route.spu 就渲染详情，由 ProductDetail 自行 fetch。
   // 若列表已加载且有该商品，用它做初始占位(更快出图)，否则传最小对象靠 API 拉。
