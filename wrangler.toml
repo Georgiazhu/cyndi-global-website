@@ -8,7 +8,7 @@ pages_build_output_dir = "product-showcase/dist"
 [[d1_databases]]
 binding = "DB"
 database_name = "cyndi-logistics"
-database_id = "local-dev"
+database_id = "016ad95b-a8eb-4ea3-afdc-b1573b906e7a"
 
 # R2 图片存储（本地 dev 用本地模拟；线上绑到 cyndi-products）
 [[r2_buckets]]
