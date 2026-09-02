@@ -48,7 +48,9 @@ select#pageSize{width:auto}
 .edit-panel input,.edit-panel textarea,.edit-panel select{width:100%;padding:7px 9px;font-size:13px}
 .ep-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .colors-head{display:flex;align-items:center;gap:10px;margin:14px 0 8px}
-.color-block{border:1px solid #e6eef3;border-radius:8px;padding:10px;margin-bottom:10px;background:#fff}
+.color-block{border:1px solid #cdd9e3;border-left:4px solid var(--blue);border-radius:10px;padding:16px;margin-bottom:22px;background:#fbfdff;box-shadow:0 2px 6px #0f1f3a0f}
+.color-block+.color-block{margin-top:4px}
+.color-block .cb-title{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--blue);font-weight:700;margin-bottom:8px}
 .cb-row{display:flex;gap:10px;align-items:flex-end}
 .cb-row label{flex:1;margin-top:0}
 .cb-row .c-del{flex:0 0 auto;white-space:nowrap}
@@ -56,10 +58,12 @@ select#pageSize{width:auto}
 </head>
 <body>
 <header>
-  <strong>CYNDI GLOBAL — PRODUCTS</strong>
-  <div class="row" style="gap:16px">
-    <a href="./logistics.html">Logistics admin</a>
-    <a href="#" id="logout">Log out</a>
+  <strong>CYNDI GLOBAL — ADMIN</strong>
+  <div class="row" style="gap:16px;align-items:center">
+    <a href="/admin/" style="color:#cfe0ee;text-decoration:none;font-size:14px">Home</a>
+    <a href="/admin/products" style="color:#fff;font-weight:700;text-decoration:none;font-size:14px">Products</a>
+    <a href="/admin/logistics.html" style="color:#cfe0ee;text-decoration:none;font-size:14px">Shipping</a>
+    <a href="#" id="logout" style="color:#cfe0ee;text-decoration:none;font-size:14px">Log out</a>
   </div>
 </header>
 <main>
@@ -154,6 +158,7 @@ function editPanel(p){
     const imgs=(c.images||[]).join('\n');
     const sizes=(c.skus||[]).map(s=>s.size).join(', ');
     return '<div class="color-block" data-ci="'+idx+'">'
+      +'<div class="cb-title">Color '+(idx+1)+(c.name?' — '+esc(c.name):'')+'</div>'
       +'<div class="cb-row">'
         +'<label>Color name<input class="c-name" value="'+esc(c.name)+'"></label>'
         +'<label>Code<input class="c-code" value="'+esc(c.code||'')+'" placeholder="auto"></label>'
@@ -163,6 +168,11 @@ function editPanel(p){
         +'<label>Swatch URL<input class="c-swatch" value="'+esc(c.swatch||'')+'"></label>'
       +'</div>'
       +'<label>Image URLs (one per line)<textarea class="c-images" rows="2">'+esc(imgs)+'</textarea></label>'
+      +'<div class="cb-row" style="align-items:center;gap:8px">'
+        +'<input type="file" class="c-upload" accept="image/*" multiple style="flex:1">'
+        +'<button type="button" class="small secondary c-upload-btn">Upload image</button>'
+        +'<span class="c-upload-msg" style="font-size:11px;color:var(--muted)"></span>'
+      +'</div>'
       +'<label>Sizes (comma separated, e.g. S,M,L or OS)<input class="c-sizes" value="'+esc(sizes)+'"></label>'
       +'</div>';
   }).join('');
@@ -254,7 +264,16 @@ function bindRows(){
     if(save)save.onclick=async()=>{
       const inputs=tr.querySelectorAll('input[data-sku]');
       const skuPrices=[...inputs].map(i=>({sku:i.dataset.sku,price:parseFloat(i.value)})).filter(x=>x.price>=0);
-      try{const r=await api('../api/admin/products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({spu,skuPrices})});const p=ALL.find(x=>x.spu===spu);p.priceRange=r.product.priceRange;render();show($('msg'),'Saved prices for '+spu);}catch(e){show($('msg'),e.message,true);}
+      try{
+        const r=await api('../api/admin/products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({spu,skuPrices})});
+        const p=ALL.find(x=>x.spu===spu);
+        p.priceRange=r.product.priceRange;
+        // 同步内存里 SKU 价，避免 render 用回旧值
+        const byId=Object.fromEntries(skuPrices.map(x=>[x.sku,x.price]));
+        (p.skus||[]).forEach(s=>{ if(byId[s.sku]!==undefined) s.price=byId[s.sku]; });
+        render();
+        show($('msg'),'Saved prices for '+spu);
+      }catch(e){show($('msg'),e.message,true);}
     };
   });
   // 编辑面板：加颜色 / 删颜色 / 保存
@@ -269,6 +288,34 @@ function bindRows(){
     };
     tr.querySelectorAll('.c-del').forEach((btn,i)=>{
       btn.onclick=()=>{ if(EDITDATA){EDITDATA.colorOptions.splice(i,1);render();} };
+    });
+    // 每个颜色块的图片上传：传到 R2，返回 URL 追加到该颜色的 Image URLs
+    tr.querySelectorAll('.color-block').forEach(cb=>{
+      const btn=cb.querySelector('.c-upload-btn');
+      if(!btn)return;
+      btn.onclick=async()=>{
+        const input=cb.querySelector('.c-upload');
+        const msg=cb.querySelector('.c-upload-msg');
+        const files=[...(input.files||[])];
+        if(!files.length){msg.textContent='Select image(s) first';return;}
+        msg.textContent='Uploading…';
+        const fd=new FormData();
+        fd.append('spu',spu);
+        files.forEach(f=>fd.append('file',f));
+        try{
+          const res=await fetch('../api/admin/product-upload',{method:'POST',body:fd});
+          const data=await res.json().catch(()=>({}));
+          if(!res.ok)throw new Error(data.error||'Upload failed');
+          const ta=cb.querySelector('.c-images');
+          const existing=ta.value.split('\n').map(x=>x.trim()).filter(Boolean);
+          ta.value=[...existing,...(data.urls||[])].join('\n');
+          // swatch 若空,用第一张
+          const sw=cb.querySelector('.c-swatch');
+          if(!sw.value.trim()&&data.urls&&data.urls[0])sw.value=data.urls[0];
+          msg.textContent='Uploaded '+(data.urls||[]).length+' (remember to Save)';
+          input.value='';
+        }catch(e){msg.textContent=e.message;}
+      };
     });
     const save=tr.querySelector('.saveEdit');
     if(save)save.onclick=async()=>{

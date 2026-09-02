@@ -36,7 +36,7 @@ OUT_PATA = ROOT / "output" / "products_patagonia"
 OUT_1688 = ROOT / "output" / "products_1688"
 OUT_TB   = ROOT / "output" / "products_taobao"
 OUT_TM   = ROOT / "output" / "products_tmall"
-OUT_SQL  = ROOT / "output" / "_import_products.sql"
+OUT_SQL  = Path(os.environ.get("OUT_SQL", str(ROOT / "output" / "_import_products.sql")))
 
 # 最新全量 xlsx（含 Apparel/Headwear/Bags/Drinkware 全部品类）
 XLSX = os.environ.get("XLSX", "/Users/gufe/Downloads/品类选择表-Drinkware.xlsx").strip()
@@ -72,7 +72,10 @@ CATEGORY_MAP = {
 }
 CURRENCY_MAP = {"patagonia": "USD", "1688": "CNY", "taobao": "CNY", "tmall": "CNY"}
 NOW = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-IMG_BASE = "/images/products"
+# 图片路径前缀：本地默认 /images/products（读本地 public）；
+# 生产用 R2 公开 URL，设环境变量 IMG_BASE 覆盖，例如：
+#   IMG_BASE="https://pub-xxxx.r2.dev/images/products"
+IMG_BASE = os.environ.get("IMG_BASE", "/images/products").rstrip("/")
 
 
 # ---- helpers ----

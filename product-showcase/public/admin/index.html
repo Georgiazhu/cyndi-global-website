@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Console | Cyndi Global</title>
+<style>
+:root{--navy:#0f1f3a;--blue:#1e5a8a;--sky:#eef6fb;--text:#1a2a3a;--muted:#71849a;--line:#dce8f0}
+*{box-sizing:border-box}body{margin:0;background:var(--sky);color:var(--text);font-family:Arial,sans-serif}
+header{padding:16px 5%;background:var(--navy);color:#fff;display:flex;justify-content:space-between;align-items:center}
+.nav{display:flex;gap:18px}.nav a{color:#cfe0ee;text-decoration:none;font-size:14px}.nav a.active{color:#fff;font-weight:700}
+main{max-width:900px;margin:48px auto;padding:0 16px}
+h1{margin:0 0 8px}.sub{color:var(--muted);margin:0 0 28px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 8px 24px #0f1f3a12;text-decoration:none;color:inherit;transition:transform .15s,box-shadow .15s}
+.card:hover{transform:translateY(-3px);box-shadow:0 14px 32px #0f1f3a1f}
+.card h2{margin:0 0 6px;color:var(--navy);font-size:20px}
+.card p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+.icon{width:44px;height:44px;border-radius:10px;background:var(--sky);display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.icon svg{width:24px;height:24px;stroke:var(--blue);fill:none;stroke-width:2}
+@media(max-width:640px){.cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <strong>CYNDI GLOBAL — ADMIN</strong>
+  <nav class="nav">
+    <a href="/admin/" class="active">Home</a>
+    <a href="/admin/products">Products</a>
+    <a href="/admin/logistics.html">Shipping</a>
+  </nav>
+</header>
+<main>
+  <h1>Admin Console</h1>
+  <p class="sub">Manage your store products and logistics records.</p>
+  <div class="cards">
+    <a class="card" href="/admin/products">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M6 8h12l1 12H5z M9 8V6a3 3 0 0 1 6 0v2"/></svg></div>
+      <h2>Products</h2>
+      <p>Manage products, prices, colors, sizes, images, visibility and tiered pricing.</p>
+    </a>
+    <a class="card" href="/admin/logistics.html">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M1 5h11v11H1z M12 8h5l4 4v4h-9z M5 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M17 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg></div>
+      <h2>Shipping</h2>
+      <p>Edit shipment records, tracking status, movement history and warehouse photos.</p>
+    </a>
+  </div>
+</main>
+</body>
+</html>
