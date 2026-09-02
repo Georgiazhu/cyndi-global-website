@@ -2,12 +2,18 @@ import { corsHeaders, json } from '../../_lib/auth.js';
 
 // GET /api/products/:spu —— 商品详情(PDP)。
 // 含商品信息 + 所有颜色 + 每颜色下的 SKU(尺码/价格/阶梯价)。只返回 active 商品与 active SKU。
-export async function onRequestGet({ request, env, params }) {
+export async function onRequestGet({ request, env, params, waitUntil }) {
   const cors = corsHeaders(request);
   if (!env.DB) return json({ error: 'Database binding is not configured' }, 503, cors);
 
   const spu = String(params.spu || '').trim();
   if (!spu) return json({ error: 'spu is required' }, 400, cors);
+
+  // 边缘缓存
+  const cache = caches.default;
+  const cacheKey = new Request(new URL(request.url).toString(), { method: 'GET' });
+  const cached = await cache.match(cacheKey);
+  if (cached) return cached;
 
   const p = await env.DB.prepare(
     `SELECT spu,name,brand,group_name,category,category_title,source,source_id,currency,
@@ -46,7 +52,7 @@ export async function onRequestGet({ request, env, params }) {
     skus: skusByColor[c.color_code] || [],
   }));
 
-  return json({
+  const res = json({
     product: {
       spu: p.spu,
       name: p.name,
@@ -64,7 +70,10 @@ export async function onRequestGet({ request, env, params }) {
       attributes: safeParse(p.attributes_json, null),
       colorOptions,
     },
-  }, 200, cors);
+  }, 200, { ...cors, 'Cache-Control': 'public, max-age=300' });
+  if (waitUntil) waitUntil(cache.put(cacheKey, res.clone()));
+  else await cache.put(cacheKey, res.clone());
+  return res;
 }
 
 export async function onRequestOptions({ request }) {

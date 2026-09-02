@@ -3,9 +3,15 @@ import { corsHeaders, json } from '../_lib/auth.js';
 // GET /api/products —— 商品列表（只返回 active）。
 // 每个商品含基本信息 + 颜色(swatch/图) + 价格区间；不含全部 SKU（列表保持轻量）。
 // 可选 query: group / category / source 过滤。
-export async function onRequestGet({ request, env }) {
+export async function onRequestGet({ request, env, waitUntil }) {
   const cors = corsHeaders(request);
   if (!env.DB) return json({ error: 'Database binding is not configured' }, 503, cors);
+
+  // 边缘缓存：命中直接返回（商品不常变，5 分钟 TTL）
+  const cache = caches.default;
+  const cacheKey = new Request(new URL(request.url).toString(), { method: 'GET' });
+  const cached = await cache.match(cacheKey);
+  if (cached) return cached;
 
   const url = new URL(request.url);
   const group = url.searchParams.get('group');
@@ -68,7 +74,14 @@ export async function onRequestGet({ request, env }) {
     sizeList: sizesBySpu[p.spu] || [],
   }));
 
-  return json({ products: out }, 200, cors);
+  const res = json({ products: out }, 200, {
+    ...cors,
+    'Cache-Control': 'public, max-age=300',   // 边缘 + 浏览器缓存 5 分钟
+  });
+  // 存入边缘缓存(不阻塞响应)
+  if (waitUntil) waitUntil(cache.put(cacheKey, res.clone()));
+  else await cache.put(cacheKey, res.clone());
+  return res;
 }
 
 export async function onRequestOptions({ request }) {

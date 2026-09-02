@@ -148,6 +148,14 @@ export async function onRequestPost({ request, env }) {
   const p = await env.DB.prepare(
     'SELECT spu,name,status,tiered_pricing,price_min,price_max FROM products WHERE spu = ?1'
   ).bind(spu).first();
+  // 清边缘缓存：让改动尽快在前台生效（列表 + 该商品详情）
+  try {
+    const origin = new URL(request.url).origin;
+    const cache = caches.default;
+    await cache.delete(new Request(`${origin}/api/products`));
+    await cache.delete(new Request(`${origin}/api/products/${encodeURIComponent(spu)}`));
+  } catch {}
+
   return json({ ok: true, product: {
     spu: p.spu, name: p.name, status: p.status,
     tieredPricing: !!p.tiered_pricing, priceRange: [p.price_min, p.price_max],
