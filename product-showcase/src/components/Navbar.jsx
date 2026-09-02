@@ -58,17 +58,17 @@ export default function Navbar() {
 
       {/* Main nav */}
       <nav ref={swagWrapRef} className="relative bg-[#faf9f6]/95 backdrop-blur border-b border-stone-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto pl-2 pr-4 sm:pr-6 lg:pr-8">
           <div className="flex items-center justify-between h-16 gap-4">
             {/* Back to Cyndi + Logo */}
             <div className="flex items-center gap-4 flex-shrink-0">
               <a
                 href="/"
-                className="flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors"
+                className="flex items-center gap-3 shrink-0"
                 title="Back to Cyndi"
               >
-                <span className="text-base leading-none">←</span>
-                <span className="hidden sm:inline">Cyndi</span>
+                <span className="w-9 h-9 rounded-full bg-stone-900 text-white grid place-items-center text-sm font-bold">C</span>
+                <span className="text-xl font-bold tracking-tight text-stone-900">Cyndi</span>
               </a>
               <span className="h-5 w-px bg-stone-300 hidden sm:block" />
               <a href="#top" className="flex items-center">
