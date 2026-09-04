@@ -34,6 +34,7 @@ import openpyxl
 XLSX = os.environ.get("XLSX", "/Users/gufe/Downloads/品类选择表 (1).xlsx").strip()
 CDP = os.environ.get("PATAGONIA_CDP", "http://localhost:9222").strip()
 LIMIT = int(os.environ.get("LIMIT", "5"))
+ONLY = os.environ.get("ONLY", "").strip()   # 只抓指定 offer_id（补抓单个）
 DELAY_MIN = float(os.environ.get("DELAY_MIN", "120"))
 DELAY_MAX = float(os.environ.get("DELAY_MAX", "180"))
 GOTO_TIMEOUT = int(os.environ.get("GOTO_TIMEOUT", "90000"))
@@ -160,6 +161,8 @@ async def main():
                 print(f"[STOP] 已达 LIMIT={LIMIT}。")
                 break
             oid = item["offer_id"]
+            if ONLY and oid != ONLY:
+                continue
             pdir = PRODUCTS_DIR / oid
             if (pdir / "data.json").exists():
                 print(f"[SKIP] {oid} 已抓过。")

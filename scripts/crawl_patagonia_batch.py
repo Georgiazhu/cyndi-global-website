@@ -184,34 +184,49 @@ async def extract_from_html(html: str):
 
 
 async def download_images_in_session(page, image_urls, dest_dir):
-    """在已建立会话的 page 里用浏览器 fetch 下载图片（过 Akamai）。"""
+    """在已建立会话的 page 里下载图片（过 Akamai）。
+    优先浏览器 fetch；失败则用 page.request.get（APIRequestContext，带会话 cookie，
+    不受页面 CORS 限制）—— 适配 dis.patagonia.com 等跨子域 CDN。"""
     dest_dir.mkdir(parents=True, exist_ok=True)
     saved = []
     for idx, url in enumerate(image_urls):
+        content = None
+        # 方式1：浏览器内 fetch
         try:
             res = await page.evaluate(
                 """async (u) => {
-                    const resp = await fetch(u, { credentials: 'include' });
-                    if (!resp.ok) return { ok: false, status: resp.status };
-                    const buf = await resp.arrayBuffer();
-                    let binary = ''; const bytes = new Uint8Array(buf);
-                    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-                    return { ok: true, b64: btoa(binary), type: resp.headers.get('content-type') };
+                    try {
+                        const resp = await fetch(u, { credentials: 'include' });
+                        if (!resp.ok) return { ok: false, status: resp.status };
+                        const buf = await resp.arrayBuffer();
+                        let binary = ''; const bytes = new Uint8Array(buf);
+                        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                        return { ok: true, b64: btoa(binary) };
+                    } catch (e) { return { ok: false, err: String(e) }; }
                 }""",
                 url,
             )
-        except Exception as e:
-            saved.append({"src": url, "error": f"evaluate: {e}"})
+            if res and res.get("ok"):
+                content = base64.b64decode(res["b64"])
+        except Exception:
+            pass
+        # 方式2 fallback：page.request.get（不受 CORS 限制）
+        if content is None:
+            try:
+                r = await page.request.get(url, timeout=30000)
+                if r.ok:
+                    content = await r.body()
+            except Exception as e:
+                saved.append({"src": url, "error": f"request: {e}"})
+                continue
+        if content is None:
+            saved.append({"src": url, "error": "http none"})
             continue
-        if not res or not res.get("ok"):
-            saved.append({"src": url, "error": f"http {res.get('status') if res else 'none'}"})
-            continue
-        content = base64.b64decode(res["b64"])
         name = Path(urllib.parse.urlparse(url).path).name or f"image_{idx}"
         dest = dest_dir / f"{idx:02d}_{name}"
         dest.write_bytes(content)
         saved.append({"src": url, "file": dest.name, "bytes": len(content)})
-        await page.wait_for_timeout(400)
+        await page.wait_for_timeout(300)
     return saved
 
 
@@ -228,6 +243,7 @@ async def main():
     PRODUCTS_DIR.mkdir(parents=True, exist_ok=True)
 
     processed = 0
+    consec_404 = 0
     async with async_playwright() as p:
         if CDP_ENDPOINT:
             # === 连接你已手动打开的浏览器（会话最真，窗口不用关）===
@@ -294,12 +310,20 @@ async def main():
                     await page.wait_for_timeout(int(DELAY * 1000))
                 continue
 
-            # 明确的 404 / Not found（风控信号）才停整批
+            # 404 / Not found：单个多为商品失效/下架 -> 跳过继续；
+            # 连续多个 404 才可能是风控 -> 停批。
             is_notfound = ("Not found" in html and len(html) < 500) or (status == 404)
             if is_notfound:
-                print(f"        [BLOCKED] {len(html)} bytes / status={status}（Not found / 风控）。"
-                      f"停止批量以免加深风控。已完成 {processed} 个。", file=sys.stderr)
-                break
+                consec_404 += 1
+                if consec_404 >= 4:
+                    print(f"        [BLOCKED] 连续 {consec_404} 个 404，疑似风控，停批。已完成 {processed} 个。", file=sys.stderr)
+                    break
+                print(f"        [SKIP-404] status={status}（商品失效/下架），跳过。已完成 {processed} 个。", file=sys.stderr)
+                if processed < LIMIT and i < len(items) - 1:
+                    print(f"        ... 等待 {DELAY}s 再抓下一个 ...")
+                    await page.wait_for_timeout(int(DELAY * 1000))
+                continue
+            consec_404 = 0
             # 拿到页面但结构不符（非 404）：跳过该商品，不停整批
             if "product-title" not in html or len(html) < 5000:
                 print(f"        [SKIP-BAD] 页面结构异常（{len(html)} bytes, status={status}），跳过。",

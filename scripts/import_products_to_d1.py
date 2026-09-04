@@ -55,8 +55,18 @@ CATEGORY_MAP = {
     "Hoodies & Crewnecks": ("hoodies", "Hoodies & Crewnecks", "Apparel"),
     "Jackets & Outerwear": ("jackets", "Jackets & Outerwear", "Apparel"),
     "Sports Shorts": ("shorts", "Sports Shorts", "Apparel"),
+    "Zips": ("zips", "Zips", "Apparel"),
     # Headwear
     "Beanies": ("beanies", "Beanies", "Headwear"),
+    "Hats": ("hats", "Hats", "Headwear"),
+    "Bucket Hats": ("buckethats", "Bucket Hats", "Headwear"),
+    "Visors": ("visors", "Visors", "Headwear"),
+    # Footwear
+    "Sneakers": ("sneakers", "Sneakers", "Footwear"),
+    "Slippers": ("slippers", "Slippers", "Footwear"),
+    "Sandals": ("sandals", "Sandals", "Footwear"),
+    "Flip Flops & Clogs": ("flipflops", "Flip Flops & Clogs", "Footwear"),
+    "Socks": ("socks", "Socks", "Footwear"),
     # Bags
     "Totes": ("totes", "Totes", "Bags"),
     "Backpacks": ("backpacks", "Backpacks", "Bags"),
