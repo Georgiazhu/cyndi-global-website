@@ -16,9 +16,13 @@ export default function ProductCard({ product }) {
 
   const sizes = product.sizeList || []
 
+  // 选中颜色的主图：优先该颜色的 swatch（1688 各色共用同一 gallery，只有 swatch 区分颜色；
+  // Patagonia 的 swatch 也是该色代表图），回退到该色 images[0]，再回退商品主图。
   const mainImage =
-    options && options[activeColor]?.images?.[0]
-      ? options[activeColor].images[0]
+    options
+      ? (options[activeColor]?.swatch
+          || options[activeColor]?.images?.[0]
+          || product.image)
       : product.image
 
   const goToPdp = () => {
