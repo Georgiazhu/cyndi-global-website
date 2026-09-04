@@ -22,6 +22,12 @@ cyndi-logistics-backup.sql
 # Crawler outputs (raw HTML, images, third-party product data — regenerable, not for VCS)
 scripts/output/
 
+# Service showcase images are hosted on R2 (img.cyndiglobal.com), not committed.
+# Keep the manifest JSONs; ignore the image binaries.
+product-showcase/public/images/services/**/*.jpg
+product-showcase/public/images/services/**/*.jpeg
+product-showcase/public/images/services/**/*.png
+
 # Local session/handoff notes and scratch (not for VCS)
 .kiro/
 HANDOFF.md

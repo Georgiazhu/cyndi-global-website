@@ -46,7 +46,7 @@ export default function CyndiNavbar() {
     >
       <nav className="max-w-7xl mx-auto px-6 lg:px-12 h-20 flex items-center justify-between">
         {/* Logo */}
-        <a href="#top" className="flex items-center gap-3 shrink-0">
+        <a href="/#top" className="flex items-center gap-3 shrink-0">
           <span className="w-9 h-9 rounded-full bg-stone-900 text-white grid place-items-center text-sm font-bold">C</span>
           <span className="text-xl font-bold tracking-tight text-stone-900">Cyndi</span>
         </a>
@@ -93,7 +93,7 @@ function SimpleMega({ items, onEnter, onLeave }) {
       <span className="absolute left-0 right-0 -top-2.5 h-2.5 block" />
       <div className="flex flex-col gap-1">
         {items.map(it => (
-          <a key={it.title} href="#" className="group flex items-start gap-3.5 p-3 rounded-xl hover:bg-stone-100 transition-colors">
+          <a key={it.title} href={it.href || '#'} className="group flex items-start gap-3.5 p-3 rounded-xl hover:bg-stone-100 transition-colors">
             <span className="text-stone-500 group-hover:text-[#e07a3a] shrink-0 mt-0.5 transition-colors">
               <Icon d={it.icon} className="w-6 h-6" />
             </span>

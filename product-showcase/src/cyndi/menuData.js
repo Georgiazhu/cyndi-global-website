@@ -86,8 +86,8 @@ export const swagCategories = [
 // Service dropdown (icon + title + blurb)
 export const serviceItems = [
   { icon: 'M3 4h18v12H3z M8 20h8 M12 16v4', title: 'Swag Platform', blurb: 'Everything you need to manage swag well' },
-  { icon: 'M6 10V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4 M5 10h14a1 1 0 0 1 1 1v3H4v-3a1 1 0 0 1 1-1z M6 14v6 M18 14v6', title: 'Office Furniture Procurement', blurb: 'Source and outfit your workspace end to end' },
-  { icon: 'M3 21h18 M5 21V8l7-4 7 4v13 M9 21v-6h6v6', title: 'Booth Construction & Exhibit Fabrication', blurb: 'Custom builds that make your brand stand out' },
+  { icon: 'M6 10V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4 M5 10h14a1 1 0 0 1 1 1v3H4v-3a1 1 0 0 1 1-1z M6 14v6 M18 14v6', title: 'Office Furniture Procurement', blurb: 'Source and outfit your workspace end to end', href: '/services/office-furniture.html' },
+  { icon: 'M3 21h18 M5 21V8l7-4 7 4v13 M9 21v-6h6v6', title: 'Booth Construction & Exhibit Fabrication', blurb: 'Custom builds that make your brand stand out', href: '/services/exhibit-fabrication.html' },
   { icon: 'M3 21V9l9-5 9 5v12 M8 21v-6h8v6 M8 12h8', title: 'Warehousing & Fulfillment', blurb: 'Vertically integrated warehousing, ships same day' },
   { icon: 'M1 5h11v11H1z M12 8h5l4 4v4h-9z', title: 'Shipping', blurb: 'Lower costs, better deliverability, fewer problems' },
   { icon: 'M6 8h12l-1 12H7z M9 8V6a3 3 0 0 1 6 0v2', title: 'Employee Purchase Platform', blurb: 'Let your team order branded gear on demand' },

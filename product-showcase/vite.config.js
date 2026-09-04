@@ -11,6 +11,9 @@ export default defineConfig({
         index: 'index.html',
         // 商城页（商品/购物车/搜索）
         shop: 'shop.html',
+        // Service 作品展示页
+        officeFurniture: 'services/office-furniture.html',
+        exhibitFabrication: 'services/exhibit-fabrication.html',
       },
     },
   },

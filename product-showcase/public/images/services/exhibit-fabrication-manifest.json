@@ -1,0 +1,167 @@
+[
+  {
+    "title": "Full-Scale Exhibit Projects",
+    "slug": "full-scale",
+    "blurb": "Turn-key, large-format booths designed and built to headline the show floor.",
+    "cover": "/images/services/exhibit-fabrication/fs-IKEA-01.jpg",
+    "projects": [
+      {
+        "name": "Black & White",
+        "images": [
+          "/images/services/exhibit-fabrication/fs-BlackWhite-01.jpg",
+          "/images/services/exhibit-fabrication/fs-BlackWhite-02.jpg",
+          "/images/services/exhibit-fabrication/fs-BlackWhite-03.jpg",
+          "/images/services/exhibit-fabrication/fs-BlackWhite-04.jpg"
+        ]
+      },
+      {
+        "name": "Black & Yellow",
+        "images": [
+          "/images/services/exhibit-fabrication/fs-BlackYellow-01.jpg",
+          "/images/services/exhibit-fabrication/fs-BlackYellow-02.jpg",
+          "/images/services/exhibit-fabrication/fs-BlackYellow-03.jpg",
+          "/images/services/exhibit-fabrication/fs-BlackYellow-04.jpg"
+        ]
+      },
+      {
+        "name": "EY",
+        "images": [
+          "/images/services/exhibit-fabrication/fs-EY-01.jpg",
+          "/images/services/exhibit-fabrication/fs-EY-02.jpg",
+          "/images/services/exhibit-fabrication/fs-EY-03.jpg",
+          "/images/services/exhibit-fabrication/fs-EY-04.jpg"
+        ]
+      },
+      {
+        "name": "IKEA",
+        "images": [
+          "/images/services/exhibit-fabrication/fs-IKEA-01.jpg",
+          "/images/services/exhibit-fabrication/fs-IKEA-02.jpg",
+          "/images/services/exhibit-fabrication/fs-IKEA-03.jpg",
+          "/images/services/exhibit-fabrication/fs-IKEA-04.jpg"
+        ]
+      },
+      {
+        "name": "Orange Glow",
+        "images": [
+          "/images/services/exhibit-fabrication/fs-OrangeGlow-01.jpg",
+          "/images/services/exhibit-fabrication/fs-OrangeGlow-02.jpg",
+          "/images/services/exhibit-fabrication/fs-OrangeGlow-03.jpg",
+          "/images/services/exhibit-fabrication/fs-OrangeGlow-04.jpg"
+        ]
+      }
+    ]
+  },
+  {
+    "title": "Booth & Compact Displays",
+    "slug": "booth",
+    "blurb": "Modular and compact stands that pack a branded punch in tighter footprints.",
+    "cover": "/images/services/exhibit-fabrication/bc-TechStyle-01.jpg",
+    "projects": [
+      {
+        "name": "Color Blocks",
+        "images": [
+          "/images/services/exhibit-fabrication/bc-ColorBlocks-01.jpg",
+          "/images/services/exhibit-fabrication/bc-ColorBlocks-02.jpg",
+          "/images/services/exhibit-fabrication/bc-ColorBlocks-03.jpg",
+          "/images/services/exhibit-fabrication/bc-ColorBlocks-04.jpg"
+        ]
+      },
+      {
+        "name": "Color Stripes",
+        "images": [
+          "/images/services/exhibit-fabrication/bc-ColorStripes-01.jpg",
+          "/images/services/exhibit-fabrication/bc-ColorStripes-02.jpg",
+          "/images/services/exhibit-fabrication/bc-ColorStripes-03.jpg",
+          "/images/services/exhibit-fabrication/bc-ColorStripes-04.jpg"
+        ]
+      },
+      {
+        "name": "Doppelherz",
+        "images": [
+          "/images/services/exhibit-fabrication/bc-Doppelherz1.jpg",
+          "/images/services/exhibit-fabrication/bc-Doppelherz2.jpg",
+          "/images/services/exhibit-fabrication/bc-Doppelherz3.jpg",
+          "/images/services/exhibit-fabrication/bc-Doppelherz4.jpg"
+        ]
+      },
+      {
+        "name": "Orange Wood",
+        "images": [
+          "/images/services/exhibit-fabrication/bc-OrangeWood-01.jpg",
+          "/images/services/exhibit-fabrication/bc-OrangeWood-02.jpg",
+          "/images/services/exhibit-fabrication/bc-OrangeWood-03.jpg",
+          "/images/services/exhibit-fabrication/bc-OrangeWood-04.jpg"
+        ]
+      },
+      {
+        "name": "Orange Wood Curve",
+        "images": [
+          "/images/services/exhibit-fabrication/bc-OrangeWoodCurve-01.jpg",
+          "/images/services/exhibit-fabrication/bc-OrangeWoodCurve-02.jpg",
+          "/images/services/exhibit-fabrication/bc-OrangeWoodCurve-03.jpg"
+        ]
+      },
+      {
+        "name": "Oxygen Green",
+        "images": [
+          "/images/services/exhibit-fabrication/bc-OxygenGreen-01.jpg",
+          "/images/services/exhibit-fabrication/bc-OxygenGreen-02.jpg",
+          "/images/services/exhibit-fabrication/bc-OxygenGreen-03.jpg"
+        ]
+      },
+      {
+        "name": "Red & White Blocks",
+        "images": [
+          "/images/services/exhibit-fabrication/bc-RedWhiteBlocks-01.jpg",
+          "/images/services/exhibit-fabrication/bc-RedWhiteBlocks-02.jpg",
+          "/images/services/exhibit-fabrication/bc-RedWhiteBlocks-03.jpg",
+          "/images/services/exhibit-fabrication/bc-RedWhiteBlocks-04.jpg"
+        ]
+      },
+      {
+        "name": "Tech Style",
+        "images": [
+          "/images/services/exhibit-fabrication/bc-TechStyle-01.jpg",
+          "/images/services/exhibit-fabrication/bc-TechStyle-02.jpg",
+          "/images/services/exhibit-fabrication/bc-TechStyle-03.jpg",
+          "/images/services/exhibit-fabrication/bc-TechStyle-04.jpg"
+        ]
+      },
+      {
+        "name": "Yellow Triangle",
+        "images": [
+          "/images/services/exhibit-fabrication/bc-YellowTriangle-01.jpg",
+          "/images/services/exhibit-fabrication/bc-YellowTriangle-02.jpg"
+        ]
+      }
+    ]
+  },
+  {
+    "title": "Exhibit Components",
+    "slug": "components",
+    "blurb": "Any-shape, any-size lightbox assemblies, expertly built for flawless presentation.",
+    "cover": "/images/services/exhibit-fabrication/lightbox-01.jpg",
+    "layout": "grid",
+    "subtitle": "Any-shape, any-size lightbox assemblies, expertly built for flawless presentation.",
+    "projects": [
+      {
+        "name": "Lightbox Assemblies",
+        "images": [
+          "/images/services/exhibit-fabrication/lightbox-01.jpg",
+          "/images/services/exhibit-fabrication/lightbox-02.jpg",
+          "/images/services/exhibit-fabrication/lightbox-03.jpg",
+          "/images/services/exhibit-fabrication/lightbox-04.jpg",
+          "/images/services/exhibit-fabrication/lightbox-05.jpg",
+          "/images/services/exhibit-fabrication/lightbox-06.jpg",
+          "/images/services/exhibit-fabrication/lightbox-07.jpg",
+          "/images/services/exhibit-fabrication/lightbox-08.jpg",
+          "/images/services/exhibit-fabrication/lightbox-09.jpg",
+          "/images/services/exhibit-fabrication/lightbox-10.jpg",
+          "/images/services/exhibit-fabrication/lightbox-11.jpg",
+          "/images/services/exhibit-fabrication/lightbox-12.jpg"
+        ]
+      }
+    ]
+  }
+]
