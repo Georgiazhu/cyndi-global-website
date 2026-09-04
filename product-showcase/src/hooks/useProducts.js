@@ -6,11 +6,15 @@ const GROUP_LAYOUT = [
     { key: 'tshirts', title: 'T-shirts' },
     { key: 'polos', title: 'Polos' },
     { key: 'hoodies', title: 'Hoodies & Crewnecks' },
+    { key: 'zips', title: 'Zips' },
     { key: 'jackets', title: 'Jackets & Outerwear' },
     { key: 'shorts', title: 'Sports Shorts' },
   ]},
   { group: 'Headwear', sections: [
+    { key: 'hats', title: 'Hats' },
     { key: 'beanies', title: 'Beanies' },
+    { key: 'buckethats', title: 'Bucket Hats' },
+    { key: 'visors', title: 'Visors' },
   ]},
   { group: 'Bags', sections: [
     { key: 'totes', title: 'Totes' },
@@ -25,6 +29,13 @@ const GROUP_LAYOUT = [
     { key: 'mugs', title: 'Mugs' },
     { key: 'campcups', title: 'Camp Cups' },
     { key: 'accessories', title: 'Accessories' },
+  ]},
+  { group: 'Footwear', sections: [
+    { key: 'sneakers', title: 'Sneakers' },
+    { key: 'slippers', title: 'Slippers' },
+    { key: 'sandals', title: 'Sandals' },
+    { key: 'flipflops', title: 'Flip Flops & Clogs' },
+    { key: 'socks', title: 'Socks' },
   ]},
 ]
 

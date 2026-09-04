@@ -7,8 +7,19 @@ export const swagItemLinks = {
   'Hoodies & Crewnecks': '/shop.html#hoodies',
   'Jackets & Outerwear': '/shop.html#jackets',
   'Sports Shorts': '/shop.html#shorts',
+  // Apparel (Zips)
+  'Zips': '/shop.html#zips',
   // Headwear
   'Beanies': '/shop.html#beanies',
+  'Hats': '/shop.html#hats',
+  'Bucket Hats': '/shop.html#buckethats',
+  'Visors': '/shop.html#visors',
+  // Footwear
+  'Sneakers': '/shop.html#sneakers',
+  'Slippers': '/shop.html#slippers',
+  'Sandals': '/shop.html#sandals',
+  'FlipFlops & Clogs': '/shop.html#flipflops',
+  'Socks': '/shop.html#socks',
   // Bags
   'Totes': '/shop.html#totes',
   'Backpacks': '/shop.html#backpacks',
