@@ -3,7 +3,7 @@ import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 
 export default function Cart() {
-  const { cart, isCartOpen, setIsCartOpen, removeFromCart, updateQuantity, clearCart } = useCart()
+  const { cart, isCartOpen, setIsCartOpen, removeFromCart, updateQuantity, clearCart, checkoutInfo, setCheckoutInfo } = useCart()
   const { user } = useAuth()
 
   // 按币种分别合计（购物车可能混 ¥ 和 $，不能直接相加）
@@ -17,50 +17,37 @@ export default function Cart() {
     .map(([c, v]) => `${symOf(c)}${v.toFixed(2)}`)
     .join(' + ') || '$0.00'
   const [showOrderForm, setShowOrderForm] = useState(false)
-  const [orderNo, setOrderNo] = useState(null)
-  const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  // 表单预填之前填过的信息（Edit details 回来时能看到）
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    company: '',
-    notes: '',
+    name: checkoutInfo?.name || '',
+    email: checkoutInfo?.email || '',
+    phone: checkoutInfo?.phone || '',
+    company: checkoutInfo?.company || '',
+    notes: checkoutInfo?.notes || '',
   })
 
   if (!isCartOpen) return null
 
-  const handleSubmitOrder = async (e) => {
+  // 表单提交 → 存联系信息，关抽屉，跳到整页复核页 #review
+  const handleReviewOrder = (e) => {
     e.preventDefault()
     setSubmitError('')
-    setSubmitting(true)
-    try {
-      // 已登录：name/email 由后端从会话账户取，不传；游客：用表单值
-      const payload = user
-        ? { phone: formData.phone, company: formData.company, notes: formData.notes, items: cart }
-        : { ...formData, items: cart }
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Could not place order')
-      setOrderNo(data.orderNo)
-      clearCart()
-    } catch (err) {
-      setSubmitError(err.message || 'Something went wrong')
-    } finally {
-      setSubmitting(false)
-    }
+    setCheckoutInfo({
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      company: formData.company,
+      notes: formData.notes,
+    })
+    setShowOrderForm(false)
+    setIsCartOpen(false)
+    window.location.hash = 'review'
   }
 
   const resetAndClose = () => {
-    setOrderNo(null)
     setShowOrderForm(false)
     setSubmitError('')
-    setFormData({ name: '', email: '', phone: '', company: '', notes: '' })
     setIsCartOpen(false)
   }
 
@@ -77,7 +64,7 @@ export default function Cart() {
         {/* Header */}
         <div className="sticky top-0 bg-[#faf9f6] border-b border-stone-200 px-6 py-4 flex justify-between items-center">
           <h2 className="text-base font-semibold uppercase tracking-wide text-stone-900">
-            {showOrderForm ? 'Place Order' : `Cart (${cart.length} items)`}
+            {showOrderForm ? 'Your Details' : `Cart (${cart.length} items)`}
           </h2>
           <button
             onClick={resetAndClose}
@@ -89,35 +76,9 @@ export default function Cart() {
           </button>
         </div>
 
-        {orderNo ? (
-          <div className="p-6 text-center">
-            <div className="w-16 h-16 border border-stone-900 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-stone-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-stone-900 mb-2">Order Placed</h3>
-            <p className="text-stone-500 mb-4">Thank you. Save your order number to track its status.</p>
-            <div className="border border-stone-300 bg-white px-4 py-3 mb-4">
-              <p className="text-xs uppercase tracking-wide text-stone-400 mb-1">Order number</p>
-              <p className="text-lg font-semibold text-stone-900 select-all">{orderNo}</p>
-            </div>
-            <a
-              href={`/track?orderNo=${encodeURIComponent(orderNo)}`}
-              className="inline-block w-full bg-stone-900 text-white py-3 text-sm font-medium uppercase tracking-wide hover:bg-stone-700 transition-colors"
-            >
-              Track this order
-            </a>
-            <button
-              onClick={resetAndClose}
-              className="w-full mt-2 text-sm text-stone-500 hover:text-stone-900 py-2"
-            >
-              Continue shopping
-            </button>
-          </div>
-        ) : showOrderForm ? (
+        {showOrderForm ? (
           /* Order Form（已登录用户；name/email 来自账户，无需填写）*/
-          <form onSubmit={handleSubmitOrder} className="p-6 space-y-4">
+          <form onSubmit={handleReviewOrder} className="p-6 space-y-4">
             {user && (
               <div className="border border-stone-200 bg-white px-3 py-2.5 text-sm">
                 <p className="text-xs uppercase tracking-wide text-stone-400 mb-0.5">Ordering as</p>
@@ -179,24 +140,11 @@ export default function Cart() {
               />
             </div>
 
-            {/* Order Summary */}
-            <div className="border-t border-stone-200 pt-4">
-              <h4 className="font-medium text-xs uppercase tracking-wide text-stone-500 mb-3">Order Summary</h4>
-              {cart.map(item => (
-                <div key={item.sku || item.id} className="flex justify-between text-sm text-stone-500 mb-1">
-                  <span>{item.name}{item.selectedColor ? ` · ${item.selectedColor}` : ''}{item.selectedSize ? ` · ${item.selectedSize}` : ''} × {item.quantity}</span>
-                  <span>{item.currency === 'CNY' ? '¥' : '$'}{(parseFloat(item.price[0]) * item.quantity).toFixed(2)}</span>
-                </div>
-              ))}
-              <div className="flex justify-between font-semibold text-stone-900 mt-2 pt-2 border-t border-stone-200">
-                <span>Total</span>
-                <span>{totalText}</span>
-              </div>
+            {/* Total（明细在下一步复核页完整展示）*/}
+            <div className="border-t border-stone-200 pt-4 flex justify-between font-semibold text-stone-900">
+              <span>Total</span>
+              <span>{totalText}</span>
             </div>
-
-            {submitError && (
-              <p className="text-sm text-[#b7410e]">{submitError}</p>
-            )}
 
             <div className="flex gap-3 pt-2">
               <button
@@ -208,10 +156,9 @@ export default function Cart() {
               </button>
               <button
                 type="submit"
-                disabled={submitting}
-                className="flex-1 bg-stone-900 text-white py-3 text-sm font-medium uppercase tracking-wide hover:bg-stone-700 transition-colors disabled:opacity-50"
+                className="flex-1 bg-stone-900 text-white py-3 text-sm font-medium uppercase tracking-wide hover:bg-stone-700 transition-colors"
               >
-                {submitting ? 'Placing…' : 'Submit Order'}
+                Review Order
               </button>
             </div>
           </form>

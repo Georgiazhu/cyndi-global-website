@@ -17,6 +17,10 @@ function loadCart() {
 export function CartProvider({ children }) {
   const [cart, setCart] = useState(loadCart)
   const [isCartOpen, setIsCartOpen] = useState(false)
+  // 结账联系信息（表单 → 整页复核页之间共享；持久化防刷新丢）
+  const [checkoutInfo, setCheckoutInfo] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('swag_checkout_v1')) || {} } catch { return {} }
+  })
 
   // cart 变化时写入 localStorage
   useEffect(() => {
@@ -26,6 +30,10 @@ export function CartProvider({ children }) {
       // 忽略配额/隐私模式错误
     }
   }, [cart])
+
+  useEffect(() => {
+    try { localStorage.setItem('swag_checkout_v1', JSON.stringify(checkoutInfo)) } catch {}
+  }, [checkoutInfo])
 
   // 购物车行的唯一键：优先 sku（同款不同色/码算不同行），回退 id
   const lineKey = (item) => item.sku || item.id
@@ -82,6 +90,9 @@ export function CartProvider({ children }) {
         clearCart,
         cartTotal,
         cartCount,
+        lineKey,
+        checkoutInfo,
+        setCheckoutInfo,
       }}
     >
       {children}

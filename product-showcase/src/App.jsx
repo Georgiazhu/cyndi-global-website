@@ -9,11 +9,19 @@ import Features from './components/Features'
 import Products from './components/Products'
 import ProductDetail from './components/ProductDetail'
 import Cart from './components/Cart'
+import OrderConfirmation from './components/OrderConfirmation'
+import OrderReview from './components/OrderReview'
 import { ProductsProvider, useProductsContext } from './context/ProductsContext'
 
-// 解析 hash：#product/<spu>?color=<name> -> { spu, color }
+// 解析 hash：
+//   #product/<spu>?color=<name> -> { spu, color }
+//   #order/<orderNo>            -> { orderNo }
+//   #review                     -> { review: true }
 function parseHash() {
   const h = window.location.hash || ''
+  if (/^#review\b/.test(h)) return { review: true }
+  const o = h.match(/^#order\/([^?]+)/)
+  if (o) return { orderNo: decodeURIComponent(o[1]) }
   const m = h.match(/^#product\/([^?]+)(?:\?color=([^&]*))?/)
   if (!m) return null
   return { spu: decodeURIComponent(m[1]), color: m[2] ? decodeURIComponent(m[2]) : null }
@@ -65,15 +73,25 @@ function AppBody() {
 
   // PDP 不依赖列表数据：有 route.spu 就渲染详情，由 ProductDetail 自行 fetch。
   // 若列表已加载且有该商品，用它做初始占位(更快出图)，否则传最小对象靠 API 拉。
-  const activeProduct = route
+  const activeProduct = (route && route.spu)
     ? (products.find(p => p.id === route.spu) || { spu: route.spu, id: route.spu, colorOptions: [] })
     : null
+  const orderNo = route && route.orderNo
+  const isReview = route && route.review
 
   return (
     <>
       <div className="min-h-screen bg-[#faf9f6]">
         <Navbar />
-        {activeProduct ? (
+        {isReview ? (
+          <div className="pt-20">
+            <OrderReview />
+          </div>
+        ) : orderNo ? (
+          <div className="pt-24">
+            <OrderConfirmation orderNo={orderNo} />
+          </div>
+        ) : activeProduct ? (
           <div className="pt-20">
             <ProductDetail product={activeProduct} initialColor={route.color} />
           </div>

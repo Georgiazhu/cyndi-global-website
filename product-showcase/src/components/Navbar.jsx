@@ -164,12 +164,20 @@ export default function Navbar() {
                     </button>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => setAuthOpen(true)}
-                    className="hidden sm:block text-sm font-medium text-stone-700 hover:text-stone-900 transition-colors"
-                  >
-                    Sign in
-                  </button>
+                  <div className="hidden sm:flex items-center gap-3">
+                    <button
+                      onClick={() => openTrack()}
+                      className="text-sm font-medium text-stone-600 hover:text-stone-900 transition-colors"
+                    >
+                      Track order
+                    </button>
+                    <button
+                      onClick={() => setAuthOpen(true)}
+                      className="text-sm font-medium text-stone-700 hover:text-stone-900 transition-colors"
+                    >
+                      Sign in
+                    </button>
+                  </div>
                 )
               )}
               {/* Mobile menu toggle */}
