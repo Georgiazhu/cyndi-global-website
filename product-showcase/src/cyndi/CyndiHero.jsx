@@ -12,7 +12,7 @@ export default function CyndiHero() {
           Empowering Brands. Engaging People.
         </p>
         <a
-          href="#about"
+          href="/shop"
           className="group inline-flex items-center gap-2.5 border border-stone-900 text-stone-900 px-9 py-[15px] text-[13px] font-medium uppercase tracking-wider hover:bg-stone-900 hover:text-white transition-colors"
         >
           Explore More
