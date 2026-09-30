@@ -14,6 +14,7 @@ export default defineConfig({
         // Service 作品展示页
         officeFurniture: 'services/office-furniture.html',
         exhibitFabrication: 'services/exhibit-fabrication.html',
+        warehousing: 'services/warehousing.html',
       },
     },
   },
