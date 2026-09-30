@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
-import Globe from 'react-globe.gl'
+import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import CyndiNavbar from '../cyndi/CyndiNavbar'
+
+// 3D 地球模块（含 three.js，约 2MB）懒加载：
+// 页面先秒开，地球模块仅在滚动进入可视区后才下载和渲染
+const Globe = lazy(() => import('react-globe.gl'))
 
 // Shipping 服务页：可鼠标拖拽旋转的 3D 地球 + 广州出发的运输航线弧。
 // 底色与网站底色一致（#faf9f6），不做任何面板/渐变，让地球"悬浮"在页面上。
@@ -94,6 +97,7 @@ export default function Shipping() {
   const globeRef = useRef(null)
   const wrapRef = useRef(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
+  const [inView, setInView] = useState(false)
 
   // 跟随容器尺寸（响应式）
   useEffect(() => {
@@ -105,6 +109,20 @@ export default function Shipping() {
     })
     ro.observe(el)
     return () => ro.disconnect()
+  }, [])
+
+  // 滚动进入可视区后再开始加载 3D 地球模块（一次性触发）
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const io = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        setInView(true)
+        io.disconnect()
+      }
+    }, { rootMargin: '200px' })
+    io.observe(el)
+    return () => io.disconnect()
   }, [])
 
   // 地球初始化完成后再配相机与控制器（pointOfView 作为 prop 在当前版本被忽略，必须用方法调用）：
@@ -154,17 +172,23 @@ export default function Shipping() {
         </p>
       </div>
 
-      {/* ── 3D Globe：无面板、无渐变，地球直接悬浮在网页底色上 ── */}
+      {/* ── 3D Globe：无面板、无渐变，地球直接悬浮在网页底色上（懒加载） ── */}
       <section className="relative w-full h-[62vh] md:h-[80vh] mt-2">
         <div ref={wrapRef} className="absolute inset-0 cursor-grab active:cursor-grabbing">
-          {size.w > 0 && (
+          {/* 加载占位：细圈 spinner，秒开不阻塞 */}
+          {!inView && (
+            <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+              <div className="w-10 h-10 rounded-full border-2 border-stone-200 border-t-[#e2571a] animate-spin" />
+            </div>
+          )}
+          {inView && size.w > 0 && (
+            <Suspense fallback={null}>
             <Globe
               ref={globeRef}
               width={size.w}
               height={size.h}
               backgroundColor="rgba(0,0,0,0)"
               globeImageUrl="/images/shipping/earth-blue-marble.jpg"
-              bumpImageUrl="/images/shipping/earth-topology.png"
               showAtmosphere
               atmosphereColor="#aebfc9"
               atmosphereAltitude={0.18}
@@ -199,6 +223,7 @@ export default function Shipping() {
               labelIncludeDot={false}
               labelResolution={2}
             />
+            </Suspense>
           )}
         </div>
       </section>
