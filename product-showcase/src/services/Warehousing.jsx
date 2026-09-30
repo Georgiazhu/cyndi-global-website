@@ -70,12 +70,12 @@ export default function Warehousing() {
         <section className="mt-11">
           <h2 className="text-xl font-semibold tracking-tight">Inside Our Warehouses</h2>
           <div className="h-px bg-stone-200 my-3.5" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl">
             {IMAGES.map((img, i) => (
               <button
                 key={img.src}
                 onClick={() => setLb(i)}
-                className="group relative aspect-[3/4] bg-[#efede8] rounded-xl overflow-hidden"
+                className="group relative aspect-[3/4] bg-[#efede8] rounded-lg overflow-hidden"
               >
                 <img src={img.src} alt={img.alt} loading="lazy"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
