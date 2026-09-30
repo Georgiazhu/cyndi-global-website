@@ -15,6 +15,7 @@ export default defineConfig({
         officeFurniture: 'services/office-furniture.html',
         exhibitFabrication: 'services/exhibit-fabrication.html',
         warehousing: 'services/warehousing.html',
+        shipping: 'services/shipping.html',
       },
     },
   },
