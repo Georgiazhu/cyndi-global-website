@@ -66,12 +66,12 @@ const POINTS = [
   ...DESTINATIONS.map(d => ({ lat: d.lat, lng: d.lng, color: d.color, size: 0.26 })),
 ]
 
-// 文字标注：起始点 Guangzhou + 每个终点城市英文名
+// 文字标注：起始点 Guangzhou + 每个终点城市英文名（统一白色）
 // 注意：labelSize 单位是“度”（1 度 ≈ 球半径的 1/57），需 2~4 才可读
 const LABELS = [
-  { lat: GZ.lat, lng: GZ.lng, text: 'Guangzhou', color: '#b23a0d', size: 4.2, altitude: 0.024 },
+  { lat: GZ.lat, lng: GZ.lng, text: 'Guangzhou', color: '#ffffff', size: 4.2, altitude: 0.024 },
   ...DESTINATIONS.map(d => ({
-    lat: d.lat, lng: d.lng, text: d.name, color: '#0f2136', size: 2.0, altitude: 0.018,
+    lat: d.lat, lng: d.lng, text: d.name, color: '#ffffff', size: 2.0, altitude: 0.018,
   })),
 ]
 
@@ -166,7 +166,7 @@ export default function Shipping() {
               globeImageUrl="/images/shipping/earth-blue-marble.jpg"
               bumpImageUrl="/images/shipping/earth-topology.png"
               showAtmosphere
-              atmosphereColor="#8fc0ec"
+              atmosphereColor="#aebfc9"
               atmosphereAltitude={0.18}
               onGlobeReady={handleGlobeReady}
               /* 航线（发射速度放慢） */
