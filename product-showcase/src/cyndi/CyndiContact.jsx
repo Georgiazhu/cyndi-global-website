@@ -1,5 +1,8 @@
 // 首页联系区块 + 页脚（Company contact block + footer）
 // 联系邮箱：info@cyndiglobal.com
+// 表单为纯前端实现：提交后用访客本地邮件客户端预填收件人/主题/正文，无需后端。
+
+import { useState } from 'react'
 
 const CONTACT_ITEMS = [
   {
@@ -31,50 +34,136 @@ function Icon({ d, className = 'w-5 h-5' }) {
   )
 }
 
+const FIELD_LABEL = 'block text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400 mb-2'
+const FIELD_INPUT =
+  'w-full border-b border-stone-300 bg-transparent py-3 text-[15px] text-stone-900 ' +
+  'placeholder:text-stone-300 focus:border-stone-900 outline-none transition-colors'
+
 export default function CyndiContact() {
+  const [form, setForm] = useState({ name: '', email: '', company: '', message: '' })
+  const [sent, setSent] = useState(false)
+
+  const update = key => e => setForm(f => ({ ...f, [key]: e.target.value }))
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    const subject = `Website inquiry${form.company ? ` — ${form.company}` : ''}`
+    const body =
+      `Name: ${form.name}\nEmail: ${form.email}` +
+      (form.company ? `\nCompany: ${form.company}` : '') +
+      `\n\n${form.message}`
+    window.location.href =
+      `mailto:info@cyndiglobal.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    setSent(true)
+  }
+
   return (
     <>
       {/* ── Contact ── */}
-      <section id="contact" className="bg-white border-t border-stone-200 px-6 py-24 lg:py-28">
+      <section id="contact" className="bg-stone-50 border-t border-stone-200 px-6 py-20 lg:py-28">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col items-center text-center">
-            <span className="text-xs font-medium uppercase tracking-[0.22em] text-stone-400 mb-5">Contact</span>
-            <h2 className="text-[clamp(34px,5vw,56px)] font-semibold leading-tight tracking-tight text-stone-900 mb-5">
-              Let&rsquo;s Talk
-            </h2>
-            <p className="text-[clamp(16px,1.9vw,18px)] leading-relaxed text-stone-600 max-w-[560px]">
-              Custom swag, brand merchandise, or a full program — tell us what your team needs.
-              We usually reply within one business day.
-            </p>
-          </div>
+          <div className="grid gap-14 lg:gap-16 lg:grid-cols-12 items-start">
 
-          <div className="grid gap-10 md:grid-cols-3 max-w-5xl mx-auto mt-16">
-            {CONTACT_ITEMS.map(it => (
-              <div key={it.label} className="flex flex-col items-center text-center gap-3 md:items-start md:text-left">
-                <span className="text-stone-400">
-                  <Icon d={it.icon} />
-                </span>
-                <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400">{it.label}</span>
-                {it.href ? (
-                  <a href={it.href} className="text-[15px] font-medium text-stone-900 hover:text-[#e07a3a] transition-colors break-words">
-                    {it.value}
-                  </a>
-                ) : (
-                  <p className="text-[15px] font-medium text-stone-900 leading-relaxed break-words">{it.value}</p>
-                )}
+            {/* Left — intro + details */}
+            <div className="lg:col-span-5 lg:sticky lg:top-28">
+              <div className="flex items-center gap-3 mb-6">
+                <span className="h-px w-8 bg-stone-400" />
+                <span className="text-xs font-medium uppercase tracking-[0.22em] text-stone-400">Contact</span>
               </div>
-            ))}
-          </div>
 
-          <div className="flex justify-center mt-14">
-            <a href="mailto:info@cyndiglobal.com"
-              className="group inline-flex items-center gap-2.5 border border-stone-900 text-stone-900 px-9 py-[15px] text-[13px] font-medium uppercase tracking-wider hover:bg-stone-900 hover:text-white transition-colors">
-              Email Us
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                className="w-[15px] h-[15px] group-hover:translate-x-1 transition-transform">
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </a>
+              <h2 className="text-[clamp(30px,3.6vw,42px)] font-semibold leading-[1.15] tracking-tight text-stone-900 mb-5">
+                Start a conversation
+              </h2>
+
+              <p className="text-[16px] leading-relaxed text-stone-600 max-w-[440px]">
+                Custom swag, brand merchandise, or a full program &mdash; tell us what your team
+                needs and we&rsquo;ll come back with options, timelines, and pricing.
+              </p>
+
+              <dl className="mt-12 pt-10 border-t border-stone-200 flex flex-col gap-7">
+                {CONTACT_ITEMS.map(it => (
+                  <div key={it.label} className="flex items-start gap-4">
+                    <span className="text-stone-400 mt-0.5 shrink-0">
+                      <Icon d={it.icon} />
+                    </span>
+                    <div className="min-w-0">
+                      <dt className="text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400 mb-1.5">
+                        {it.label}
+                      </dt>
+                      <dd className="text-[15px] font-medium text-stone-900 leading-relaxed break-words">
+                        {it.href ? (
+                          <a href={it.href} className="hover:text-[#e07a3a] transition-colors">{it.value}</a>
+                        ) : (
+                          it.value
+                        )}
+                      </dd>
+                    </div>
+                  </div>
+                ))}
+              </dl>
+            </div>
+
+            {/* Right — inquiry form */}
+            <div className="lg:col-span-7">
+              <form
+                onSubmit={handleSubmit}
+                className="bg-white border border-stone-200 p-8 lg:p-10"
+              >
+                <div className="grid gap-8 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="ct-name" className={FIELD_LABEL}>Name</label>
+                    <input id="ct-name" type="text" required value={form.name} onChange={update('name')}
+                      placeholder="Your name" className={FIELD_INPUT} />
+                  </div>
+                  <div>
+                    <label htmlFor="ct-email" className={FIELD_LABEL}>Email</label>
+                    <input id="ct-email" type="email" required value={form.email} onChange={update('email')}
+                      placeholder="you@company.com" className={FIELD_INPUT} />
+                  </div>
+                </div>
+
+                <div className="mt-8">
+                  <label htmlFor="ct-company" className={FIELD_LABEL}>Company <span className="normal-case tracking-normal text-stone-300">(optional)</span></label>
+                  <input id="ct-company" type="text" value={form.company} onChange={update('company')}
+                    placeholder="Company name" className={FIELD_INPUT} />
+                </div>
+
+                <div className="mt-8">
+                  <label htmlFor="ct-message" className={FIELD_LABEL}>How can we help?</label>
+                  <textarea id="ct-message" rows="4" required value={form.message} onChange={update('message')}
+                    placeholder="Tell us about your project, quantities, and target date."
+                    className={`${FIELD_INPUT} resize-none`} />
+                </div>
+
+                <div className="mt-10 flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-7">
+                  <button type="submit"
+                    className="group inline-flex items-center justify-center gap-2.5 bg-stone-900 text-white px-9 py-[15px] text-[13px] font-medium uppercase tracking-wider hover:bg-[#e07a3a] transition-colors">
+                    Send Message
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                      strokeLinecap="round" className="w-[15px] h-[15px] group-hover:translate-x-1 transition-transform">
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                  <p className="text-[13px] leading-relaxed text-stone-500">
+                    Or email us directly at{' '}
+                    <a href="mailto:info@cyndiglobal.com" className="text-stone-900 hover:text-[#e07a3a] transition-colors">
+                      info@cyndiglobal.com
+                    </a>
+                  </p>
+                </div>
+
+                {sent ? (
+                  <p className="mt-6 text-[13px] leading-relaxed text-stone-500">
+                    Your email app should be opening with the message ready to send. If nothing
+                    happens, please write to us at info@cyndiglobal.com.
+                  </p>
+                ) : (
+                  <p className="mt-6 text-[13px] leading-relaxed text-stone-400">
+                    We reply within one business day, Hong Kong time.
+                  </p>
+                )}
+              </form>
+            </div>
           </div>
         </div>
       </section>
@@ -87,7 +176,7 @@ export default function CyndiContact() {
             <span className="text-xl font-semibold tracking-tight text-white">Cyndi</span>
           </div>
           <p className="text-[13px] leading-relaxed max-w-md">
-            Global Swag &amp; Brand Management — Empowering Brands. Engaging People.
+            Global Swag &amp; Brand Management &mdash; Empowering Brands. Engaging People.
           </p>
           <a href="mailto:info@cyndiglobal.com" className="text-[13px] text-white hover:text-[#e07a3a] transition-colors">
             info@cyndiglobal.com
