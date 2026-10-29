@@ -1,0 +1,41 @@
+name: Deploy to Cloudflare Pages
+
+# Cloudflare Pages 只监听真实 git push 事件（GitHub API 改写 ref 不触发 webhook）。
+# 本 workflow 在 GitHub Actions 内执行一次真实 push，触发 Pages 自动构建。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  trigger-pages:
+    name: Trigger Cloudflare Pages rebuild
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Create empty commit to emit push event
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "ci: trigger Cloudflare Pages rebuild"
+          # 直接 push 到 origin（触发 Cloudflare 的 webhook）
+          git push origin HEAD:main
+
+      - name: Note build pipeline
+        run: |
+          echo "Showcase 构建由 Cloudflare Pages 的 build command 负责："
+          echo "  cd product-showcase && npm install && npm run build"
+          echo "  postbuild -> node ../scripts/build_showcase.mjs"
+          echo "输出目录：product-showcase/dist/showcase"
