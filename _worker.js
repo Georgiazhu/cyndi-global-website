@@ -248,6 +248,198 @@ async function api(request, env) {
   if (url.pathname === '/api/media' && request.method === 'GET') {
     const id = url.searchParams.get('id');
     if (id && env.DB && /^[a-f0-9-]{36}$/i.test(id)) { const row = await env.DB.prepare('SELECT content_type, image_data FROM logistics_media WHERE id = ?1').bind(id).first(); if (!row) return new Response('Not found', { status: 404 }); const binary = atob(row.image_data); const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0)); return new Response(bytes, { headers: { 'Content-Type': row.content_type, 'Cache-Control': 'public, max-age=31536000, immutable' } }); }
+  // ── Showcase 选品展示站 ────────────────────────────────────────────
+  if (url.pathname === '/api/showcase' && request.method === 'GET') {
+    if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
+    try {
+      const catRows = await env.DB.prepare('SELECT id, name, sort FROM showcase_categories ORDER BY sort ASC, name ASC').all();
+      const prodRows = await env.DB.prepare(
+        `SELECT id, category_id, sku, name, description, features_json, materials, image, gallery_json,
+                colors_json, sizes_json, pricing_json, price_includes, price_notes_json, charges_json, currency
+         FROM showcase_products ORDER BY sort ASC, name ASC`
+      ).all();
+      const parse = (raw, fallback) => { if (!raw) return fallback; try { return JSON.parse(raw); } catch { return fallback; } };
+      const byCategory = {};
+      for (const p of prodRows.results || []) {
+        (byCategory[p.category_id] ||= []).push({
+          id: p.id, sku: p.sku, name: p.name, description: p.description,
+          features: parse(p.features_json, []), materials: p.materials, image: p.image,
+          gallery: parse(p.gallery_json, []), colors: parse(p.colors_json, []),
+          sizes: parse(p.sizes_json, []), pricing: parse(p.pricing_json, []),
+          priceIncludes: p.price_includes, priceNotes: parse(p.price_notes_json, []),
+          additionalCharges: parse(p.charges_json, []), currency: p.currency || '$',
+        });
+      }
+      const categories = (catRows.results || []).map((c) => ({ id: c.id, name: c.name, products: byCategory[c.id] || [] }));
+      let meta = null;
+      const metaRow = await env.DB.prepare('SELECT data_json FROM showcase_meta WHERE id = 1').first();
+      if (metaRow?.data_json) meta = parse(metaRow.data_json, null);
+      return json({ meta, categories }, 200, { 'Cache-Control': 'public, max-age=60' });
+    } catch (e) {
+      return json({ error: e?.message || 'Failed to load showcase' }, 500);
+    }
+  }
+  if (url.pathname === '/api/admin/showcase' && request.method === 'GET') {
+    if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
+    if (!await authenticated(request, await getAdminSecret(env))) return json({ error: 'Unauthorized' }, 401);
+    try {
+      const parse = (raw, fallback) => { if (!raw) return fallback; try { return JSON.parse(raw); } catch { return fallback; } };
+      const cats = await env.DB.prepare('SELECT id, name, sort FROM showcase_categories ORDER BY sort ASC, name ASC').all();
+      const prods = await env.DB.prepare('SELECT * FROM showcase_products ORDER BY sort ASC, name ASC').all();
+      const metaRow = await env.DB.prepare('SELECT data_json FROM showcase_meta WHERE id = 1').first();
+      return json({
+        categories: (cats.results || []).map((c) => ({ id: c.id, name: c.name, sort: c.sort })),
+        products: (prods.results || []).map((p) => ({
+          id: p.id, categoryId: p.category_id, sku: p.sku, name: p.name, description: p.description,
+          features: parse(p.features_json, []), materials: p.materials, image: p.image,
+          gallery: parse(p.gallery_json, []), colors: parse(p.colors_json, []),
+          sizes: parse(p.sizes_json, []), pricing: parse(p.pricing_json, []),
+          priceIncludes: p.price_includes, priceNotes: parse(p.price_notes_json, []),
+          additionalCharges: parse(p.charges_json, []), currency: p.currency || '$', sort: p.sort,
+        })),
+        meta: metaRow?.data_json ? parse(metaRow.data_json, null) : null,
+      });
+    } catch (e) {
+      return json({ error: e?.message || 'Failed to load showcase' }, 500);
+    }
+  }
+  if (url.pathname === '/api/admin/showcase' && request.method === 'POST') {
+    if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
+    if (!await authenticated(request, await getAdminSecret(env))) return json({ error: 'Unauthorized' }, 401);
+    try {
+      const body = await request.json().catch(() => ({}));
+      const op = String(body.op || '').trim();
+      const ts = new Date().toISOString();
+      if (op === 'saveMeta') {
+        await env.DB.prepare(
+          `INSERT INTO showcase_meta (id, data_json, updated_at) VALUES (1, ?1, ?2)
+           ON CONFLICT(id) DO UPDATE SET data_json = ?1, updated_at = ?2`
+        ).bind(JSON.stringify(body.meta || {}), ts).run();
+        return json({ ok: true });
+      }
+      if (op === 'addCategory') {
+        const id = String(body.id || '').trim();
+        const name = String(body.name || '').trim();
+        if (!id || !name) return json({ error: 'id and name are required' }, 400);
+        const maxSort = await env.DB.prepare('SELECT COALESCE(MAX(sort), 0) AS m FROM showcase_categories').first();
+        await env.DB.prepare('INSERT INTO showcase_categories (id, name, sort, updated_at) VALUES (?1, ?2, ?3, ?4)')
+          .bind(id, name, (maxSort?.m || 0) + 10, ts).run();
+        return json({ ok: true, id });
+      }
+      if (op === 'updateCategory') {
+        const id = String(body.id || '').trim();
+        const name = String(body.name || '').trim();
+        if (!id || !name) return json({ error: 'id and name are required' }, 400);
+        await env.DB.prepare('UPDATE showcase_categories SET name = ?2, updated_at = ?3 WHERE id = ?1').bind(id, name, ts).run();
+        return json({ ok: true });
+      }
+      if (op === 'deleteCategory') {
+        const id = String(body.id || '').trim();
+        if (!id) return json({ error: 'id is required' }, 400);
+        await env.DB.prepare('DELETE FROM showcase_products WHERE category_id = ?1').bind(id).run();
+        await env.DB.prepare('DELETE FROM showcase_categories WHERE id = ?1').bind(id).run();
+        return json({ ok: true });
+      }
+      if (op === 'saveProduct') {
+        const p = body.product || {};
+        const id = String(p.id || '').trim();
+        if (!id || !p.name) return json({ error: 'product id and name are required' }, 400);
+        const categoryId = String(p.categoryId || '').trim();
+        if (!categoryId) return json({ error: 'categoryId is required' }, 400);
+        const existing = await env.DB.prepare('SELECT sort FROM showcase_products WHERE id = ?1').bind(id).first();
+        const sort = Number.isFinite(p.sort) ? p.sort : (existing?.sort ?? 0);
+        await env.DB.prepare(
+          `INSERT INTO showcase_products
+             (id, category_id, sku, name, description, features_json, materials, image, gallery_json,
+              colors_json, sizes_json, pricing_json, price_includes, price_notes_json, charges_json,
+              currency, sort, updated_at)
+           VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18)
+           ON CONFLICT(id) DO UPDATE SET
+             category_id=?2, sku=?3, name=?4, description=?5, features_json=?6, materials=?7, image=?8,
+             gallery_json=?9, colors_json=?10, sizes_json=?11, pricing_json=?12, price_includes=?13,
+             price_notes_json=?14, charges_json=?15, currency=?16, sort=?17, updated_at=?18`
+        ).bind(
+          id, categoryId, p.sku || null, p.name, p.description || null,
+          JSON.stringify(p.features || []), p.materials || null, p.image || null,
+          JSON.stringify(p.gallery || []), JSON.stringify(p.colors || []), JSON.stringify(p.sizes || []),
+          JSON.stringify(p.pricing || []), p.priceIncludes || null, JSON.stringify(p.priceNotes || []),
+          JSON.stringify(p.additionalCharges || []), p.currency || '$', sort, ts
+        ).run();
+        return json({ ok: true, id });
+      }
+      if (op === 'deleteProduct') {
+        const id = String(body.id || '').trim();
+        if (!id) return json({ error: 'id is required' }, 400);
+        await env.DB.prepare('DELETE FROM showcase_products WHERE id = ?1').bind(id).run();
+        return json({ ok: true });
+      }
+      if (op === 'reorder') {
+        const list = Array.isArray(body.products) ? body.products : [];
+        for (const item of list) {
+          if (!item?.id) continue;
+          await env.DB.prepare('UPDATE showcase_products SET sort = ?2, updated_at = ?3 WHERE id = ?1')
+            .bind(String(item.id), Number(item.sort) || 0, ts).run();
+        }
+        return json({ ok: true });
+      }
+      return json({ error: `Unknown op: ${op}` }, 400);
+    } catch (e) {
+      return json({ error: e?.message || 'Save failed' }, 500);
+    }
+  }
+  if (url.pathname === '/api/admin/showcase/upload' && request.method === 'POST') {
+    if (!await authenticated(request, await getAdminSecret(env))) return json({ error: 'Unauthorized' }, 401);
+    try {
+      const form = await request.formData();
+      const values = typeof form.getAll === 'function' ? form.getAll('file') : [form.get('file')];
+      const files = values.filter((file) => file && typeof file.arrayBuffer === 'function' && typeof file.type === 'string');
+      const categoryId = String(form.get('categoryId') || 'misc').trim().replace(/[^a-z0-9-]/gi, '-').toLowerCase() || 'misc';
+      if (!files.length) return json({ error: 'at least one file is required' }, 400);
+      if (files.length > 20) return json({ error: 'Upload at most 20 images per batch' }, 400);
+      if (files.some((file) => !file.type.startsWith('image/'))) return json({ error: 'Only image files are allowed' }, 400);
+      if (files.some((file) => file.size > 10 * 1024 * 1024)) return json({ error: 'Each image must be smaller than 10MB' }, 400);
+      const urls = [];
+      if (env.MEDIA) {
+        for (const file of files) {
+          const ext = (file.name.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
+          const key = `showcase/${categoryId}/${crypto.randomUUID()}.${ext}`;
+          await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type } });
+          const base = env.R2_PUBLIC_BASE || 'https://img.cyndiglobal.com';
+          urls.push(`${String(base).replace(/\/$/, '')}/${key}`);
+        }
+        return json({ ok: true, storage: 'r2', urls, url: urls[0] });
+      }
+      if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
+      if (files.some((file) => file.size > 1.5 * 1024 * 1024)) {
+        return json({ error: 'Each image must be smaller than 1.5MB when R2 is not enabled' }, 400);
+      }
+      for (const file of files) {
+        const id = crypto.randomUUID();
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        let binary = '';
+        for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+          binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+        }
+        await env.DB.prepare(
+          'INSERT INTO showcase_media (id, category_id, file_name, content_type, image_data, created_at) VALUES (?1,?2,?3,?4,?5,?6)'
+        ).bind(id, categoryId, file.name || 'image', file.type, btoa(binary), new Date().toISOString()).run();
+        urls.push(`/api/showcase/media?id=${encodeURIComponent(id)}`);
+      }
+      return json({ ok: true, storage: 'database', urls, url: urls[0] });
+    } catch (e) {
+      return json({ error: e?.message || 'Upload failed' }, 500);
+    }
+  }
+  if (url.pathname === '/api/showcase/media' && request.method === 'GET') {
+    if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
+    const id = url.searchParams.get('id');
+    if (!id) return json({ error: 'id is required' }, 400);
+    const row = await env.DB.prepare('SELECT content_type, image_data FROM showcase_media WHERE id = ?1').bind(id).first();
+    if (!row?.image_data) return new Response('Not found', { status: 404 });
+    const binary = atob(row.image_data);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    return new Response(bytes, { headers: { 'Content-Type': row.content_type || 'image/jpeg', 'Cache-Control': 'public, max-age=31536000, immutable' } });
+  }
     if (!env.MEDIA) return new Response('Media binding is not configured', { status: 503 });
     const key = url.searchParams.get('key'); if (!key || !/^warehouse\/[A-Z0-9_-]+\/[a-z0-9-]+\.[a-z0-9]+$/i.test(key)) return new Response('Not found', { status: 404 }); const object = await env.MEDIA.get(key); if (!object) return new Response('Not found', { status: 404 }); const headers = new Headers(); object.writeHttpMetadata(headers); headers.set('Cache-Control', 'public, max-age=31536000, immutable'); return new Response(object.body, { headers });
   }
