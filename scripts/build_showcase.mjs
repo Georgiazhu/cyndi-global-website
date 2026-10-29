@@ -16,8 +16,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(__dirname, '..')
 const OUT_DIR = join(REPO_ROOT, 'product-showcase', 'dist', 'showcase')
 const TMP_DIR = join(REPO_ROOT, '.tmp-showcase-build')
-const SHOWCASE_REPO = process.env.SHOWCASE_REPO_URL || 'https://github.com/HRT/showcase.git'
 const BRANCH = process.env.SHOWCASE_BRANCH || 'main'
+
+// 候选仓库地址：仓库从 Georgiazhu 迁移到 HRT 期间，两边都尝试一遍。
+// 只要有一个能克隆成功即可，构建不因属主变更而中断。
+const SHOWCASE_REPOS = process.env.SHOWCASE_REPO_URL
+  ? [process.env.SHOWCASE_REPO_URL]
+  : [
+      'https://github.com/HRT/showcase.git',
+      'https://github.com/Georgiazhu/showcase.git',
+    ]
 
 const log = (...a) => console.log('[showcase]', ...a)
 
@@ -34,20 +42,25 @@ function safeRun(cmd, cwd) {
 }
 
 function main() {
-  // 1. 拉取 showcase 仓库
-  if (existsSync(TMP_DIR)) rmSync(TMP_DIR, { recursive: true, force: true })
-  mkdirSync(TMP_DIR, { recursive: true })
+  // 1. 拉取 showcase 仓库（依次尝试候选地址）
+  let cloned = false
+  for (const repo of SHOWCASE_REPOS) {
+    if (existsSync(TMP_DIR)) rmSync(TMP_DIR, { recursive: true, force: true })
+    mkdirSync(TMP_DIR, { recursive: true })
 
-  const clone = safeRun(
-    `git clone --depth 1 --branch ${BRANCH} ${SHOWCASE_REPO} .`,
-    TMP_DIR,
-  )
-  if (!clone.ok) {
-    log('拉取 showcase 仓库失败，跳过本次集成（沿用上一版产物）')
-    log(clone.out.slice(0, 400))
+    const clone = safeRun(`git clone --depth 1 --branch ${BRANCH} ${repo} .`, TMP_DIR)
+    if (clone.ok) {
+      log(`已拉取 showcase @ ${BRANCH} (${repo})`)
+      cloned = true
+      break
+    }
+    log(`拉取失败，尝试下一个地址: ${repo}`)
+  }
+
+  if (!cloned) {
+    log('所有候选地址均拉取失败，跳过本次集成（沿用上一版产物）')
     return
   }
-  log(`已拉取 showcase @ ${BRANCH}`)
 
   // 2. 安装依赖并构建
   const install = safeRun('npm ci --no-audit --no-fund', TMP_DIR)

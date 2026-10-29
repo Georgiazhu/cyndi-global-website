@@ -71,11 +71,6 @@ export default function CyndiNavbar() {
             <a href="#brand" className={navLink}>Brand</a>
             {openMenu === 'brand' && <BrandMega onEnter={cancelClose} onLeave={scheduleClose} />}
           </li>
-
-          {/* 选品提案展示站（独立仓库 showcase 构建产物） */}
-          <li className="relative h-20 flex items-center px-4">
-            <a href="/showcase/" className={navLink}>Showcase</a>
-          </li>
         </ul>
 
         {/* Lang */}
@@ -88,7 +83,10 @@ export default function CyndiNavbar() {
 }
 
 // ── Service / Solution mega ──
+// 支持二级：items 中带 children 的项，hover 展开子菜单（如 Swag Platform > Showcase）
 function SimpleMega({ items, onEnter, onLeave }) {
+  const [expanded, setExpanded] = useState(null)
+
   return (
     <div
       onMouseEnter={onEnter}
@@ -97,17 +95,73 @@ function SimpleMega({ items, onEnter, onLeave }) {
     >
       <span className="absolute left-0 right-0 -top-2.5 h-2.5 block" />
       <div className="flex flex-col gap-1">
-        {items.map(it => (
-          <a key={it.title} href={it.href || '#'} className="group flex items-start gap-3.5 p-3 rounded-xl hover:bg-stone-100 transition-colors">
-            <span className="text-stone-500 group-hover:text-[#e07a3a] shrink-0 mt-0.5 transition-colors">
-              <Icon d={it.icon} className="w-6 h-6" />
-            </span>
-            <span className="flex flex-col gap-0.5">
-              <strong className="text-[15px] font-semibold text-stone-900">{it.title}</strong>
-              <em className="not-italic text-[13px] text-stone-500 leading-snug">{it.blurb}</em>
-            </span>
-          </a>
-        ))}
+        {items.map(it => {
+          const hasChildren = Array.isArray(it.children) && it.children.length > 0
+          const isOpen = expanded === it.title
+
+          if (!hasChildren) {
+            return (
+              <a key={it.title} href={it.href || '#'} className="group flex items-start gap-3.5 p-3 rounded-xl hover:bg-stone-100 transition-colors">
+                <span className="text-stone-500 group-hover:text-[#e07a3a] shrink-0 mt-0.5 transition-colors">
+                  <Icon d={it.icon} className="w-6 h-6" />
+                </span>
+                <span className="flex flex-col gap-0.5">
+                  <strong className="text-[15px] font-semibold text-stone-900">{it.title}</strong>
+                  <em className="not-italic text-[13px] text-stone-500 leading-snug">{it.blurb}</em>
+                </span>
+              </a>
+            )
+          }
+
+          // 带子项：标题本身作为分组头，子项缩进展示
+          return (
+            <div
+              key={it.title}
+              className="rounded-xl transition-colors hover:bg-stone-100"
+              onMouseEnter={() => setExpanded(it.title)}
+            >
+              <div className="flex items-start gap-3.5 p-3">
+                <span className="text-stone-500 group-hover:text-[#e07a3a] shrink-0 mt-0.5 transition-colors">
+                  <Icon d={it.icon} className="w-6 h-6" />
+                </span>
+                <span className="flex flex-col gap-0.5 flex-1">
+                  <strong className="text-[15px] font-semibold text-stone-900 flex items-center gap-1.5">
+                    {it.title}
+                    <svg
+                      width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                      className={`text-stone-400 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+                    >
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </strong>
+                  <em className="not-italic text-[13px] text-stone-500 leading-snug">{it.blurb}</em>
+                </span>
+              </div>
+
+              {/* 子项 */}
+              <div className="pb-2 pl-12 pr-3 flex flex-col gap-0.5">
+                {it.children.map((child) => (
+                  <a
+                    key={child.title}
+                    href={child.href || '#'}
+                    className="group flex items-center gap-2 py-2 px-3 rounded-lg text-[14px] text-stone-600 hover:text-[#e07a3a] hover:bg-white transition-colors border-l-2 border-stone-200 hover:border-[#e07a3a]"
+                  >
+                    {child.icon && (
+                      <span className="shrink-0 text-stone-400 group-hover:text-[#e07a3a] transition-colors">
+                        <Icon d={child.icon} className="w-4 h-4" />
+                      </span>
+                    )}
+                    <span className="font-medium">{child.title}</span>
+                    {child.blurb && (
+                      <em className="not-italic text-[12px] text-stone-400 ml-auto">{child.blurb}</em>
+                    )}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
