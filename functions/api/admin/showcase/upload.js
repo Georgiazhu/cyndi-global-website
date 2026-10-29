@@ -1,4 +1,4 @@
-import { getAdminSecret, isAuthenticated, json } from '../../_lib/auth.js';
+import { getAdminSecret, isAuthenticated, json } from '../../../_lib/auth.js';
 
 // POST /api/admin/showcase/upload —— 上传选品图片
 // multipart: file（可多张）, categoryId

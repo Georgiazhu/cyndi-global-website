@@ -1,4 +1,4 @@
-import { json } from '../../_lib/auth.js';
+import { json } from '../_lib/auth.js';
 
 const parse = (raw, fallback) => {
   if (!raw) return fallback;
