@@ -10,6 +10,7 @@ Cyndi Global Limited 的官方网站、Swag 定制商城与物流查询平台，
 |---|---|---|
 | 落地页 | `https://www.cyndiglobal.com/` | Cyndi 品牌首页（Swag / Service / Solution 导航）|
 | Swag 商城 | `https://www.cyndiglobal.com/shop` | 商品列表 + 商品详情(PDP) + 购物车 + 下单 |
+| 选品 Showcase | `https://www.cyndiglobal.com/showcase/` | 分类选品提案（独立仓库 `HRT/showcase` 构建合入）|
 | 后台控制台 | `https://www.cyndiglobal.com/admin/` | 商品管理 + 物流管理（需登录）|
 | 物流查询 | `https://www.cyndiglobal.com/catalog/logistics.html` | 公开运单查询 |
 

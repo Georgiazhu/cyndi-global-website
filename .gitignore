@@ -33,3 +33,6 @@ product-showcase/public/images/services/**/*.png
 HANDOFF.md
 _p.html
 __pycache__/
+
+# Temporary clone of the showcase repo used by scripts/build_showcase.mjs
+.tmp-showcase-build/

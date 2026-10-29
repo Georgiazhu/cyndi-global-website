@@ -71,6 +71,11 @@ export default function CyndiNavbar() {
             <a href="#brand" className={navLink}>Brand</a>
             {openMenu === 'brand' && <BrandMega onEnter={cancelClose} onLeave={scheduleClose} />}
           </li>
+
+          {/* 选品提案展示站（独立仓库 showcase 构建产物） */}
+          <li className="relative h-20 flex items-center px-4">
+            <a href="/showcase/" className={navLink}>Showcase</a>
+          </li>
         </ul>
 
         {/* Lang */}
