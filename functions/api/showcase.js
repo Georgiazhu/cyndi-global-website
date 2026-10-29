@@ -1,4 +1,5 @@
 import { json } from '../_lib/auth.js';
+import { showcaseSeed } from '../_lib/showcaseSeed.js';
 
 const parse = (raw, fallback) => {
   if (!raw) return fallback;
@@ -37,6 +38,56 @@ async function ensureSchema(env) {
   return schemaReady;
 }
 
+// 首次访问时把种子数据写入 D1，避免出现「页面空着、后台也没内容」的状态。
+// 一旦后台保存过任何内容（meta 或商品），就不再回退种子，以数据库为准。
+async function seedIfEmpty(env) {
+  try {
+    const countRow = await env.DB.prepare('SELECT COUNT(*) AS n FROM showcase_products').first();
+    if ((countRow?.n ?? 0) > 0) return false;
+
+    const metaRow = await env.DB.prepare('SELECT data_json FROM showcase_meta WHERE id = 1').first();
+    if (metaRow?.data_json) return false;
+
+    const ts = new Date().toISOString();
+    const statements = [];
+
+    showcaseSeed.categories.forEach((cat, ci) => {
+      statements.push(
+        env.DB.prepare('INSERT OR REPLACE INTO showcase_categories (id, name, sort, updated_at) VALUES (?1, ?2, ?3, ?4)')
+          .bind(cat.id, cat.name, (ci + 1) * 10, ts)
+      );
+      cat.products.forEach((p, pi) => {
+        statements.push(
+          env.DB.prepare(
+            `INSERT OR REPLACE INTO showcase_products
+               (id, category_id, sku, name, description, features_json, materials, image, gallery_json,
+                colors_json, sizes_json, pricing_json, price_includes, price_notes_json, charges_json,
+                currency, sort, updated_at)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18)`
+          ).bind(
+            p.id, cat.id, p.sku || null, p.name, p.description || null,
+            JSON.stringify(p.features || []), p.materials || null, p.image || null,
+            JSON.stringify(p.gallery || []), JSON.stringify(p.colors || []), JSON.stringify(p.sizes || []),
+            JSON.stringify(p.pricing || []), p.priceIncludes || null, JSON.stringify(p.priceNotes || []),
+            JSON.stringify(p.additionalCharges || []), p.currency || '$', (pi + 1) * 10, ts
+          )
+        );
+      });
+    });
+
+    statements.push(
+      env.DB.prepare('INSERT OR REPLACE INTO showcase_meta (id, data_json, updated_at) VALUES (1, ?1, ?2)')
+        .bind(JSON.stringify(showcaseSeed.meta), ts)
+    );
+
+    await env.DB.batch(statements);
+    return true;
+  } catch (e) {
+    console.error('showcase seed:', e?.message);
+    return false;
+  }
+}
+
 // GET /api/showcase —— 公开读取：分类 + 商品 + 全局设置。
 // 前台 https://www.cyndiglobal.com/showcase/ 使用此接口。
 export async function onRequestGet({ request, env }) {
@@ -44,6 +95,7 @@ export async function onRequestGet({ request, env }) {
 
   try {
     await ensureSchema(env);
+    await seedIfEmpty(env);
 
     const catRows = await env.DB.prepare(
       'SELECT id, name, sort FROM showcase_categories ORDER BY sort ASC, name ASC'

@@ -132,6 +132,208 @@ async function includeStoredMedia(env, productNo, record) {
 }
 async function getStoredRecord(env, productNo) { const row = await env.DB.prepare('SELECT data_json FROM logistics_records WHERE product_no = ?1').bind(productNo).first(); if (!row) return null; try { return deriveShipmentFields(await includeStoredMedia(env, productNo, JSON.parse(row.data_json))); } catch { throw new Error('Stored logistics data is invalid'); } }
 // Showcase 表结构（幂等初始化）。D1 迁移未执行时也能自愈。
+/**
+ * Showcase 初始数据（种子）。
+ * 与 showcase 仓库的 src/data/showcase.json 保持一致，用于 D1 首次播种。
+ * 后台一旦保存过内容，就以数据库为准，不再回退种子。
+ */
+const showcaseSeed = {
+  meta: {
+    title: 'SHOWCASE',
+    subtitle: 'Cyndi Global — Custom Swag Proposal',
+    projectName: 'Cyndi Global | Corporate Gifting 2026',
+    date: '10/29/26',
+    recipients: [{ name: 'Sarah Song', email: 'sarah@cyndiglobal.com' }],
+    jobs: [{ label: 'Job', value: 'CY-2026-SWAG-001' }],
+    disclaimer:
+      'All prices herein are pre-tax and pre-shipping unless otherwise noted, are considered confidential, and are valid for 30 days from receipt of quote. Pricing and availability are subject to change without notice.',
+  },
+  categories: [
+    {
+      id: 'canvas-totes',
+      name: 'Canvas Totes',
+      products: [
+        {
+          id: 'cy-tote-001',
+          sku: 'T3265271',
+          name: 'Heritage Supply Co. Legacy Tote',
+          description:
+            'From work to weekend to travel, the Legacy Tote moves with ease. Sleek recycled materials and smart interior organization ensure timeless style — so you’re always polished and prepared.',
+          features: [
+            'Zippered top access to main compartment with interior organization and a laptop sleeve with secured flap',
+            'Additional front panel zippered pocket for smaller essentials and back panel trolley tunnel',
+            'Vegan leather wrapped tote handles for comfortable hand carry',
+            'Durable construction using recycled materials with reinforced vegan leather bottom panel',
+          ],
+          materials: '210D rPET/PU Canvas, 100% Recycled Poly Foam, 58% Recycled PU',
+          image: '/showcase/images/products/canvas-totes/legacy-tote.jpg',
+          gallery: ['/showcase/images/products/canvas-totes/legacy-tote.jpg'],
+          colors: [
+            { name: 'Black', hex: '#1c1917', image: '/showcase/images/products/canvas-totes/legacy-tote.jpg' },
+            { name: 'Trench Coat', hex: '#c3b49a', image: '/showcase/images/products/canvas-totes/legacy-tote.jpg' },
+          ],
+          sizes: ['14.5"L x 15"H x 4.75"W'],
+          pricing: [{ quantity: 300, price: 39.98 }],
+          priceIncludes: '1-color heat transfer imprint, 1 location.',
+          priceNotes: ['Pre tax. Pre shipping', 'Cost may vary based upon final approved artwork.'],
+          additionalCharges: [
+            { label: 'Setup (per color)', amount: 70 },
+            { label: 'Setup (full color)', amount: 110 },
+            { label: "Add'l color/location run charge (per unit)", amount: 1.25 },
+          ],
+          currency: '$',
+        },
+        {
+          id: 'cy-tote-002',
+          sku: 'T3265267',
+          name: 'FEED Organic Cotton Rivet Tote',
+          description:
+            'More than just a tote — this tote helps provide 5 school meals to kids around the world. A stylish and versatile tote for the market, the library, or the office.',
+          features: [
+            'Open main compartment for easy access',
+            'Exterior side pocket for daily essentials',
+            'FEED brand giveback message printed on the interior',
+            'Crafted using 8oz. 100% GOTS certified organic cotton with copper rivets',
+          ],
+          materials: '8oz. 100% GOTS Certified Organic Cotton, Copper Rivets',
+          image: '/showcase/images/products/canvas-totes/feed-rivet-tote.jpg',
+          gallery: ['/showcase/images/products/canvas-totes/feed-rivet-tote.jpg'],
+          colors: [
+            { name: 'Natural', hex: '#e7e0d0', image: '/showcase/images/products/canvas-totes/feed-rivet-tote.jpg' },
+            { name: 'Black', hex: '#1c1917', image: '/showcase/images/products/canvas-totes/feed-rivet-tote.jpg' },
+          ],
+          sizes: ['15"L x 16"H x 4"W'],
+          pricing: [{ quantity: 300, price: 29.5 }],
+          priceIncludes: '1-color print, 1 location (2 color max).',
+          priceNotes: ['Pre tax. Pre shipping'],
+          additionalCharges: [
+            { label: 'Setup (per color)', amount: 70 },
+            { label: "Add'l color/location run charge (per unit)", amount: 1.25 },
+          ],
+          currency: '$',
+        },
+      ],
+    },
+    {
+      id: 'squeeze-bottles',
+      name: 'Squeeze Bottles',
+      products: [
+        {
+          id: 'cy-bottle-001',
+          sku: 'T3264605',
+          name: '21oz CamelBak Podium 3.0 Chill',
+          description:
+            'A 21 oz vacuum-insulated stainless steel bottle with a leak-proof lid designed to keep drinks cold and carbonated.',
+          features: [
+            '21oz vacuum-insulated stainless steel construction',
+            'Leak-proof Chug Cap lid',
+            'Powder-coated finish for grip and durability',
+            'BPA-free and dishwasher safe',
+          ],
+          materials: '18/8 Stainless Steel, BPA-Free Polypropylene Lid',
+          image: '/showcase/images/products/squeeze-bottles/camelbak-podium.jpg',
+          gallery: ['/showcase/images/products/squeeze-bottles/camelbak-podium.jpg'],
+          colors: [
+            { name: 'Aluminum', hex: '#c8c8c8', image: '/showcase/images/products/squeeze-bottles/camelbak-podium.jpg' },
+            { name: 'Aqua Blue', hex: '#8cc5e0', image: '/showcase/images/products/squeeze-bottles/camelbak-podium.jpg' },
+            { name: 'Black', hex: '#1c1917', image: '/showcase/images/products/squeeze-bottles/camelbak-podium.jpg' },
+          ],
+          sizes: ['21 oz / 620 ml'],
+          pricing: [{ quantity: 300, price: 34.0 }],
+          priceIncludes: 'Laser Engrave, 1 location on lid.',
+          priceNotes: ['Pre tax. Pre shipping'],
+          additionalCharges: [
+            { label: 'Setup (per color)', amount: 70 },
+            { label: 'Setup (full color)', amount: 110 },
+          ],
+          currency: '$',
+        },
+        {
+          id: 'cy-bottle-002',
+          sku: 'T3264602',
+          name: '22oz Van Metro Sport Bottle — Push/Pull Cap 4CP Duplex',
+          description:
+            'A streamlined 22oz sport bottle with push/pull cap and 4-color duplex print for a bold brand statement.',
+          features: [
+            '22oz capacity with push/pull sport cap',
+            '4-color duplex printing available',
+            'BPA-free, reusable, and eco-friendly',
+          ],
+          materials: 'Food-grade PP, Tritan',
+          image: '/showcase/images/products/squeeze-bottles/van-metro.jpg',
+          gallery: ['/showcase/images/products/squeeze-bottles/van-metro.jpg'],
+          colors: [
+            { name: 'Clear', hex: '#eef6fb', image: '/showcase/images/products/squeeze-bottles/van-metro.jpg' },
+            { name: 'Black', hex: '#1c1917', image: '/showcase/images/products/squeeze-bottles/van-metro.jpg' },
+          ],
+          sizes: ['22 oz'],
+          pricing: [{ quantity: 300, price: 22.75 }],
+          priceIncludes: 'Full-color digital transfer imprint, 1 location.',
+          priceNotes: ['Pre tax. Pre shipping'],
+          additionalCharges: [{ label: 'Setup (full color)', amount: 110 }],
+          currency: '$',
+        },
+      ],
+    },
+    {
+      id: 'drinkware',
+      name: 'Drinkware',
+      products: [
+        {
+          id: 'cy-drink-001',
+          sku: 'T3263348',
+          name: 'Jett Aluminum Chug Lid Hydration Bottle — 16 Oz.',
+          description:
+            'A lightweight 16 oz aluminum hydration bottle with a chug lid, built for active days on the job.',
+          features: [
+            'Single-wall aluminum construction',
+            'Chug lid with leak-resistant seal',
+            'Fits standard car cup holders',
+          ],
+          materials: 'Aluminum, Polypropylene Lid',
+          image: '/showcase/images/products/drinkware/jett-aluminum.jpg',
+          gallery: ['/showcase/images/products/drinkware/jett-aluminum.jpg'],
+          colors: [
+            { name: 'Black', hex: '#1c1917', image: '/showcase/images/products/drinkware/jett-aluminum.jpg' },
+            { name: 'Silver', hex: '#c8c8c8', image: '/showcase/images/products/drinkware/jett-aluminum.jpg' },
+          ],
+          sizes: ['16 oz'],
+          pricing: [{ quantity: 300, price: 18.9 }],
+          priceIncludes: 'Laser Engrave, 1 location on lid.',
+          priceNotes: ['Pre tax. Pre shipping'],
+          additionalCharges: [{ label: 'Setup (per color)', amount: 70 }],
+          currency: '$',
+        },
+        {
+          id: 'cy-drink-002',
+          sku: 'T3263350',
+          name: 'Zigoo Silicone Collapsible Bottle 18oz',
+          description:
+            'A collapsible 18oz silicone bottle that folds down for easy packing — great for travel and events.',
+          features: [
+            'Collapses to half its height',
+            'Food-grade, BPA-free silicone',
+            'Leak-resistant screw cap',
+          ],
+          materials: 'Food-grade BPA-Free Silicone, PP Cap',
+          image: '/showcase/images/products/drinkware/zigoo-collapsible.jpg',
+          gallery: ['/showcase/images/products/drinkware/zigoo-collapsible.jpg'],
+          colors: [
+            { name: 'Aqua Blue', hex: '#8cc5e0', image: '/showcase/images/products/drinkware/zigoo-collapsible.jpg' },
+            { name: 'Black', hex: '#1c1917', image: '/showcase/images/products/drinkware/zigoo-collapsible.jpg' },
+          ],
+          sizes: ['18 oz'],
+          pricing: [{ quantity: 300, price: 16.4 }],
+          priceIncludes: '1-color print, 1 location.',
+          priceNotes: ['Pre tax. Pre shipping'],
+          additionalCharges: [{ label: 'Setup (per color)', amount: 70 }],
+          currency: '$',
+        },
+      ],
+    },
+  ],
+}
+
 const SHOWCASE_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS showcase_categories (id TEXT PRIMARY KEY, name TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS showcase_products (id TEXT PRIMARY KEY, category_id TEXT NOT NULL, sku TEXT, name TEXT NOT NULL, description TEXT, features_json TEXT, materials TEXT, image TEXT, gallery_json TEXT, colors_json TEXT, sizes_json TEXT, pricing_json TEXT, price_includes TEXT, price_notes_json TEXT, charges_json TEXT, currency TEXT NOT NULL DEFAULT '$', sort INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`,
@@ -139,6 +341,28 @@ const SHOWCASE_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS showcase_media (id TEXT PRIMARY KEY, category_id TEXT, file_name TEXT, content_type TEXT, image_data TEXT NOT NULL, created_at TEXT NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_showcase_products_category ON showcase_products(category_id, sort)`,
 ];
+// Showcase 首次访问播种：库为空时写入初始数据，后台保存后以数据库为准。
+async function showcaseSeedIfEmpty(env) {
+  try {
+    const countRow = await env.DB.prepare('SELECT COUNT(*) AS n FROM showcase_products').first();
+    if ((countRow && countRow.n) > 0) return false;
+    const metaRow = await env.DB.prepare('SELECT data_json FROM showcase_meta WHERE id = 1').first();
+    if (metaRow && metaRow.data_json) return false;
+    const ts = new Date().toISOString();
+    const statements = [];
+    showcaseSeed.categories.forEach((cat, ci) => {
+      statements.push(env.DB.prepare('INSERT OR REPLACE INTO showcase_categories (id, name, sort, updated_at) VALUES (?1, ?2, ?3, ?4)').bind(cat.id, cat.name, (ci + 1) * 10, ts));
+      cat.products.forEach((p, pi) => {
+        statements.push(env.DB.prepare(
+          `INSERT OR REPLACE INTO showcase_products (id, category_id, sku, name, description, features_json, materials, image, gallery_json, colors_json, sizes_json, pricing_json, price_includes, price_notes_json, charges_json, currency, sort, updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18)`
+        ).bind(p.id, cat.id, p.sku || null, p.name, p.description || null, JSON.stringify(p.features || []), p.materials || null, p.image || null, JSON.stringify(p.gallery || []), JSON.stringify(p.colors || []), JSON.stringify(p.sizes || []), JSON.stringify(p.pricing || []), p.priceIncludes || null, JSON.stringify(p.priceNotes || []), JSON.stringify(p.additionalCharges || []), p.currency || '$', (pi + 1) * 10, ts));
+      });
+    });
+    statements.push(env.DB.prepare('INSERT OR REPLACE INTO showcase_meta (id, data_json, updated_at) VALUES (1, ?1, ?2)').bind(JSON.stringify(showcaseSeed.meta), ts));
+    await env.DB.batch(statements);
+    return true;
+  } catch (e) { console.error('showcase seed:', e && e.message); return false; }
+}
 let showcaseSchemaReady = null;
 async function showcaseEnsureSchema(env) {
   if (showcaseSchemaReady) return showcaseSchemaReady;
@@ -272,6 +496,7 @@ async function api(request, env) {
     if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
     try {
       await showcaseEnsureSchema(env);
+      await showcaseSeedIfEmpty(env);
       const catRows = await env.DB.prepare('SELECT id, name, sort FROM showcase_categories ORDER BY sort ASC, name ASC').all();
       const prodRows = await env.DB.prepare(
         `SELECT id, category_id, sku, name, description, features_json, materials, image, gallery_json,
