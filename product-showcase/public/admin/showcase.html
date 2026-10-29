@@ -264,6 +264,8 @@ function openEditor(id){
   const d=document.createElement('div');
   d.className='card';
   d.style.borderTop='3px solid var(--orange)';
+  d.style.scrollMarginTop='80px';
+  d.id='productEditor';
   d.innerHTML=''
     +'<h2>'+(id?'编辑商品':'新增商品')+'</h2>'
     +'<div class="grid2">'
@@ -296,7 +298,7 @@ function openEditor(id){
     +'<div class="field"><label>价格备注（每行一条）</label><textarea id="e_pn">'+esc((p.priceNotes||[]).join('\n'))+'</textarea></div>'
     +'<div class="preview"><div class="preview-head">附加费用</div><div id="e_charges"></div>'
     +'<button class="ghost small" id="e_addcharge" type="button">+ 添加附加费</button></div>'
-    +'<div class="sticky-save"><div class="row end">'
+    +'<div class="sticky-save"><div class="row end" style="padding-bottom:4px">'
     +'<button class="secondary" id="e_cancel">取消</button>'
     +'<button id="e_save">保存商品</button>'
     +'</div></div>';
