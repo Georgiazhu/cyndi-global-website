@@ -6,6 +6,33 @@ const parse = (raw, fallback) => {
   try { return JSON.parse(raw); } catch { return fallback; }
 };
 
+const SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS showcase_categories (
+     id TEXT PRIMARY KEY, name TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS showcase_products (
+     id TEXT PRIMARY KEY, category_id TEXT NOT NULL, sku TEXT, name TEXT NOT NULL, description TEXT,
+     features_json TEXT, materials TEXT, image TEXT, gallery_json TEXT, colors_json TEXT, sizes_json TEXT,
+     pricing_json TEXT, price_includes TEXT, price_notes_json TEXT, charges_json TEXT,
+     currency TEXT NOT NULL DEFAULT '$', sort INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS showcase_meta (
+     id INTEGER PRIMARY KEY CHECK (id = 1), data_json TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS showcase_media (
+     id TEXT PRIMARY KEY, category_id TEXT, file_name TEXT, content_type TEXT,
+     image_data TEXT NOT NULL, created_at TEXT NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS idx_showcase_products_category ON showcase_products(category_id, sort)`,
+  `CREATE INDEX IF NOT EXISTS idx_showcase_media_category ON showcase_media(category_id)`,
+];
+let schemaReady = null;
+async function ensureSchema(env) {
+  if (schemaReady) return schemaReady;
+  schemaReady = (async () => {
+    for (const stmt of SCHEMA) {
+      try { await env.DB.prepare(stmt).run(); } catch (e) { console.error('showcase schema:', e?.message); }
+    }
+  })();
+  return schemaReady;
+}
+
 async function authed(request, env) {
   return isAuthenticated(request, await getAdminSecret(env));
 }
@@ -15,6 +42,8 @@ export async function onRequestGet({ request, env }) {
   if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
   if (!await authed(request, env)) return json({ error: 'Unauthorized' }, 401);
 
+  try { await ensureSchema(env); } catch (e) { return json({ error: e?.message || 'Schema init failed' }, 500); }
+  try {
   const cats = await env.DB.prepare(
     'SELECT id, name, sort FROM showcase_categories ORDER BY sort ASC, name ASC'
   ).all();
@@ -48,6 +77,7 @@ export async function onRequestGet({ request, env }) {
     })),
     meta: metaRow?.data_json ? parse(metaRow.data_json, null) : null,
   });
+  } catch (e) { return json({ error: e?.message || 'Failed to load showcase' }, 500); }
 }
 
 // POST /api/admin/showcase —— 后台保存。body: { op, ... }

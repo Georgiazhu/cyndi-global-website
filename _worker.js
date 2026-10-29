@@ -131,6 +131,25 @@ async function includeStoredMedia(env, productNo, record) {
   return record;
 }
 async function getStoredRecord(env, productNo) { const row = await env.DB.prepare('SELECT data_json FROM logistics_records WHERE product_no = ?1').bind(productNo).first(); if (!row) return null; try { return deriveShipmentFields(await includeStoredMedia(env, productNo, JSON.parse(row.data_json))); } catch { throw new Error('Stored logistics data is invalid'); } }
+// Showcase 表结构（幂等初始化）。D1 迁移未执行时也能自愈。
+const SHOWCASE_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS showcase_categories (id TEXT PRIMARY KEY, name TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS showcase_products (id TEXT PRIMARY KEY, category_id TEXT NOT NULL, sku TEXT, name TEXT NOT NULL, description TEXT, features_json TEXT, materials TEXT, image TEXT, gallery_json TEXT, colors_json TEXT, sizes_json TEXT, pricing_json TEXT, price_includes TEXT, price_notes_json TEXT, charges_json TEXT, currency TEXT NOT NULL DEFAULT '$', sort INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS showcase_meta (id INTEGER PRIMARY KEY CHECK (id = 1), data_json TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS showcase_media (id TEXT PRIMARY KEY, category_id TEXT, file_name TEXT, content_type TEXT, image_data TEXT NOT NULL, created_at TEXT NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS idx_showcase_products_category ON showcase_products(category_id, sort)`,
+];
+let showcaseSchemaReady = null;
+async function showcaseEnsureSchema(env) {
+  if (showcaseSchemaReady) return showcaseSchemaReady;
+  showcaseSchemaReady = (async () => {
+    for (const stmt of SHOWCASE_SCHEMA) {
+      try { await env.DB.prepare(stmt).run(); } catch (e) { console.error('showcase schema:', e && e.message); }
+    }
+  })();
+  return showcaseSchemaReady;
+}
+
 async function api(request, env) {
   const url = new URL(request.url);
   if (url.pathname === '/api/logistics' && request.method === 'GET') {
@@ -252,6 +271,7 @@ async function api(request, env) {
   if (url.pathname === '/api/showcase' && request.method === 'GET') {
     if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
     try {
+      await showcaseEnsureSchema(env);
       const catRows = await env.DB.prepare('SELECT id, name, sort FROM showcase_categories ORDER BY sort ASC, name ASC').all();
       const prodRows = await env.DB.prepare(
         `SELECT id, category_id, sku, name, description, features_json, materials, image, gallery_json,
@@ -283,6 +303,7 @@ async function api(request, env) {
     if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
     if (!await authenticated(request, await getAdminSecret(env))) return json({ error: 'Unauthorized' }, 401);
     try {
+      await showcaseEnsureSchema(env);
       const parse = (raw, fallback) => { if (!raw) return fallback; try { return JSON.parse(raw); } catch { return fallback; } };
       const cats = await env.DB.prepare('SELECT id, name, sort FROM showcase_categories ORDER BY sort ASC, name ASC').all();
       const prods = await env.DB.prepare('SELECT * FROM showcase_products ORDER BY sort ASC, name ASC').all();
@@ -307,6 +328,7 @@ async function api(request, env) {
     if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
     if (!await authenticated(request, await getAdminSecret(env))) return json({ error: 'Unauthorized' }, 401);
     try {
+      await showcaseEnsureSchema(env);
       const body = await request.json().catch(() => ({}));
       const op = String(body.op || '').trim();
       const ts = new Date().toISOString();
