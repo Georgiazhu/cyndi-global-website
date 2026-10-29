@@ -1,0 +1,30 @@
+name: Debug Pages build
+
+# 在 GitHub Actions 内复现 Cloudflare Pages 的构建命令，输出真实错误。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  debug-build:
+    name: Reproduce Pages build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main site
+        uses: actions/checkout@v4
+
+      - name: Check showcase repo reachability
+        run: |
+          echo "--- HRT/showcase ---"
+          git ls-remote --heads https://github.com/HRT/showcase.git 2>&1 | head -3 || echo "FAILED"
+          echo "--- Georgiazhu/showcase ---"
+          git ls-remote --heads https://github.com/Georgiazhu/showcase.git 2>&1 | head -3 || echo "FAILED"
+
+      - name: Reproduce build
+        run: |
+          cd product-showcase
+          npm install --no-audit --no-fund 2>&1 | tail -5
+          echo "=== npm run build ==="
+          npm run build 2>&1 | tail -40
