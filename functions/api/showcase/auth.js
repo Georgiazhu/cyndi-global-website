@@ -45,6 +45,15 @@ async function ensureReady(env) {
   return ready;
 }
 
+// 统一入口：按请求方法分派。
+// 不用 onRequestDelete 单独导出，避免部分打包器对特定方法名的处理差异。
+export async function onRequest(context) {
+  const method = context.request.method.toUpperCase();
+  if (method === 'POST') return onRequestPost(context);
+  if (method === 'DELETE') return handleDelete(context);
+  return onRequestGet(context);
+}
+
 // POST /api/showcase/auth —— 登录 { username, password }
 export async function onRequestPost({ request, env }) {
   if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
@@ -81,7 +90,7 @@ export async function onRequestGet({ request, env }) {
 }
 
 // DELETE /api/showcase/auth —— 退出登录
-export async function onRequestDelete({ request, env }) {
+async function handleDelete({ request }) {
   const isHttps = new URL(request.url).protocol === 'https:';
   return json({ ok: true }, 200, { 'Set-Cookie': clearShowcaseSessionCookie(isHttps) });
 }
