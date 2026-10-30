@@ -1,7 +1,7 @@
 /**
- * Showcase 初始数据（种子）。
- * 与 showcase 仓库的 src/data/showcase.json 保持一致，用于 D1 首次播种。
- * 后台一旦保存过内容，就以数据库为准，不再回退种子。
+ * Showcase seed data.
+ * Mirrors src/data/showcase.json in the showcase repo; used to seed D1 on first access.
+ * Once the admin saves anything, the database wins and the seed is never used again.
  */
 export const showcaseSeed = {
   meta: {

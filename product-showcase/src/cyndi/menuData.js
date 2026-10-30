@@ -1,5 +1,5 @@
-// Swag 二级菜单项 -> 商城页(shop.html)对应品类锚点。
-// 仅这些品类当前有商品；未列出的项暂无商品，链接为占位。
+// Swag sub-menu items -> the matching category anchors on the shop page (shop.html).
+// Only these categories currently have products; the rest are placeholders.
 export const swagItemLinks = {
   // Apparel
   'T-shirts': '/shop.html#tshirts',
@@ -89,12 +89,12 @@ export const serviceItems = [
     icon: 'M3 4h18v12H3z M8 20h8 M12 16v4',
     title: 'Swag Platform',
     blurb: 'Everything you need to manage swag well',
-    // Swag Platform 下的子项：Showcase 为选品提案入口
+    // Child of Swag Platform — the curated product proposal showcase
     children: [
       {
         icon: 'M4 5h16v11H4z M8 20h8 M12 16v4',
         title: 'Showcase',
-        blurb: '选品提案',
+        blurb: 'Product proposals',
         href: '/showcase/',
       },
     ],

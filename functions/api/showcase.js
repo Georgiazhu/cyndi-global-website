@@ -7,8 +7,8 @@ const parse = (raw, fallback) => {
   try { return JSON.parse(raw); } catch { return fallback; }
 };
 
-// D1 表可能尚未创建（迁移未执行）。这里做一次幂等的建表，
-// 避免接口直接抛错导致 Worker 1101，也让首次部署无需手工跑迁移。
+// The D1 tables may not exist yet (migration not run). Creating them idempotently here
+// avoids an unhandled error (Worker 1101) and means no manual migration on first deploy.
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS showcase_categories (
      id TEXT PRIMARY KEY, name TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`,
@@ -39,8 +39,8 @@ async function ensureSchema(env) {
   return schemaReady;
 }
 
-// 首次访问时把种子数据写入 D1，避免出现「页面空着、后台也没内容」的状态。
-// 一旦后台保存过任何内容（meta 或商品），就不再回退种子，以数据库为准。
+// Seeds D1 on first access so the page is never blank with an empty admin console.
+// If the admin has saved anything (meta or products), the seed is skipped and the database wins.
 async function seedIfEmpty(env) {
   try {
     const countRow = await env.DB.prepare('SELECT COUNT(*) AS n FROM showcase_products').first();
@@ -89,13 +89,13 @@ async function seedIfEmpty(env) {
   }
 }
 
-// GET /api/showcase —— 公开读取：分类 + 商品 + 全局设置。
-// 前台 https://www.cyndiglobal.com/showcase/ 使用此接口。
-// 需要有效的 showcase 会话（登录后才可见）。
+// GET /api/showcase — categories + products + global settings.
+// Used by https://www.cyndiglobal.com/showcase/.
+// Requires a valid showcase session (visible only after sign-in).
 export async function onRequestGet({ request, env }) {
   if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
 
-  // 未登录一律拒绝，避免绕过前端直接取数据
+  // Reject every unsigned request so the data cannot be fetched around the front end
   if (!await isShowcaseAuthenticated(request, env)) {
     return json({ error: 'Unauthorized', authenticated: false }, 401);
   }
@@ -145,9 +145,9 @@ export async function onRequestGet({ request, env }) {
     const metaRow = await env.DB.prepare('SELECT data_json FROM showcase_meta WHERE id = 1').first();
     if (metaRow?.data_json) meta = parse(metaRow.data_json, null);
 
-    // 受保护的内容绝不能被缓存：
-    //  public 会让浏览器/中间层缓存响应，退出登录后仍能读到内容，
-    //  共享浏览器上其他人也可能看到缓存。必须 private + no-store。
+    // Protected content must never be cached:
+    //  public lets browsers and intermediaries cache the response, so content stays
+    //  readable after sign-out and on shared machines. It must be private + no-store.
     return json({ meta, categories }, 200, {
       'Cache-Control': 'private, no-store, no-cache, must-revalidate',
       Vary: 'Cookie',

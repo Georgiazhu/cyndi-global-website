@@ -78,7 +78,7 @@ th{font-size:11px;text-transform:uppercase;color:var(--muted)}
   <!-- Login -->
   <section id="loginView" class="card login-card">
     <h1>Showcase editor</h1>
-    <p class="hint" style="margin:0 0 16px">管理上线到 www.cyndiglobal.com/showcase/ 的选品内容。</p>
+    <p class="hint" style="margin:0 0 16px">Manage the products published at www.cyndiglobal.com/showcase/.</p>
     <form id="loginForm">
       <div class="field"><label for="username">Admin username</label><input id="username" type="text" autocomplete="username" required></div>
       <div class="field"><label for="password">Admin password</label><input id="password" type="password" autocomplete="current-password" required></div>
@@ -92,56 +92,56 @@ th{font-size:11px;text-transform:uppercase;color:var(--muted)}
     <div class="card">
       <div class="row" style="justify-content:space-between;align-items:flex-start">
         <div>
-          <h2 style="margin:0">选品管理</h2>
-          <p class="hint" style="margin:4px 0 0">修改后保存即生效，无需重新构建站点。</p>
+          <h2 style="margin:0">Product catalogue</h2>
+          <p class="hint" style="margin:4px 0 0">Changes take effect as soon as you save — no rebuild required.</p>
         </div>
         <div class="row">
-          <button class="secondary small" id="reload">刷新</button>
-          <a href="/showcase/" target="_blank" class="pill" style="text-decoration:none">预览线上页面 ↗</a>
+          <button class="secondary small" id="reload">Reload</button>
+          <a href="/showcase/" target="_blank" class="pill" style="text-decoration:none">Preview live site ↗</a>
         </div>
       </div>
       <div id="msg" class="msg hidden"></div>
     </div>
 
     <div class="tabs">
-      <button data-tab="categories" class="on">分类</button>
-      <button data-tab="products">商品</button>
-      <button data-tab="meta">页面信息</button>
+      <button data-tab="categories" class="on">Categories</button>
+      <button data-tab="products">Products</button>
+      <button data-tab="meta">Page info</button>
     </div>
 
-    <!-- 分类 -->
+    <!-- Categories -->
     <div id="tab-categories" class="card">
       <div class="toolbar">
-        <input id="newCatName" placeholder="新分类名称，如 Drinkware">
-        <input id="newCatId" placeholder="英文 id，如 drinkware（用于网址锚点）" style="max-width:260px">
-        <button id="addCat">新增分类</button>
+        <input id="newCatName" placeholder="Category name, e.g. Drinkware">
+        <input id="newCatId" placeholder="English id, e.g. drinkware (used as the URL anchor)" style="max-width:260px">
+        <button id="addCat">Add category</button>
       </div>
       <div id="catList"></div>
     </div>
 
-    <!-- 商品 -->
+    <!-- Products -->
     <div id="tab-products" class="card hidden">
       <div class="toolbar">
-        <input id="psearch" placeholder="搜索商品名称 / 款号…">
-        <select id="pcat"><option value="">全部分类</option></select>
-        <button id="addProd">新增商品</button>
+        <input id="psearch" placeholder="Search by product name / SKU…">
+        <select id="pcat"><option value="">All categories</option></select>
+        <button id="addProd">Add product</button>
       </div>
       <div id="prodList"></div>
     </div>
 
-    <!-- 页面信息 -->
+    <!-- Page info -->
     <div id="tab-meta" class="card hidden">
-      <h2>页面信息</h2>
+      <h2>Page info</h2>
       <div class="grid2">
-        <div class="field"><label>页面大标题 (SHOWCASE)</label><input id="m_title"></div>
-        <div class="field"><label>副标题</label><input id="m_subtitle"></div>
-        <div class="field"><label>项目名</label><input id="m_projectName"></div>
-        <div class="field"><label>日期</label><input id="m_date"></div>
+        <div class="field"><label>Page title (SHOWCASE)</label><input id="m_title"></div>
+        <div class="field"><label>Subtitle</label><input id="m_subtitle"></div>
+        <div class="field"><label>Project name</label><input id="m_projectName"></div>
+        <div class="field"><label>Date</label><input id="m_date"></div>
       </div>
-      <div class="field"><label>收件人（每行一位，格式：姓名, 邮箱）</label><textarea id="m_recipients"></textarea></div>
-      <div class="field"><label>关联项目（每行一条，格式：标签, 值）</label><textarea id="m_jobs"></textarea></div>
-      <div class="field"><label>免责声明</label><textarea id="m_disclaimer" style="min-height:90px"></textarea></div>
-      <button id="saveMeta">保存页面信息</button>
+      <div class="field"><label>Recipients (one per line — name, email)</label><textarea id="m_recipients"></textarea></div>
+      <div class="field"><label>Linked jobs (one per line — label, value)</label><textarea id="m_jobs"></textarea></div>
+      <div class="field"><label>Disclaimer</label><textarea id="m_disclaimer" style="min-height:90px"></textarea></div>
+      <button id="saveMeta">Save page info</button>
     </div>
   </section>
 </main>
@@ -155,7 +155,7 @@ async function api(url,opts){const r=await fetch(url,opts||{});const b=await r.j
 let DATA={categories:[],products:[],meta:null};
 let SEL_CAT=null;
 
-// ---------- 登录 ----------
+// ---------- Sign in ----------
 $('loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
   try{
@@ -169,7 +169,7 @@ $('logout').addEventListener('click',async e=>{
   location.reload();
 });
 
-// ---------- 加载 ----------
+// ---------- Load ----------
 async function load(){
   try{
     const r=await fetch('/api/admin/showcase');
@@ -177,48 +177,48 @@ async function load(){
     DATA=await r.json();
     $('loginView').classList.add('hidden');$('editorView').classList.remove('hidden');
     renderCats();renderProds();renderMeta();fillCatSelect();
-  }catch(err){showMsg('加载失败：'+err.message,'err')}
+  }catch(err){showMsg('Failed to load: '+err.message,'err')}
 }
 $('reload').addEventListener('click',load);
 
-// ---------- 分类 ----------
+// ---------- Categories ----------
 $('addCat').addEventListener('click',async()=>{
   const name=$('newCatName').value.trim(),id=$('newCatId').value.trim()||name.toLowerCase().replace(/[^a-z0-9]+/g,'-');
-  if(!name)return showMsg('请填写分类名称','err');
+  if(!name)return showMsg('Please enter a category name','err');
   try{
     await api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'addCategory',id,name})});
     $('newCatName').value='';$('newCatId').value='';
-    await load();showMsg('分类已新增','ok');
+    await load();showMsg('Category added','ok');
   }catch(err){showMsg(err.message,'err')}
 });
 
 function renderCats(){
   const el=$('catList');
-  if(!DATA.categories.length){el.innerHTML='<p class="hint">还没有分类，先新增一个。</p>';return}
+  if(!DATA.categories.length){el.innerHTML='<p class="hint">No categories yet — add one first.</p>';return}
   el.innerHTML=DATA.categories.map(c=>{
     const n=DATA.products.filter(p=>p.categoryId===c.id).length;
-    return '<div class="list-row"><div><b>'+esc(c.name)+'</b><br><span class="hint">id: '+esc(c.id)+' · '+n+' 个商品</span></div>'
+    return '<div class="list-row"><div><b>'+esc(c.name)+'</b><br><span class="hint">id: '+esc(c.id)+' · '+n+' products</span></div>'
       +'<div class="row" style="gap:6px">'
-      +'<button class="secondary small" data-rename="'+esc(c.id)+'">重命名</button>'
-      +'<button class="secondary small" data-delcat="'+esc(c.id)+'">删除</button>'
+      +'<button class="secondary small" data-rename="'+esc(c.id)+'">Rename</button>'
+      +'<button class="secondary small" data-delcat="'+esc(c.id)+'">Delete</button>'
       +'</div></div>';
   }).join('');
   el.querySelectorAll('[data-rename]').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.rename,cur=DATA.categories.find(c=>c.id===id);
-    const nn=prompt('新的分类名称',cur.name);if(nn==null)return;
-    try{await api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'updateCategory',id,name:nn.trim()})});await load();showMsg('已重命名','ok')}catch(e){showMsg(e.message,'err')}
+    const nn=prompt('New category name',cur.name);if(nn==null)return;
+    try{await api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'updateCategory',id,name:nn.trim()})});await load();showMsg('Renamed','ok')}catch(e){showMsg(e.message,'err')}
   }));
   el.querySelectorAll('[data-delcat]').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.delcat,cur=DATA.categories.find(c=>c.id===id);
-    if(!confirm('删除分类「'+cur.name+'」？该分类下的 '+DATA.products.filter(p=>p.categoryId===id).length+' 个商品也会一并删除。'))return;
-    try{await api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'deleteCategory',id})});await load();showMsg('已删除','ok')}catch(e){showMsg(e.message,'err')}
+    if(!confirm('Delete category "'+cur.name+'"? Its '+DATA.products.filter(p=>p.categoryId===id).length+' product(s) will be deleted too.'))return;
+    try{await api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'deleteCategory',id})});await load();showMsg('Deleted','ok')}catch(e){showMsg(e.message,'err')}
   }));
 }
 
-// ---------- 商品列表 ----------
+// ---------- Product list ----------
 function fillCatSelect(){
   const s=$('pcat');const v=s.value;
-  s.innerHTML='<option value="">全部分类</option>'+DATA.categories.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join('');
+  s.innerHTML='<option value="">All categories</option>'+DATA.categories.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join('');
   s.value=v;
 }
 $('pcat').addEventListener('change',renderProds);
@@ -232,29 +232,29 @@ function renderProds(){
     return true;
   });
   const el=$('prodList');
-  if(!list.length){el.innerHTML='<p class="hint">没有匹配的商品。</p>';return}
+  if(!list.length){el.innerHTML='<p class="hint">No matching products.</p>';return}
   el.innerHTML=list.map(p=>{
     const cat=DATA.categories.find(c=>c.id===p.categoryId);
     const price=(p.pricing&&p.pricing.length)?(p.pricing[0].price+(p.currency||'$')):'—';
     const img=p.image?'<img class="thumb" src="'+esc(p.image)+'" alt="">':'<div class="thumb"></div>';
     return '<div class="list-row">'+img
-      +'<div><b>'+esc(p.name)+'</b><br><span class="hint">'+esc(p.sku||'无款号')+' · '+esc(cat?cat.name:'未分类')+' · 起 '+esc(price)+' · '+((p.colors||[]).length)+' 色</span></div>'
-      +'<div class="row" style="gap:6px"><button class="small" data-edit="'+esc(p.id)+'">编辑</button>'
-      +'<button class="secondary small" data-del="'+esc(p.id)+'">删除</button></div></div>';
+      +'<div><b>'+esc(p.name)+'</b><br><span class="hint">'+esc(p.sku||'No SKU')+' · '+esc(cat?cat.name:'Uncategorised')+' · from '+esc(price)+' · '+((p.colors||[]).length)+' colours</span></div>'
+      +'<div class="row" style="gap:6px"><button class="small" data-edit="'+esc(p.id)+'">Edit</button>'
+      +'<button class="secondary small" data-del="'+esc(p.id)+'">Delete</button></div></div>';
   }).join('');
   el.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>openEditor(b.dataset.edit)));
   el.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',async()=>{
     const p=DATA.products.find(x=>x.id===b.dataset.del);
-    if(!confirm('删除商品「'+p.name+'」？'))return;
-    try{await api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'deleteProduct',id:p.id})});await load();showMsg('已删除','ok')}catch(e){showMsg(e.message,'err')}
+    if(!confirm('Delete product "'+p.name+'"?'))return;
+    try{await api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'deleteProduct',id:p.id})});await load();showMsg('Deleted','ok')}catch(e){showMsg(e.message,'err')}
   }));
 }
 $('addProd').addEventListener('click',()=>{
-  if(!DATA.categories.length)return showMsg('请先创建一个分类','err');
+  if(!DATA.categories.length)return showMsg('Create a category first','err');
   openEditor(null);
 });
 
-// ---------- 商品编辑面板 ----------
+// ---------- Product editor panel ----------
 function openEditor(id){
   const p=id?DATA.products.find(x=>x.id===id):{
     id:'cy-'+Date.now().toString(36),categoryId:(SEL_CAT||DATA.categories[0].id),sku:'',name:'',
@@ -267,40 +267,40 @@ function openEditor(id){
   d.style.scrollMarginTop='80px';
   d.id='productEditor';
   d.innerHTML=''
-    +'<h2>'+(id?'编辑商品':'新增商品')+'</h2>'
+    +'<h2>'+(id?'Edit product':'Add product')+'</h2>'
     +'<div class="grid2">'
-    +'<div class="field"><label>商品名称 *</label><input id="e_name" value="'+esc(p.name)+'"></div>'
-    +'<div class="field"><label>款号 / 产品编号</label><input id="e_sku" value="'+esc(p.sku||'')+'"></div>'
-    +'<div class="field"><label>所属分类 *</label><select id="e_cat">'+DATA.categories.map(c=>'<option value="'+esc(c.id)+'"'+(c.id===p.categoryId?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></div>'
-    +'<div class="field"><label>商品 id（唯一）</label><input id="e_id" value="'+esc(p.id)+'"'+(id?' readonly':'')+'></div>'
+    +'<div class="field"><label>Product name *</label><input id="e_name" value="'+esc(p.name)+'"></div>'
+    +'<div class="field"><label>SKU / item number</label><input id="e_sku" value="'+esc(p.sku||'')+'"></div>'
+    +'<div class="field"><label>Category *</label><select id="e_cat">'+DATA.categories.map(c=>'<option value="'+esc(c.id)+'"'+(c.id===p.categoryId?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></div>'
+    +'<div class="field"><label>Product id (unique)</label><input id="e_id" value="'+esc(p.id)+'"'+(id?' readonly':'')+'></div>'
     +'</div>'
-    +'<div class="field"><label>商品描述</label><textarea id="e_desc">'+esc(p.description||'')+'</textarea></div>'
-    +'<div class="field"><label>卖点（每行一条）</label><textarea id="e_features">'+esc((p.features||[]).join('\n'))+'</textarea></div>'
-    +'<div class="field"><label>材质</label><input id="e_materials" value="'+esc(p.materials||'')+'"></div>'
-    +'<div class="preview"><div class="preview-head">图片</div>'
-    +'<div class="img-upload" id="e_upload">点击选择图片上传（可多选）</div>'
+    +'<div class="field"><label>Description</label><textarea id="e_desc">'+esc(p.description||'')+'</textarea></div>'
+    +'<div class="field"><label>Features (one per line)</label><textarea id="e_features">'+esc((p.features||[]).join('\n'))+'</textarea></div>'
+    +'<div class="field"><label>Materials</label><input id="e_materials" value="'+esc(p.materials||'')+'"></div>'
+    +'<div class="preview"><div class="preview-head">Images</div>'
+    +'<div class="img-upload" id="e_upload">Click to upload images (multiple allowed)</div>'
     +'<input type="file" id="e_file" accept="image/*" multiple class="hidden">'
     +'<div class="img-grid" id="e_imgs"></div>'
-    +'<div class="field" style="margin-top:10px"><label>主图 URL（可直接粘贴，或点上方上传）</label><input id="e_image" value="'+esc(p.image||'')+'"></div>'
-    +'<div class="field"><label>图库 URL（每行一条）</label><textarea id="e_gallery">'+esc((p.gallery||[]).join('\n'))+'</textarea></div>'
+    +'<div class="field" style="margin-top:10px"><label>Main image URL (paste directly, or upload above)</label><input id="e_image" value="'+esc(p.image||'')+'"></div>'
+    +'<div class="field"><label>Gallery URLs (one per line)</label><textarea id="e_gallery">'+esc((p.gallery||[]).join('\n'))+'</textarea></div>'
     +'</div>'
-    +'<div class="preview"><div class="preview-head">颜色色板</div><div id="e_colors"></div>'
-    +'<button class="ghost small" id="e_addcolor" type="button">+ 添加颜色</button></div>'
-    +'<div class="preview"><div class="preview-head">尺寸</div>'
+    +'<div class="preview"><div class="preview-head">Colour swatches</div><div id="e_colors"></div>'
+    +'<button class="ghost small" id="e_addcolor" type="button">+ Add colour</button></div>'
+    +'<div class="preview"><div class="preview-head">Sizes</div>'
     +'<div id="e_sizes" class="row" style="margin-bottom:8px"></div>'
-    +'<button class="ghost small" id="e_addsize" type="button">+ 添加尺寸</button></div>'
-    +'<div class="preview"><div class="preview-head">阶梯价</div><div id="e_pricing"></div>'
-    +'<button class="ghost small" id="e_addprice" type="button">+ 添加价格档</button></div>'
+    +'<button class="ghost small" id="e_addsize" type="button">+ Add size</button></div>'
+    +'<div class="preview"><div class="preview-head">Tiered pricing</div><div id="e_pricing"></div>'
+    +'<button class="ghost small" id="e_addprice" type="button">+ Add price tier</button></div>'
     +'<div class="grid2">'
-    +'<div class="field"><label>价格包含（定制工艺）</label><input id="e_pi" value="'+esc(p.priceIncludes||'')+'"></div>'
-    +'<div class="field"><label>货币符号</label><select id="e_cur"><option value="$">$</option><option value="¥">¥</option><option value="€">€</option></select></div>'
+    +'<div class="field"><label>Price includes (decoration)</label><input id="e_pi" value="'+esc(p.priceIncludes||'')+'"></div>'
+    +'<div class="field"><label>Currency</label><select id="e_cur"><option value="$">$</option><option value="¥">¥</option><option value="€">€</option></select></div>'
     +'</div>'
-    +'<div class="field"><label>价格备注（每行一条）</label><textarea id="e_pn">'+esc((p.priceNotes||[]).join('\n'))+'</textarea></div>'
-    +'<div class="preview"><div class="preview-head">附加费用</div><div id="e_charges"></div>'
-    +'<button class="ghost small" id="e_addcharge" type="button">+ 添加附加费</button></div>'
+    +'<div class="field"><label>Price notes (one per line)</label><textarea id="e_pn">'+esc((p.priceNotes||[]).join('\n'))+'</textarea></div>'
+    +'<div class="preview"><div class="preview-head">Additional charges</div><div id="e_charges"></div>'
+    +'<button class="ghost small" id="e_addcharge" type="button">+ Add charge</button></div>'
     +'<div class="sticky-save"><div class="row end" style="padding-bottom:4px">'
-    +'<button class="secondary" id="e_cancel">取消</button>'
-    +'<button id="e_save">保存商品</button>'
+    +'<button class="secondary" id="e_cancel">Cancel</button>'
+    +'<button id="e_save">Save product</button>'
     +'</div></div>';
 
   $('editorView').insertBefore(d,$('editorView').firstChild);
@@ -313,10 +313,10 @@ function openEditor(id){
     $('e_colors').innerHTML=state.colors.map((c,i)=>
       '<div class="row" style="margin-bottom:6px">'
       +'<input type="color" value="'+esc(c.hex||'#cccccc')+'" data-cidx="'+i+'" data-cfield="hex" style="width:44px;padding:3px;flex:0 0 auto">'
-      +'<input value="'+esc(c.name||'')+'" placeholder="颜色名" data-cidx="'+i+'" data-cfield="name" style="flex:1">'
-      +'<input value="'+esc(c.image||'')+'" placeholder="该色图片 URL" data-cidx="'+i+'" data-cfield="image" style="flex:1.4">'
-      +'<button class="secondary small" data-cdel="'+i+'">删</button></div>').join('')
-      ||'<p class="hint">还没有颜色。</p>';
+      +'<input value="'+esc(c.name||'')+'" placeholder="Colour name" data-cidx="'+i+'" data-cfield="name" style="flex:1">'
+      +'<input value="'+esc(c.image||'')+'" placeholder="Image URL for this colour" data-cidx="'+i+'" data-cfield="image" style="flex:1.4">'
+      +'<button class="secondary small" data-cdel="'+i+'">✕</button></div>').join('')
+      ||'<p class="hint">No colours yet.</p>';
     $('e_colors').querySelectorAll('[data-cidx]').forEach(inp=>inp.addEventListener('input',()=>{
       state.colors[+inp.dataset.cidx][inp.dataset.cfield]=inp.value;
     }));
@@ -327,7 +327,7 @@ function openEditor(id){
   function drawSizes(){
     $('e_sizes').innerHTML=state.sizes.map((s,i)=>
       '<span class="tag">'+esc(s)+'<button data-sdel="'+i+'">×</button></span>').join('')
-      ||'<span class="hint">还没有尺寸。</span>';
+      ||'<span class="hint">No sizes yet.</span>';
     $('e_sizes').querySelectorAll('[data-sdel]').forEach(b=>b.addEventListener('click',()=>{
       state.sizes.splice(+b.dataset.sdel,1);drawSizes();
     }));
@@ -335,10 +335,10 @@ function openEditor(id){
   function drawPricing(){
     $('e_pricing').innerHTML=state.pricing.map((t,i)=>
       '<div class="row" style="margin-bottom:6px">'
-      +'<input value="'+esc(t.quantity)+'" placeholder="数量" data-pidx="'+i+'" data-pfield="quantity" style="width:110px">'
-      +'<input value="'+esc(t.price)+'" placeholder="单价" data-pidx="'+i+'" data-pfield="price" style="width:110px">'
-      +'<button class="secondary small" data-pdel="'+i+'">删</button></div>').join('')
-      ||'<p class="hint">还没有价格档。</p>';
+      +'<input value="'+esc(t.quantity)+'" placeholder="Quantity" data-pidx="'+i+'" data-pfield="quantity" style="width:110px">'
+      +'<input value="'+esc(t.price)+'" placeholder="Unit price" data-pidx="'+i+'" data-pfield="price" style="width:110px">'
+      +'<button class="secondary small" data-pdel="'+i+'">✕</button></div>').join('')
+      ||'<p class="hint">No price tiers yet.</p>';
     $('e_pricing').querySelectorAll('[data-pidx]').forEach(inp=>inp.addEventListener('input',()=>{
       const i=+inp.dataset.pidx,f=inp.dataset.pfield;
       state.pricing[i][f]=f==='price'?(parseFloat(inp.value)||0):(parseInt(inp.value)||0);
@@ -350,10 +350,10 @@ function openEditor(id){
   function drawCharges(){
     $('e_charges').innerHTML=state.charges.map((c,i)=>
       '<div class="row" style="margin-bottom:6px">'
-      +'<input value="'+esc(c.label||'')+'" placeholder="说明，如 Setup (per color)" data-gidx="'+i+'" data-gfield="label" style="flex:2">'
-      +'<input value="'+esc(c.amount)+'" placeholder="金额" data-gidx="'+i+'" data-gfield="amount" style="width:120px">'
-      +'<button class="secondary small" data-gdel="'+i+'">删</button></div>').join('')
-      ||'<p class="hint">还没有附加费。</p>';
+      +'<input value="'+esc(c.label||'')+'" placeholder="Label, e.g. Setup (per color)" data-gidx="'+i+'" data-gfield="label" style="flex:2">'
+      +'<input value="'+esc(c.amount)+'" placeholder="Amount" data-gidx="'+i+'" data-gfield="amount" style="width:120px">'
+      +'<button class="secondary small" data-gdel="'+i+'">✕</button></div>').join('')
+      ||'<p class="hint">No charges yet.</p>';
     $('e_charges').querySelectorAll('[data-gidx]').forEach(inp=>inp.addEventListener('input',()=>{
       const i=+inp.dataset.gidx,f=inp.dataset.gfield;
       state.charges[i][f]=f==='amount'?(parseFloat(inp.value)||0):inp.value;
@@ -374,12 +374,12 @@ function openEditor(id){
 
   $('e_addcolor').addEventListener('click',()=>{state.colors.push({name:'',hex:'#cccccc',image:''});drawColors()});
   $('e_addsize').addEventListener('click',()=>{
-    const v=prompt('尺寸内容','One Size');if(v)state.sizes.push(v.trim());drawSizes();
+    const v=prompt('Size','One Size');if(v)state.sizes.push(v.trim());drawSizes();
   });
   $('e_addprice').addEventListener('click',()=>{state.pricing.push({quantity:'',price:''});drawPricing()});
   $('e_addcharge').addEventListener('click',()=>{state.charges.push({label:'',amount:0});drawCharges()});
 
-  // 图片上传
+  // Image upload
   $('e_upload').addEventListener('click',()=>$('e_file').click());
   $('e_file').addEventListener('change',async()=>{
     const files=Array.from($('e_file').files||[]);
@@ -387,7 +387,7 @@ function openEditor(id){
     const fd=new FormData();
     files.forEach(f=>fd.append('file',f));
     fd.append('categoryId',$('e_cat').value);
-    $('e_upload').textContent='上传中…';
+    $('e_upload').textContent='Uploading…';
     try{
       const res=await api('/api/admin/showcase/upload',{method:'POST',body:fd});
       const urls=res.urls||[res.url];
@@ -395,16 +395,16 @@ function openEditor(id){
       else urls.forEach(u=>{if(!state.gallery.includes(u))state.gallery.push(u)});
       $('e_gallery').value=state.gallery.join('\n');
       drawImgs();
-      showMsg('已上传 '+urls.length+' 张图片','ok');
-    }catch(err){showMsg('上传失败：'+err.message,'err')}
-    $('e_upload').textContent='点击选择图片上传（可多选）';
+      showMsg('Uploaded '+urls.length+' image(s)','ok');
+    }catch(err){showMsg('Upload failed: '+err.message,'err')}
+    $('e_upload').textContent='Click to upload images (multiple allowed)';
     $('e_file').value='';
   });
 
   $('e_cancel').addEventListener('click',()=>d.remove());
   $('e_save').addEventListener('click',async()=>{
     const name=$('e_name').value.trim();
-    if(!name)return showMsg('请填写商品名称','err');
+    if(!name)return showMsg('Please enter a product name','err');
     const prod={
       id:$('e_id').value.trim(),categoryId:$('e_cat').value,name,sku:$('e_sku').value.trim(),
       description:$('e_desc').value.trim(),
@@ -422,12 +422,12 @@ function openEditor(id){
     };
     try{
       await api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'saveProduct',product:prod})});
-      await load();d.remove();showMsg('商品已保存','ok');
+      await load();d.remove();showMsg('Product saved','ok');
     }catch(err){showMsg(err.message,'err')}
   });
 }
 
-// ---------- 页面信息 ----------
+// ---------- Page info ----------
 function renderMeta(){
   const m=DATA.meta||{title:'SHOWCASE',subtitle:'',projectName:'',date:'',recipients:[],jobs:[],disclaimer:''};
   $('m_title').value=m.title||'';
@@ -450,7 +450,7 @@ $('saveMeta').addEventListener('click',async()=>{
     }),
     disclaimer:$('m_disclaimer').value.trim(),
   };
-  try{await api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'saveMeta',meta})});await load();showMsg('页面信息已保存','ok')}catch(e){showMsg(e.message,'err')}
+  try{await api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'saveMeta',meta})});await load();showMsg('Page info saved','ok')}catch(e){showMsg(e.message,'err')}
 });
 
 // ---------- Tabs ----------
@@ -462,7 +462,7 @@ document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',
   });
 }));
 
-// 自动登录态检查
+// Check for an existing session
 load();
 </script>
 </body>

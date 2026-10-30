@@ -13,7 +13,7 @@ import {
   verifyShowcaseCredentials,
 } from './auth-lib.js';
 
-// 幂等初始化：建表 + 写入初始账号 HRT / Aa123456。
+// Idempotent init: create the table and write the initial HRT / Aa123456 account.
 let ready = null;
 
 async function ensureReady(env) {
@@ -24,7 +24,7 @@ async function ensureReady(env) {
       try { await env.DB.prepare(stmt).run(); }
       catch (e) { console.error('showcase_users schema:', e?.message); }
     }
-    // 初始账号不存在时写入
+    // Write the initial account when it does not exist yet
     try {
       const row = await env.DB.prepare('SELECT username FROM showcase_users WHERE username = ?1')
         .bind(SHOWCASE_DEFAULT_USER.username).first();
@@ -45,7 +45,7 @@ async function ensureReady(env) {
   return ready;
 }
 
-// POST /api/showcase/auth —— 登录 { username, password }
+// POST /api/showcase/auth — sign in with { username, password }
 export async function onRequestPost({ request, env }) {
   if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
   await ensureReady(env);
@@ -55,7 +55,7 @@ export async function onRequestPost({ request, env }) {
   const password = String(body.password || '');
 
   const user = await verifyShowcaseCredentials(env, username, password);
-  if (!user) return json({ error: '账号或密码不正确' }, 401);
+  if (!user) return json({ error: 'Incorrect username or password' }, 401);
 
   const secret = await getShowcaseSecret(env);
   const token = await createShowcaseSession(secret, user.username);
@@ -68,7 +68,7 @@ export async function onRequestPost({ request, env }) {
   );
 }
 
-// GET /api/showcase/auth —— 会话状态检查
+// GET /api/showcase/auth — session status
 export async function onRequestGet({ request, env }) {
   if (!env.DB) return json({ authenticated: false }, 503);
   await ensureReady(env);
@@ -80,7 +80,7 @@ export async function onRequestGet({ request, env }) {
   return json({ authenticated: true, user: { username: session.username } });
 }
 
-// DELETE /api/showcase/auth —— 退出登录
+// DELETE /api/showcase/auth — sign out
 export async function onRequestDelete({ request }) {
   const isHttps = new URL(request.url).protocol === 'https:';
   return json({ ok: true }, 200, { 'Set-Cookie': clearShowcaseSessionCookie(isHttps) });

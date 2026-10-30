@@ -1,13 +1,13 @@
 const encoder = new TextEncoder();
 
 /**
- * Showcase 独立账号体系。
+ * Standalone showcase account system.
  *
- * 与后台管理账号（admin_users）分开：
- *  - showcase_users 用于「访问展示站」的只读账号
- *  - admin_users  用于「编辑内容」的管理员账号
+ * Kept separate from the admin console accounts (admin_users):
+ *  - showcase_users holds read-only accounts that can view the showcase
+ *  - admin_users holds admin accounts that can edit the content
  *
- * 初始账号 HRT / Aa123456 在表首次创建时自动写入（见 functions/api/showcase/auth.js）。
+ * The initial HRT / Aa123456 account is written when the table is first created (see functions/api/showcase/auth.js).
  */
 
 const toBase64Url = (bytes) => {
@@ -27,9 +27,9 @@ async function sign(value, secret) {
   return toBase64Url(new Uint8Array(await crypto.subtle.sign('HMAC', key, encoder.encode(value))));
 }
 
-// 会话 cookie 名。
-// 不能用 showcase_session —— 商城客户体系（product-showcase/functions/_lib/auth.js）
-// 已经占用了这个名字，且两套的 token 格式与签名方式不同，共用会互相覆盖。
+// Session cookie name.
+// Not showcase_session — the shop customer system (product-showcase/functions/_lib/auth.js)
+// already owns that name, and the two token formats and signatures differ, so sharing it
 const SESSION_COOKIE = 'showcase_gate_session';
 
 export async function hashPassword(password, salt) {
@@ -42,7 +42,7 @@ export function randomSalt() {
   return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// 会话签名密钥。与管理员会话分开，避免互相影响。
+// Session signing secret. Kept apart from the admin session so they cannot affect each other.
 export async function getShowcaseSecret(env) {
   if (env.SHOWCASE_SESSION_SECRET) return env.SHOWCASE_SESSION_SECRET;
   if (env.LOGISTICS_SESSION_SECRET) return env.LOGISTICS_SESSION_SECRET;
@@ -50,7 +50,7 @@ export async function getShowcaseSecret(env) {
   return 'cyndi-showcase-session-secret';
 }
 
-// 校验 showcase 账号。成功返回 { username, displayName }，失败返回 null。
+// Verify a showcase account. Returns { username, displayName } on success, null on failure.
 export async function verifyShowcaseCredentials(env, username, password) {
   const uname = (username || '').trim();
   if (!uname || !password) return null;
@@ -70,14 +70,14 @@ export async function verifyShowcaseCredentials(env, username, password) {
   }
 }
 
-// 创建会话 token：payload 含 username 与过期时间，HMAC 签名。有效期 7 天。
+// Create a session token: the payload carries the username and expiry, HMAC-signed. Valid for 7 days.
 export async function createShowcaseSession(secret, username = '') {
   const payload = JSON.stringify({ u: username, exp: Date.now() + 1000 * 60 * 60 * 24 * 7 });
   const encoded = toBase64Url(encoder.encode(payload));
   return `${encoded}.${await sign(encoded, secret)}`;
 }
 
-// 校验会话，返回 { username } 或 null。
+// Validate a session, returning { username } or null.
 export async function readShowcaseSession(request, secret) {
   if (!secret) return null;
   const cookie = request.headers.get('Cookie') || '';
@@ -96,7 +96,7 @@ export async function readShowcaseSession(request, secret) {
   }
 }
 
-// 是否已登录
+// Whether the request is signed in
 export async function isShowcaseAuthenticated(request, env) {
   const secret = await getShowcaseSecret(env);
   return !!(await readShowcaseSession(request, secret));
@@ -111,7 +111,7 @@ export function clearShowcaseSessionCookie(secure = true) {
   return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? '; Secure' : ''}`;
 }
 
-// 表结构（幂等）。首次调用时自动建表并写入初始账号。
+// Table schema (idempotent). Created on first call along with the initial account.
 export const SHOWCASE_USERS_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS showcase_users (
      username TEXT PRIMARY KEY,
@@ -123,7 +123,7 @@ export const SHOWCASE_USERS_SCHEMA = [
      updated_at TEXT NOT NULL)`,
 ];
 
-// 初始账号 HRT / Aa123456
+// Initial account HRT / Aa123456
 export const SHOWCASE_DEFAULT_USER = {
   username: 'HRT',
   password: 'Aa123456',
