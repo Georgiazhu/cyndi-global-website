@@ -27,6 +27,11 @@ async function sign(value, secret) {
   return toBase64Url(new Uint8Array(await crypto.subtle.sign('HMAC', key, encoder.encode(value))));
 }
 
+// 会话 cookie 名。
+// 不能用 showcase_session —— 商城客户体系（product-showcase/functions/_lib/auth.js）
+// 已经占用了这个名字，且两套的 token 格式与签名方式不同，共用会互相覆盖。
+const SESSION_COOKIE = 'showcase_gate_session';
+
 export async function hashPassword(password, salt) {
   const digest = await crypto.subtle.digest('SHA-256', encoder.encode(password + salt));
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -76,7 +81,7 @@ export async function createShowcaseSession(secret, username = '') {
 export async function readShowcaseSession(request, secret) {
   if (!secret) return null;
   const cookie = request.headers.get('Cookie') || '';
-  const match = cookie.match(/(?:^|;\s*)showcase_session=([^;]+)/);
+  const match = cookie.match(new RegExp('(?:^|;\\s*)' + SESSION_COOKIE + '=([^;]+)'));
   if (!match) return null;
   const [encoded, signature] = match[1].split('.');
   if (!encoded || !signature) return null;
@@ -99,11 +104,11 @@ export async function isShowcaseAuthenticated(request, env) {
 
 export function showcaseSessionCookie(token, secure = true) {
   const maxAge = 60 * 60 * 24 * 7;
-  return `showcase_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
+  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
 }
 
 export function clearShowcaseSessionCookie(secure = true) {
-  return `showcase_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? '; Secure' : ''}`;
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? '; Secure' : ''}`;
 }
 
 // 表结构（幂等）。首次调用时自动建表并写入初始账号。
