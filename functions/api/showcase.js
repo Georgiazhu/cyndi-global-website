@@ -145,8 +145,12 @@ export async function onRequestGet({ request, env }) {
     const metaRow = await env.DB.prepare('SELECT data_json FROM showcase_meta WHERE id = 1').first();
     if (metaRow?.data_json) meta = parse(metaRow.data_json, null);
 
+    // 受保护的内容绝不能被缓存：
+    //  public 会让浏览器/中间层缓存响应，退出登录后仍能读到内容，
+    //  共享浏览器上其他人也可能看到缓存。必须 private + no-store。
     return json({ meta, categories }, 200, {
-      'Cache-Control': 'public, max-age=60',
+      'Cache-Control': 'private, no-store, no-cache, must-revalidate',
+      Vary: 'Cookie',
     });
   } catch (e) {
     return json({ error: e?.message || 'Failed to load showcase', categories: [], meta: null }, 500);
