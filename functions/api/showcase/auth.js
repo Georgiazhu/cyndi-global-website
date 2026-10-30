@@ -1,3 +1,4 @@
+import { json } from '../../_lib/auth.js';
 import {
   SHOWCASE_DEFAULT_USER,
   SHOWCASE_USERS_SCHEMA,
@@ -6,7 +7,6 @@ import {
   getShowcaseSecret,
   hashPassword,
   isShowcaseAuthenticated,
-  json,
   randomSalt,
   readShowcaseSession,
   showcaseSessionCookie,
