@@ -6,8 +6,8 @@ node --check 只查语法，查不出「导入了不存在的导出」这类错�
 """
 import os, re, sys
 
-BASE = sys.argv[1] if len(sys.argv) > 1 else \
-    r'C:\Users\86159\WorkBuddy\2026-09-30-09-38-39\cyndi-global-website'
+# 仓库根 = 本脚本所在目录的上一级（跨平台，不硬编码路径）
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FUNCS = os.path.join(BASE, 'functions')
 
 EXPORT_RE = re.compile(r'^export\s+(?:async\s+)?function\s+([A-Za-z0-9_$]+)', re.M)
