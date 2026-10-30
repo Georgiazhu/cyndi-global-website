@@ -1,5 +1,5 @@
 import { json } from '../../_lib/auth.js';
-import { isShowcaseAuthenticated } from '../../_lib/showcaseAuth.js';
+import { isShowcaseAuthenticated } from './auth-lib.js';
 
 // GET /api/showcase/media?id=xxx —— 读取存于 D1 的选品图片（R2 未启用时的回退路径）
 // 需要有效的 showcase 会话。

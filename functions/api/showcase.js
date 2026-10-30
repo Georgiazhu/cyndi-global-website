@@ -1,6 +1,6 @@
 import { json } from '../_lib/auth.js';
 import { showcaseSeed } from '../_lib/showcaseSeed.js';
-import { isShowcaseAuthenticated } from '../_lib/showcaseAuth.js';
+import { isShowcaseAuthenticated } from './auth-lib.js';
 
 const parse = (raw, fallback) => {
   if (!raw) return fallback;

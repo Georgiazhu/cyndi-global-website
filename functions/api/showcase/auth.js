@@ -11,7 +11,7 @@ import {
   readShowcaseSession,
   showcaseSessionCookie,
   verifyShowcaseCredentials,
-} from '../../_lib/showcaseAuth.js';
+} from './auth-lib.js';
 
 // 幂等初始化：建表 + 写入初始账号 HRT / Aa123456。
 let ready = null;
