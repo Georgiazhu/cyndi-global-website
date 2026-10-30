@@ -1,5 +1,6 @@
 import { json } from '../_lib/auth.js';
 import { showcaseSeed } from '../_lib/showcaseSeed.js';
+import { isShowcaseAuthenticated } from '../_lib/showcaseAuth.js';
 
 const parse = (raw, fallback) => {
   if (!raw) return fallback;
@@ -90,8 +91,14 @@ async function seedIfEmpty(env) {
 
 // GET /api/showcase —— 公开读取：分类 + 商品 + 全局设置。
 // 前台 https://www.cyndiglobal.com/showcase/ 使用此接口。
+// 需要有效的 showcase 会话（登录后才可见）。
 export async function onRequestGet({ request, env }) {
   if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
+
+  // 未登录一律拒绝，避免绕过前端直接取数据
+  if (!await isShowcaseAuthenticated(request, env)) {
+    return json({ error: 'Unauthorized', authenticated: false }, 401);
+  }
 
   try {
     await ensureSchema(env);

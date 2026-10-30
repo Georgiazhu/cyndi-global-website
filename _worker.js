@@ -374,6 +374,66 @@ async function showcaseEnsureSchema(env) {
   return showcaseSchemaReady;
 }
 
+// ── Showcase 账号体系（与 functions/_lib/showcaseAuth.js 同源）────────
+const scEncoder = new TextEncoder();
+const scToBase64Url = (bytes) => { let b = ''; bytes.forEach((x) => { b += String.fromCharCode(x); }); return btoa(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, ''); };
+const scFromBase64Url = (value) => { const p = value.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((value.length + 3) % 4); const b = atob(p); return Uint8Array.from(b, (c) => c.charCodeAt(0)); };
+async function scSign(value, secret) { const key = await crypto.subtle.importKey('raw', scEncoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']); return scToBase64Url(new Uint8Array(await crypto.subtle.sign('HMAC', key, scEncoder.encode(value)))); }
+async function scHashPassword(password, salt) { const d = await crypto.subtle.digest('SHA-256', scEncoder.encode(password + salt)); return Array.from(new Uint8Array(d), (b) => b.toString(16).padStart(2, '0')).join(''); }
+function scRandomSalt() { const b = crypto.getRandomValues(new Uint8Array(16)); return Array.from(new Uint8Array(b), (x) => x.toString(16).padStart(2, '0')).join(''); }
+async function getShowcaseSecret(env) { if (env.SHOWCASE_SESSION_SECRET) return env.SHOWCASE_SESSION_SECRET; if (env.LOGISTICS_SESSION_SECRET) return env.LOGISTICS_SESSION_SECRET; if (env.LOGISTICS_ADMIN_PASSWORD) return env.LOGISTICS_ADMIN_PASSWORD; return 'cyndi-showcase-session-secret'; }
+async function verifyShowcaseCredentials(env, username, password) {
+  const uname = (username || '').trim();
+  if (!uname || !password || !env.DB) return null;
+  try {
+    const row = await env.DB.prepare('SELECT username, password_hash, password_salt, display_name, status FROM showcase_users WHERE username = ?1').bind(uname).first();
+    if (!row) return null;
+    if (row.status && row.status !== 'active') return null;
+    const expected = await scHashPassword(password, row.password_salt);
+    if (expected !== row.password_hash) return null;
+    return { username: row.username, displayName: row.display_name || row.username };
+  } catch { return null; }
+}
+async function createShowcaseSession(secret, username) { const payload = JSON.stringify({ u: username, exp: Date.now() + 1000 * 60 * 60 * 24 * 7 }); const encoded = scToBase64Url(scEncoder.encode(payload)); return encoded + '.' + await scSign(encoded, secret); }
+async function readShowcaseSession(request, secret) {
+  if (!secret) return null;
+  const cookie = request.headers.get('Cookie') || '';
+  const m = cookie.match(/(?:^|;\s*)showcase_session=([^;]+)/);
+  if (!m) return null;
+  const parts = m[1].split('.');
+  if (!parts[0] || !parts[1]) return null;
+  try {
+    if (await scSign(parts[0], secret) !== parts[1]) return null;
+    const payload = JSON.parse(new TextDecoder().decode(scFromBase64Url(parts[0])));
+    if (!payload || Number(payload.exp) < Date.now()) return null;
+    return { username: payload.u || '' };
+  } catch { return null; }
+}
+async function isShowcaseAuthenticated(request, env) { return !!(await readShowcaseSession(request, await getShowcaseSecret(env))); }
+function showcaseSessionCookie(token, secure) { return 'showcase_session=' + token + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + 60 * 60 * 24 * 7 + (secure ? '; Secure' : ''); }
+function clearShowcaseSessionCookie(secure) { return 'showcase_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0' + (secure ? '; Secure' : ''); }
+const SHOWCASE_USERS_SCHEMA = ['CREATE TABLE IF NOT EXISTS showcase_users (username TEXT PRIMARY KEY, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, display_name TEXT, status TEXT NOT NULL DEFAULT \'active\', created_at TEXT NOT NULL, updated_at TEXT NOT NULL)'];
+const SHOWCASE_DEFAULT_USER = { username: 'HRT', password: 'Aa123456', displayName: 'HRT' };
+let showcaseAuthReady = null;
+async function showcaseEnsureAuth(env) {
+  if (showcaseAuthReady) return showcaseAuthReady;
+  showcaseAuthReady = (async () => {
+    if (!env.DB) return;
+    for (const stmt of SHOWCASE_USERS_SCHEMA) { try { await env.DB.prepare(stmt).run(); } catch (e) { console.error('showcase_users schema:', e && e.message); } }
+    try {
+      const row = await env.DB.prepare('SELECT username FROM showcase_users WHERE username = ?1').bind(SHOWCASE_DEFAULT_USER.username).first();
+      if (!row) {
+        const salt = scRandomSalt();
+        const hash = await scHashPassword(SHOWCASE_DEFAULT_USER.password, salt);
+        const ts = new Date().toISOString();
+        await env.DB.prepare('INSERT INTO showcase_users (username, password_hash, password_salt, display_name, status, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, \'active\', ?5, ?5)').bind(SHOWCASE_DEFAULT_USER.username, hash, salt, SHOWCASE_DEFAULT_USER.displayName, ts).run();
+        console.log('showcase: initial account created');
+      }
+    } catch (e) { console.error('showcase seed user:', e && e.message); }
+  })();
+  return showcaseAuthReady;
+}
+
 async function api(request, env) {
   const url = new URL(request.url);
   if (url.pathname === '/api/logistics' && request.method === 'GET') {
@@ -492,8 +552,30 @@ async function api(request, env) {
     const id = url.searchParams.get('id');
     if (id && env.DB && /^[a-f0-9-]{36}$/i.test(id)) { const row = await env.DB.prepare('SELECT content_type, image_data FROM logistics_media WHERE id = ?1').bind(id).first(); if (!row) return new Response('Not found', { status: 404 }); const binary = atob(row.image_data); const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0)); return new Response(bytes, { headers: { 'Content-Type': row.content_type, 'Cache-Control': 'public, max-age=31536000, immutable' } }); }
   // ── Showcase 选品展示站 ────────────────────────────────────────────
+  // ── Showcase 登录 / 会话 ───────────────────────────────────────────
+  if (url.pathname === '/api/showcase/auth') {
+    if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
+    await showcaseEnsureAuth(env);
+    const isHttps = url.protocol === 'https:';
+    if (request.method === 'POST') {
+      const body = await request.json().catch(() => ({}));
+      const user = await verifyShowcaseCredentials(env, String(body.username || '').trim(), String(body.password || ''));
+      if (!user) return json({ error: '账号或密码不正确' }, 401);
+      const token = await createShowcaseSession(await getShowcaseSecret(env), user.username);
+      return json({ ok: true, user: { username: user.username, displayName: user.displayName } }, 200, { 'Set-Cookie': showcaseSessionCookie(token, isHttps) });
+    }
+    if (request.method === 'GET') {
+      const session = await readShowcaseSession(request, await getShowcaseSecret(env));
+      if (!session) return json({ authenticated: false });
+      return json({ authenticated: true, user: { username: session.username } });
+    }
+    if (request.method === 'DELETE') {
+      return json({ ok: true }, 200, { 'Set-Cookie': clearShowcaseSessionCookie(isHttps) });
+    }
+  }
   if (url.pathname === '/api/showcase' && request.method === 'GET') {
     if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
+    if (!await isShowcaseAuthenticated(request, env)) return json({ error: 'Unauthorized', authenticated: false }, 401);
     try {
       await showcaseEnsureSchema(env);
       await showcaseSeedIfEmpty(env);
@@ -679,6 +761,7 @@ async function api(request, env) {
   }
   if (url.pathname === '/api/showcase/media' && request.method === 'GET') {
     if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
+    if (!await isShowcaseAuthenticated(request, env)) return json({ error: 'Unauthorized' }, 401);
     const id = url.searchParams.get('id');
     if (!id) return json({ error: 'id is required' }, 400);
     const row = await env.DB.prepare('SELECT content_type, image_data FROM showcase_media WHERE id = ?1').bind(id).first();
