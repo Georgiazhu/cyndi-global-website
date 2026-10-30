@@ -64,3 +64,21 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE"
           npx --yes wrangler@latest pages functions build --outdir=functions-dist 2>&1 | tail -40 || echo "wrangler pages functions build unavailable"
+
+      - name: Inspect compiled functions bundle
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          echo "--- functions-dist ---"
+          find functions-dist -type f 2>/dev/null | head -30
+          echo "--- showcase routes in bundle ---"
+          grep -rl "showcase" functions-dist 2>/dev/null | head -10
+          echo "--- check bundle for auth route ---"
+          grep -rho "api/showcase/auth" functions-dist 2>/dev/null | head -3
+          echo "--- worker bundle ---"
+          find functions-dist -name "*worker*" -type f 2>/dev/null | head -5
+
+      - name: Wrangler pages deploy dry-run
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          npx --yes wrangler@latest pages deploy --help 2>&1 | head -30 || true
+        continue-on-error: true
