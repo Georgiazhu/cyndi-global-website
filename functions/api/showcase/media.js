@@ -1,13 +1,8 @@
 import { json } from '../../_lib/auth.js';
-import { isShowcaseAuthenticated } from './auth-lib.js';
 
 // GET /api/showcase/media?id=xxx —— 读取存于 D1 的选品图片（R2 未启用时的回退路径）
-// 需要有效的 showcase 会话。
 export async function onRequestGet({ request, env }) {
   if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
-  if (!await isShowcaseAuthenticated(request, env)) {
-    return json({ error: 'Unauthorized' }, 401);
-  }
 
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
