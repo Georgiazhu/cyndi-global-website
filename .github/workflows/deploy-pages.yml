@@ -25,6 +25,12 @@ jobs:
           fetch-depth: 0
           ref: main
 
+      - name: Verify Functions imports match exports
+        run: |
+          # node --check 只查语法，查不出「导入了不存在的导出」——
+          # 而那正是 Cloudflare Pages 打包失败的原因（构建日志在 Dashboard 后面，难排查）。
+          python3 scripts/check_function_imports.py
+
       - name: Create empty commit to emit push event
         run: |
           git config user.name "github-actions[bot]"
