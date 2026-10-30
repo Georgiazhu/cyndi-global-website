@@ -1,8 +1,6 @@
-name: Debug Pages build v2
+name: Debug Pages build v3
 
-# 精确复现 Cloudflare Pages 的构建：
-#   cd product-showcase && npm install && npm run build
-# 重点：干净安装 + 检查 postbuild 是否被触发 + 产物结构
+# 复现 Cloudflare Pages 的构建 + Functions 打包，找出构建失败的真实原因。
 on:
   workflow_dispatch:
 
@@ -11,49 +9,58 @@ permissions:
 
 jobs:
   debug:
-    name: Reproduce Pages build exactly
+    name: Reproduce Pages build with Functions bundling
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Show repo layout
-        run: |
-          ls -la
-          echo "--- root functions ---"
-          find functions -type f | sort
-          echo "--- node/npm versions ---"
-          node -v && npm -v
-
-      - name: Clean install (as Pages does)
+      - name: Build frontend
         run: |
           cd product-showcase
-          rm -rf node_modules
-          npm install 2>&1 | tail -10
+          npm install --no-audit --no-fund 2>&1 | tail -3
+          npm run build 2>&1 | tail -12
 
-      - name: Build with full output
+      - name: Check Functions syntax
         run: |
-          cd product-showcase
-          npm run build 2>&1 | tail -25
-          echo "=== EXIT: $? ==="
-
-      - name: Verify output structure
-        run: |
-          cd product-showcase
-          echo "--- dist tree (top) ---"
-          find dist -maxdepth 2 -not -path "*/images/*" | sort | head -40
-          echo "--- dist/showcase ---"
-          ls -la dist/showcase 2>&1 | head -10
-          echo "--- showcase index.html ---"
-          cat dist/showcase/index.html 2>&1 | head -20
-
-      - name: Check for Functions build issues
-        run: |
-          echo "--- functions/api tree ---"
-          find functions/api -type f | sort
-          echo "--- showcase api files syntax check ---"
-          for f in functions/api/showcase.js functions/api/showcase/media.js functions/api/admin/showcase.js functions/api/admin/showcase/upload.js; do
-            node --input-type=module -e "
-              import('file://$PWD/$f').then(()=>console.log('OK   $f')).catch(e=>console.log('FAIL $f ->', e.message))
-            " 2>&1 | head -3
+          cd "$GITHUB_WORKSPACE"
+          for f in $(find functions -name "*.js" | sort); do
+            if ! node --check "$f" 2>/tmp/err.txt; then
+              echo "SYNTAX FAIL: $f"
+              cat /tmp/err.txt
+            fi
           done
+          echo "--- syntax check done ---"
+
+      - name: Resolve every relative import
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          node -e "
+          const fs=require('fs'),path=require('path');
+          function walk(d){return fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>{
+            const p=path.join(d,e.name);
+            return e.isDirectory()?walk(p):(p.endsWith('.js')?[p]:[]);});}
+          let bad=0;
+          for(const f of walk('functions')){
+            const src=fs.readFileSync(f,'utf8');
+            for(const m of src.matchAll(/from\s+'([^']+)'/g)){
+              const spec=m[1];
+              if(!spec.startsWith('.'))continue;
+              const t=path.resolve(path.dirname(f),spec);
+              if(!fs.existsSync(t)){console.log('MISSING',f,'->',spec);bad++;}
+            }
+          }
+          console.log('missing imports:',bad);
+          "
+
+      - name: Check _worker.js parses as ESM module
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          node --input-type=module -e "
+            import('file://$PWD/_worker.js').then(m=>console.log('worker module OK, exports:', Object.keys(m))).catch(e=>{console.log('WORKER IMPORT FAIL:', e.message)})
+          "
+
+      - name: Try wrangler pages functions build
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          npx --yes wrangler@latest pages functions build --outdir=functions-dist 2>&1 | tail -40 || echo "wrangler pages functions build unavailable"
