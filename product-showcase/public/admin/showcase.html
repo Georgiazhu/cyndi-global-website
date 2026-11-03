@@ -259,7 +259,8 @@ function openEditor(id){
   const p=id?DATA.products.find(x=>x.id===id):{
     id:'cy-'+Date.now().toString(36),categoryId:(SEL_CAT||DATA.categories[0].id),sku:'',name:'',
     description:'',features:[],materials:'',image:'',gallery:[],colors:[],sizes:[],
-    pricing:[{quantity:300,price:''}],priceIncludes:'',priceNotes:[],additionalCharges:[],currency:'$'
+    pricing:[{quantity:300,price:''}],priceIncludes:'',priceNotes:[],additionalCharges:[],currency:'$',
+    spec:'',moq:null,leadTime:null
   };
   const d=document.createElement('div');
   d.className='card';
@@ -277,6 +278,11 @@ function openEditor(id){
     +'<div class="field"><label>Description</label><textarea id="e_desc">'+esc(p.description||'')+'</textarea></div>'
     +'<div class="field"><label>Features (one per line)</label><textarea id="e_features">'+esc((p.features||[]).join('\n'))+'</textarea></div>'
     +'<div class="field"><label>Materials</label><input id="e_materials" value="'+esc(p.materials||'')+'"></div>'
+    +'<div class="field"><label>Specification</label><input id="e_spec" value="'+esc(p.spec||'')+'"></div>'
+    +'<div class="grid2">'
+    +'<div class="field"><label>MOQ (units)</label><input id="e_moq" type="number" min="0" value="'+(p.moq!=null?p.moq:'')+'"></div>'
+    +'<div class="field"><label>Lead time (days)</label><input id="e_lead" type="number" min="0" value="'+(p.leadTime!=null?p.leadTime:'')+'"></div>'
+    +'</div>'
     +'<div class="preview"><div class="preview-head">Images</div>'
     +'<div class="img-upload" id="e_upload">Click to upload images (multiple allowed)</div>'
     +'<input type="file" id="e_file" accept="image/*" multiple class="hidden">'
@@ -419,6 +425,9 @@ function openEditor(id){
       priceNotes:$('e_pn').value.split('\n').map(s=>s.trim()).filter(Boolean),
       additionalCharges:state.charges.filter(c=>c.label),
       currency:$('e_cur').value,
+      spec:$('e_spec').value.trim(),
+      moq:$('e_moq').value===''?null:Number($('e_moq').value),
+      leadTime:$('e_lead').value===''?null:Number($('e_lead').value),
     };
     try{
       await api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'saveProduct',product:prod})});
