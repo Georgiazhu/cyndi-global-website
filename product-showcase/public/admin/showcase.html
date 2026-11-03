@@ -301,7 +301,10 @@ function openEditor(id){
     +'<div class="field" style="margin-top:10px"><label>Main image URL</label><input id="e_image" value="'+esc(p.image||'')+'"></div>'
     +'<div class="field"><label>Gallery URLs (one per line)</label><textarea id="e_gallery">'+esc((p.gallery||[]).join('\n'))+'</textarea></div>'
     +'</div>'
-    +'<div class="preview"><div class="preview-head">Colour swatches</div><div id="e_colors"></div>'
+    +'<div class="preview"><div class="preview-head">Colour swatches</div>'
+    +'<div class="hint" style="margin-bottom:8px">Each colour needs a name — rows without a name and without an image are dropped on save. '
+    +'Use <strong>Pick</strong> to point a colour at one of this product\'s photos.</div>'
+    +'<div id="e_colors"></div>'
     +'<button class="ghost small" id="e_addcolor" type="button">+ Add colour</button></div>'
     +'<div class="preview"><div class="preview-head">Sizes</div>'
     +'<div id="e_sizes" class="row" style="margin-bottom:8px"></div>'
@@ -324,7 +327,11 @@ function openEditor(id){
   d.scrollIntoView({behavior:'smooth',block:'start'});
 
   $('e_cur').value=p.currency||'$';
-  const state={colors:(p.colors||[]).slice(),sizes:(p.sizes||[]).slice(),pricing:(p.pricing||[]).slice(),charges:(p.additionalCharges||[]).slice(),gallery:(p.gallery||[]).slice()};
+  // Deep copy: a shallow copy would share the colour objects with DATA.products,
+  // so editing here would leak into the list even when the user hits Cancel.
+  const clone=v=>JSON.parse(JSON.stringify(v==null?[]:v));
+  const state={colors:clone(p.colors),sizes:clone(p.sizes),pricing:clone(p.pricing),
+               charges:clone(p.additionalCharges),gallery:clone(p.gallery)};
 
   function drawColors(){
     $('e_colors').innerHTML=state.colors.map((c,i)=>
@@ -332,13 +339,36 @@ function openEditor(id){
       +'<input type="color" value="'+esc(c.hex||'#cccccc')+'" data-cidx="'+i+'" data-cfield="hex" style="width:44px;padding:3px;flex:0 0 auto">'
       +'<input value="'+esc(c.name||'')+'" placeholder="Colour name" data-cidx="'+i+'" data-cfield="name" style="flex:1">'
       +'<input value="'+esc(c.image||'')+'" placeholder="Image URL for this colour" data-cidx="'+i+'" data-cfield="image" style="flex:1.4">'
-      +'<button class="secondary small" data-cdel="'+i+'">✕</button></div>').join('')
+      +'<button class="ghost small" type="button" data-cpick="'+i+'" title="Pick from this product\'s images">Pick</button>'
+      +'<button class="secondary small" type="button" data-cdel="'+i+'">✕</button></div>').join('')
       ||'<p class="hint">No colours yet.</p>';
     $('e_colors').querySelectorAll('[data-cidx]').forEach(inp=>inp.addEventListener('input',()=>{
       state.colors[+inp.dataset.cidx][inp.dataset.cfield]=inp.value;
     }));
     $('e_colors').querySelectorAll('[data-cdel]').forEach(b=>b.addEventListener('click',()=>{
       state.colors.splice(+b.dataset.cdel,1);drawColors();
+    }));
+    // Pick a photo from this product's own images as the colour's image.
+    $('e_colors').querySelectorAll('[data-cpick]').forEach(b=>b.addEventListener('click',()=>{
+      const i=+b.dataset.cpick;
+      const pool=[];
+      if($('e_image').value)pool.push($('e_image').value);
+      state.gallery.forEach(u=>{if(u&&!pool.includes(u))pool.push(u)});
+      if(!pool.length)return showMsg('Upload images for this product first','err');
+      const picker=document.createElement('div');
+      picker.className='card';
+      picker.style.cssText='position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);padding:40px;overflow:auto';
+      picker.innerHTML='<div style="max-width:900px;margin:0 auto;background:#fff;border-radius:12px;padding:18px">'
+        +'<h2 style="margin:0 0 12px">Pick a photo for “'+(state.colors[i].name||'colour')+'”</h2>'
+        +'<div class="img-grid">'+pool.map(u=>'<img src="'+esc(u)+'" data-pick="'+esc(u)+'" style="width:96px;height:96px;object-fit:cover;border-radius:8px;cursor:pointer;border:1px solid var(--line)">').join('')+'</div>'
+        +'<div style="margin-top:14px;text-align:right"><button class="secondary" type="button" id="pickCancel">Cancel</button></div></div>';
+      document.body.appendChild(picker);
+      picker.querySelectorAll('[data-pick]').forEach(img=>img.addEventListener('click',()=>{
+        state.colors[i].image=img.dataset.pick;
+        picker.remove();
+        drawColors();
+      }));
+      picker.querySelector('#pickCancel').addEventListener('click',()=>picker.remove());
     }));
   }
   function drawSizes(){
@@ -471,7 +501,10 @@ function openEditor(id){
     try{
       await api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'saveProduct',product:prod})});
       await load();d.remove();showMsg('Product saved','ok');
-    }catch(err){showMsg(err.message,'err')}
+    }catch(err){
+      // Keep the editor open so the edits are not lost, and say what failed.
+      showMsg('Save failed: '+err.message,'err');
+    }
   });
 }
 
