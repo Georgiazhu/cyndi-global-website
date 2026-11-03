@@ -20,24 +20,32 @@ const BRANCH = process.env.SHOWCASE_BRANCH || 'main'
 
 // 候选仓库地址：仓库从 Georgiazhu 迁移到 HRT 期间，两边都尝试一遍。
 // 只要有一个能克隆成功即可，构建不因属主变更而中断。
+// Georgiazhu 在前：它始终公开可克隆，而 HRT 若为私有仓库会让克隆挂起。
 const SHOWCASE_REPOS = process.env.SHOWCASE_REPO_URL
   ? [process.env.SHOWCASE_REPO_URL]
   : [
-      'https://github.com/HRT/showcase.git',
       'https://github.com/Georgiazhu/showcase.git',
+      'https://github.com/HRT/showcase.git',
     ]
 
 const log = (...a) => console.log('[showcase]', ...a)
+
+// A clone that hangs would stall the whole Pages build (the check stays
+// "Building" forever). Every git step therefore gets a hard timeout.
+const GIT_TIMEOUT_MS = Number(process.env.SHOWCASE_GIT_TIMEOUT_MS || 120000)
+// npm install / build legitimately take longer, but must not hang forever.
+const NPM_TIMEOUT_MS = Number(process.env.SHOWCASE_NPM_TIMEOUT_MS || 600000)
 
 function run(cmd, cwd, opts = {}) {
   return execSync(cmd, { cwd, stdio: 'pipe', encoding: 'utf8', ...opts })
 }
 
-function safeRun(cmd, cwd) {
+function safeRun(cmd, cwd, timeout) {
   try {
-    return { ok: true, out: run(cmd, cwd) }
+    return { ok: true, out: run(cmd, cwd, timeout ? { timeout } : {}) }
   } catch (e) {
-    return { ok: false, out: (e.stdout || '') + (e.stderr || '') }
+    const detail = (e.stdout || '') + (e.stderr || '')
+    return { ok: false, out: detail, timedOut: e?.signal === 'SIGTERM' || e?.code === 'ETIMEDOUT' }
   }
 }
 
@@ -48,13 +56,20 @@ function main() {
     if (existsSync(TMP_DIR)) rmSync(TMP_DIR, { recursive: true, force: true })
     mkdirSync(TMP_DIR, { recursive: true })
 
-    const clone = safeRun(`git clone --depth 1 --branch ${BRANCH} ${repo} .`, TMP_DIR)
+    const clone = safeRun(
+      `git clone --depth 1 --single-branch --branch ${BRANCH} ${repo} .`,
+      TMP_DIR,
+      GIT_TIMEOUT_MS
+    )
     if (clone.ok) {
       log(`已拉取 showcase @ ${BRANCH} (${repo})`)
       cloned = true
       break
     }
-    log(`拉取失败，尝试下一个地址: ${repo}`)
+    log(
+      `拉取失败${clone.timedOut ? '（超时）' : ''}，尝试下一个地址: ${repo}`,
+      clone.out.slice(0, 200)
+    )
   }
 
   if (!cloned) {
@@ -63,9 +78,9 @@ function main() {
   }
 
   // 2. 安装依赖并构建
-  const install = safeRun('npm ci --no-audit --no-fund', TMP_DIR)
+  const install = safeRun('npm ci --no-audit --no-fund', TMP_DIR, NPM_TIMEOUT_MS)
   if (!install.ok) {
-    const fallback = safeRun('npm install --no-audit --no-fund', TMP_DIR)
+    const fallback = safeRun('npm install --no-audit --no-fund', TMP_DIR, NPM_TIMEOUT_MS)
     if (!fallback.ok) {
       log('依赖安装失败，跳过本次集成（沿用上一版产物）')
       log(fallback.out.slice(0, 400))
@@ -73,7 +88,7 @@ function main() {
     }
   }
 
-  const build = safeRun('npm run build', TMP_DIR)
+  const build = safeRun('npm run build', TMP_DIR, NPM_TIMEOUT_MS)
   if (!build.ok) {
     log('构建 showcase 失败，跳过本次集成（沿用上一版产物）')
     log(build.out.slice(0, 400))
