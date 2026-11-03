@@ -123,6 +123,25 @@ export const showcaseSeed = {
           pricing: [{ quantity: 300, price: 22.75 }],
           priceIncludes: 'Full-color digital transfer imprint, 1 location.',
           priceNotes: ['Pre tax. Pre shipping'],
+          currency: '$',
+        },
+      ],
+    },
+    {
+      id: 'drinkware',
+      name: 'Drinkware',
+      products: [
+        {
+          id: 'cy-drink-001',
+          sku: 'T3263348',
+          name: 'Jett Aluminum Chug Lid Hydration Bottle — 16 Oz.',
+          description:
+            'A lightweight 16 oz aluminum hydration bottle with a chug lid, built for active days on the job.',
+          features: [
+            'Single-wall aluminum construction',
+            'Chug lid with leak-resistant seal',
+            'Fits standard car cup holders',
+          ],
           materials: 'Aluminum, Polypropylene Lid',
           image: '/showcase/images/products/drinkware/jett-aluminum.jpg',
           gallery: ['/showcase/images/products/drinkware/jett-aluminum.jpg'],
@@ -134,6 +153,19 @@ export const showcaseSeed = {
           pricing: [{ quantity: 300, price: 18.9 }],
           priceIncludes: 'Laser Engrave, 1 location on lid.',
           priceNotes: ['Pre tax. Pre shipping'],
+          currency: '$',
+        },
+        {
+          id: 'cy-drink-002',
+          sku: 'T3263350',
+          name: 'Zigoo Silicone Collapsible Bottle 18oz',
+          description:
+            'A collapsible 18oz silicone bottle that folds down for easy packing — great for travel and events.',
+          features: [
+            'Collapses to half its height',
+            'Food-grade, BPA-free silicone',
+            'Leak-resistant screw cap',
+          ],
           materials: 'Food-grade BPA-Free Silicone, PP Cap',
           image: '/showcase/images/products/drinkware/zigoo-collapsible.jpg',
           gallery: ['/showcase/images/products/drinkware/zigoo-collapsible.jpg'],
@@ -145,3 +177,9 @@ export const showcaseSeed = {
           pricing: [{ quantity: 300, price: 16.4 }],
           priceIncludes: '1-color print, 1 location.',
           priceNotes: ['Pre tax. Pre shipping'],
+          currency: '$',
+        },
+      ],
+    },
+  ],
+}
