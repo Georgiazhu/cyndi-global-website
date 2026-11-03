@@ -84,7 +84,7 @@ async function seedIfEmpty(env) {
             JSON.stringify(p.features || []), p.materials || null, p.image || null,
             JSON.stringify(p.gallery || []), JSON.stringify(p.colors || []), JSON.stringify(p.sizes || []),
             JSON.stringify(p.pricing || []), p.priceIncludes || null, JSON.stringify(p.priceNotes || []),
-            JSON.stringify(p.additionalCharges || []), p.currency || '$',
+            JSON.stringify([]), p.currency || '$',
             p.spec || null, Number.isFinite(p.moq) ? p.moq : null,
             Number.isFinite(p.leadTime) ? p.leadTime : null, (pi + 1) * 10, ts
           )
@@ -126,7 +126,7 @@ export async function onRequestGet({ request, env }) {
     const prodRows = await env.DB.prepare(
       `SELECT id, category_id, sku, name, description, features_json, materials,
               image, gallery_json, colors_json, sizes_json, pricing_json,
-              price_includes, price_notes_json, charges_json, currency, spec, moq, lead_time, sort
+              price_includes, price_notes_json, currency, spec, moq, lead_time, sort
        FROM showcase_products ORDER BY sort ASC, name ASC`
     ).all();
 
@@ -146,7 +146,6 @@ export async function onRequestGet({ request, env }) {
         pricing: parse(p.pricing_json, []),
         priceIncludes: p.price_includes,
         priceNotes: parse(p.price_notes_json, []),
-        additionalCharges: parse(p.charges_json, []),
         currency: p.currency || '$',
         spec: p.spec,
         moq: p.moq ?? null,

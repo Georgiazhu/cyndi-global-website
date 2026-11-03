@@ -474,7 +474,7 @@ function openEditor(id){
   const p=id?DATA.products.find(x=>x.id===id):{
     id:'cy-'+Date.now().toString(36),categoryId:(SEL_CAT||DATA.categories[0].id),sku:'',name:'',
     description:'',features:[],materials:'',image:'',gallery:[],colors:[],sizes:[],
-    pricing:[{quantity:300,price:''}],priceIncludes:'',priceNotes:[],additionalCharges:[],currency:'$',
+    pricing:[{quantity:300,price:''}],priceIncludes:'',priceNotes:[],currency:'$',
     spec:'',moq:null,leadTime:null
   };
   const d=document.createElement('div');
@@ -521,8 +521,6 @@ function openEditor(id){
     +'<div class="field"><label>Currency</label><select id="e_cur"><option value="$">$</option><option value="¥">¥</option><option value="€">€</option></select></div>'
     +'</div>'
     +'<div class="field"><label>Price notes (one per line)</label><textarea id="e_pn">'+esc((p.priceNotes||[]).join('\n'))+'</textarea></div>'
-    +'<div class="preview"><div class="preview-head">Additional charges</div><div id="e_charges"></div>'
-    +'<button class="ghost small" id="e_addcharge" type="button">+ Add charge</button></div>'
     +'<div class="sticky-save"><div class="row end" style="padding-bottom:4px">'
     +'<button class="secondary" id="e_cancel">Cancel</button>'
     +'<button id="e_save">Save product</button>'
@@ -536,7 +534,7 @@ function openEditor(id){
   // so editing here would leak into the list even when the user hits Cancel.
   const clone=v=>JSON.parse(JSON.stringify(v==null?[]:v));
   const state={colors:clone(p.colors),sizes:clone(p.sizes),pricing:clone(p.pricing),
-               charges:clone(p.additionalCharges),gallery:clone(p.gallery)};
+               gallery:clone(p.gallery)};
 
   function drawColors(){
     $('e_colors').innerHTML=state.colors.map((c,i)=>
@@ -614,21 +612,6 @@ function openEditor(id){
       state.pricing.splice(+b.dataset.pdel,1);drawPricing();
     }));
   }
-  function drawCharges(){
-    $('e_charges').innerHTML=state.charges.map((c,i)=>
-      '<div class="row" style="margin-bottom:6px">'
-      +'<input value="'+esc(c.label||'')+'" placeholder="Label, e.g. Setup (per color)" data-gidx="'+i+'" data-gfield="label" style="flex:2">'
-      +'<input value="'+esc(c.amount)+'" placeholder="Amount" data-gidx="'+i+'" data-gfield="amount" style="width:120px">'
-      +'<button class="secondary small" data-gdel="'+i+'">✕</button></div>').join('')
-      ||'<p class="hint">No charges yet.</p>';
-    $('e_charges').querySelectorAll('[data-gidx]').forEach(inp=>inp.addEventListener('input',()=>{
-      const i=+inp.dataset.gidx,f=inp.dataset.gfield;
-      state.charges[i][f]=f==='amount'?(parseFloat(inp.value)||0):inp.value;
-    }));
-    $('e_charges').querySelectorAll('[data-gdel]').forEach(b=>b.addEventListener('click',()=>{
-      state.charges.splice(+b.dataset.gdel,1);drawCharges();
-    }));
-  }
   function drawImgs(){
     // The main image is always the first entry of the gallery list, so the
     // grid order is the display order on the front end.
@@ -663,7 +646,7 @@ function openEditor(id){
       });
     });
   }
-  drawColors();drawSizes();drawPricing();drawCharges();drawImgs();
+  drawColors();drawSizes();drawPricing();drawImgs();
   $('e_image').addEventListener('input',drawImgs);
   $('e_gallery').addEventListener('input',()=>{state.gallery=$('e_gallery').value.split('\n').map(s=>s.trim()).filter(Boolean);drawImgs()});
 
@@ -674,7 +657,6 @@ function openEditor(id){
     const v=prompt('Size','One Size');if(v)state.sizes.push(v.trim());drawSizes();
   });
   $('e_addprice').addEventListener('click',()=>{state.pricing.push({quantity:'',price:''});drawPricing()});
-  $('e_addcharge').addEventListener('click',()=>{state.charges.push({label:'',amount:0});drawCharges()});
 
   // Image upload
   $('e_upload').addEventListener('click',()=>$('e_file').click());
@@ -718,7 +700,6 @@ function openEditor(id){
       pricing:state.pricing.filter(t=>t.quantity!==''&&t.price!==''),
       priceIncludes:$('e_pi').value.trim(),
       priceNotes:$('e_pn').value.split('\n').map(s=>s.trim()).filter(Boolean),
-      additionalCharges:state.charges.filter(c=>c.label),
       currency:$('e_cur').value,
       spec:$('e_spec').value.trim(),
       moq:$('e_moq').value===''?null:Number($('e_moq').value),

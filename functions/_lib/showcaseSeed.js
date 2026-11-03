@@ -42,11 +42,6 @@ export const showcaseSeed = {
           pricing: [{ quantity: 300, price: 39.98 }],
           priceIncludes: '1-color heat transfer imprint, 1 location.',
           priceNotes: ['Pre tax. Pre shipping', 'Cost may vary based upon final approved artwork.'],
-          additionalCharges: [
-            { label: 'Setup (per color)', amount: 70 },
-            { label: 'Setup (full color)', amount: 110 },
-            { label: "Add'l color/location run charge (per unit)", amount: 1.25 },
-          ],
           currency: '$',
         },
         {
@@ -72,10 +67,6 @@ export const showcaseSeed = {
           pricing: [{ quantity: 300, price: 29.5 }],
           priceIncludes: '1-color print, 1 location (2 color max).',
           priceNotes: ['Pre tax. Pre shipping'],
-          additionalCharges: [
-            { label: 'Setup (per color)', amount: 70 },
-            { label: "Add'l color/location run charge (per unit)", amount: 1.25 },
-          ],
           currency: '$',
         },
       ],
@@ -108,10 +99,6 @@ export const showcaseSeed = {
           pricing: [{ quantity: 300, price: 34.0 }],
           priceIncludes: 'Laser Engrave, 1 location on lid.',
           priceNotes: ['Pre tax. Pre shipping'],
-          additionalCharges: [
-            { label: 'Setup (per color)', amount: 70 },
-            { label: 'Setup (full color)', amount: 110 },
-          ],
           currency: '$',
         },
         {
@@ -136,26 +123,6 @@ export const showcaseSeed = {
           pricing: [{ quantity: 300, price: 22.75 }],
           priceIncludes: 'Full-color digital transfer imprint, 1 location.',
           priceNotes: ['Pre tax. Pre shipping'],
-          additionalCharges: [{ label: 'Setup (full color)', amount: 110 }],
-          currency: '$',
-        },
-      ],
-    },
-    {
-      id: 'drinkware',
-      name: 'Drinkware',
-      products: [
-        {
-          id: 'cy-drink-001',
-          sku: 'T3263348',
-          name: 'Jett Aluminum Chug Lid Hydration Bottle — 16 Oz.',
-          description:
-            'A lightweight 16 oz aluminum hydration bottle with a chug lid, built for active days on the job.',
-          features: [
-            'Single-wall aluminum construction',
-            'Chug lid with leak-resistant seal',
-            'Fits standard car cup holders',
-          ],
           materials: 'Aluminum, Polypropylene Lid',
           image: '/showcase/images/products/drinkware/jett-aluminum.jpg',
           gallery: ['/showcase/images/products/drinkware/jett-aluminum.jpg'],
@@ -167,20 +134,6 @@ export const showcaseSeed = {
           pricing: [{ quantity: 300, price: 18.9 }],
           priceIncludes: 'Laser Engrave, 1 location on lid.',
           priceNotes: ['Pre tax. Pre shipping'],
-          additionalCharges: [{ label: 'Setup (per color)', amount: 70 }],
-          currency: '$',
-        },
-        {
-          id: 'cy-drink-002',
-          sku: 'T3263350',
-          name: 'Zigoo Silicone Collapsible Bottle 18oz',
-          description:
-            'A collapsible 18oz silicone bottle that folds down for easy packing — great for travel and events.',
-          features: [
-            'Collapses to half its height',
-            'Food-grade, BPA-free silicone',
-            'Leak-resistant screw cap',
-          ],
           materials: 'Food-grade BPA-Free Silicone, PP Cap',
           image: '/showcase/images/products/drinkware/zigoo-collapsible.jpg',
           gallery: ['/showcase/images/products/drinkware/zigoo-collapsible.jpg'],
@@ -192,10 +145,3 @@ export const showcaseSeed = {
           pricing: [{ quantity: 300, price: 16.4 }],
           priceIncludes: '1-color print, 1 location.',
           priceNotes: ['Pre tax. Pre shipping'],
-          additionalCharges: [{ label: 'Setup (per color)', amount: 70 }],
-          currency: '$',
-        },
-      ],
-    },
-  ],
-}

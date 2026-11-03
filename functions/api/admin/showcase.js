@@ -84,7 +84,6 @@ export async function onRequestGet({ request, env }) {
       pricing: parse(p.pricing_json, []),
       priceIncludes: p.price_includes,
       priceNotes: parse(p.price_notes_json, []),
-      additionalCharges: parse(p.charges_json, []),
       currency: p.currency || '$',
       spec: p.spec,
       moq: p.moq ?? null,
@@ -187,7 +186,10 @@ export async function onRequestPost({ request, env }) {
         JSON.stringify(p.pricing || []),
         p.priceIncludes || null,
         JSON.stringify(p.priceNotes || []),
-        JSON.stringify(p.additionalCharges || []),
+        // Additional charges were removed from the product model. The column
+        // stays for schema compatibility but is always reset to an empty list,
+        // so saving a product also clears any legacy charges it still had.
+        JSON.stringify([]),
         p.currency || '$',
         p.spec || null,
         Number.isFinite(p.moq) ? p.moq : null,
