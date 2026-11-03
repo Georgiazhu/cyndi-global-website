@@ -54,6 +54,16 @@ th{font-size:11px;text-transform:uppercase;color:var(--muted)}
 .img-upload:hover{border-color:var(--blue);color:var(--blue)}
 .img-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .img-grid img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.img-tile{position:relative;width:72px;cursor:pointer;border-radius:8px;outline:2px solid transparent;outline-offset:2px}
+.img-tile img{width:72px;height:72px;display:block}
+.img-tile:hover{outline-color:var(--line)}
+.img-tile.main{outline-color:var(--orange)}
+.img-tile .badge{position:absolute;left:0;bottom:0;background:var(--orange);color:#fff;font-size:9px;font-weight:700;
+  padding:2px 5px;border-radius:0 0 0 8px;letter-spacing:.03em}
+.img-tile .del{position:absolute;right:-5px;top:-5px;width:20px;height:20px;border-radius:50%;background:#111;color:#fff;
+  border:none;font-size:12px;line-height:1;cursor:pointer;display:none}
+.img-tile:hover .del{display:block}
+.img-hint{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
 .hint{font-size:12px;color:var(--muted);line-height:1.6}
 .sticky-save{position:sticky;bottom:0;background:#fff;padding:14px 0 0;border-top:1px solid var(--line);margin-top:14px}
 .two-col{display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start}
@@ -286,8 +296,9 @@ function openEditor(id){
     +'<div class="preview"><div class="preview-head">Images</div>'
     +'<div class="img-upload" id="e_upload">Click to upload images (multiple allowed)</div>'
     +'<input type="file" id="e_file" accept="image/*" multiple class="hidden">'
+    +'<div class="img-hint">Click a photo to make it the main image. The first one marked <strong>MAIN</strong> is shown on the card.</div>'
     +'<div class="img-grid" id="e_imgs"></div>'
-    +'<div class="field" style="margin-top:10px"><label>Main image URL (paste directly, or upload above)</label><input id="e_image" value="'+esc(p.image||'')+'"></div>'
+    +'<div class="field" style="margin-top:10px"><label>Main image URL</label><input id="e_image" value="'+esc(p.image||'')+'"></div>'
     +'<div class="field"><label>Gallery URLs (one per line)</label><textarea id="e_gallery">'+esc((p.gallery||[]).join('\n'))+'</textarea></div>'
     +'</div>'
     +'<div class="preview"><div class="preview-head">Colour swatches</div><div id="e_colors"></div>'
@@ -369,10 +380,38 @@ function openEditor(id){
     }));
   }
   function drawImgs(){
+    // The main image is always the first entry of the gallery list, so the
+    // grid order is the display order on the front end.
     const list=[];
     if($('e_image').value)list.push($('e_image').value);
-    list.push(...state.gallery);
-    $('e_imgs').innerHTML=list.map(u=>'<img src="'+esc(u)+'" alt="">').join('');
+    state.gallery.forEach(u=>{if(u&&!list.includes(u))list.push(u)});
+    state.gallery=list;
+    $('e_imgs').innerHTML=list.map((u,i)=>
+      '<div class="img-tile'+(i===0?' main':'')+'" data-main="'+esc(u)+'">'
+      +'<img src="'+esc(u)+'" alt="">'
+      +(i===0?'<span class="badge">MAIN</span>':'')
+      +'<button class="del" type="button" data-del="'+esc(u)+'" title="Remove">&times;</button>'
+      +'</div>').join('');
+    $('e_imgs').querySelectorAll('[data-main]').forEach(t=>{
+      t.addEventListener('click',e=>{
+        if(e.target.dataset.del)return;
+        const u=t.dataset.main;
+        $('e_image').value=u;
+        state.gallery=[u,...state.gallery.filter(x=>x!==u)];
+        $('e_gallery').value=state.gallery.join('\n');
+        drawImgs();
+      });
+    });
+    $('e_imgs').querySelectorAll('[data-del]').forEach(b=>{
+      b.addEventListener('click',e=>{
+        e.stopPropagation();
+        const u=b.dataset.del;
+        state.gallery=state.gallery.filter(x=>x!==u);
+        if($('e_image').value===u)$('e_image').value=state.gallery[0]||'';
+        $('e_gallery').value=state.gallery.join('\n');
+        drawImgs();
+      });
+    });
   }
   drawColors();drawSizes();drawPricing();drawCharges();drawImgs();
   $('e_image').addEventListener('input',drawImgs);
