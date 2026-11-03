@@ -162,6 +162,211 @@ function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'
 function showMsg(text,kind){const el=$('msg');el.textContent=text;el.className='msg'+(kind?' '+kind:'');el.classList.remove('hidden');if(kind==='ok')setTimeout(()=>el.classList.add('hidden'),2500)}
 async function api(url,opts){const r=await fetch(url,opts||{});const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.error||('HTTP '+r.status));return b}
 
+/* ------------------------------------------------------------------
+   Colour name matching.
+
+   Picks the closest English colour name for a hex value using CIELAB
+   Delta-E (CIE76), which tracks human perception far better than an
+   RGB distance. The library mixes Pantone TCX names (the swatch names
+   used in the 2027 shortlist) with the common names buyers ask for.
+   ------------------------------------------------------------------ */
+
+// name -> hex. Pantone entries first: when two names are equally close
+// the earlier entry wins, so the Pantone name is preferred.
+const COLOUR_LIBRARY=[
+  // --- Pantone TCX (from the 2027 Campus Shortlist) ---
+  ['Pantone 14-4104 TCX Sky Blue','#7EB1D8'],
+  ['Pantone 15-1206 TCX Oatmeal','#D9CDBE'],
+  ['Pantone 14-1310 TCX Peach Bloom','#F5C0A8'],
+  ['Pantone 11-0602 TCX Snow White','#F2F1EC'],
+  ['Pantone 19-4052 TCX Classic Blue','#0F4C81'],
+  ['Pantone 19-3838 TCX Ultra Marine','#1B365D'],
+  ['Pantone 18-3838 TCX Ultra Marine','#14294B'],
+  ['Pantone 17-3939 TCX Night Sky','#253B73'],
+  ['Pantone 20-0140 TCX Orange Z','#F15822'],
+  ['Pantone 16-1546 TCX Living Coral','#FF6F61'],
+  ['Pantone 18-1664 TCX Fired Brick','#CB3524'],
+  ['Pantone 19-1557 TCX Chili Pepper','#9B1B30'],
+  ['Pantone 14-0958 TCX Delft Blue','#4A7BA7'],
+  ['Pantone 18-3838 TCX Ultra Marine Blue','#14294B'],
+  ['Pantone 16-1545 TCX Gardenia','#E9D8C6'],
+  ['Pantone 13-0647 TCX Shell Pink','#F1C7BC'],
+  ['Pantone 16-1519 TCX Almost Mauve','#D8C4C0'],
+  ['Pantone 12-0605 TCX Angora','#DFD3BB'],
+  ['Pantone 16-1439 TCX Carnation','#E7A3B4'],
+  ['Pantone 17-1503 TCX Storm Blue','#3A4C6A'],
+  ['Pantone 18-1662 TCX Peach Pink','#F6AA8E'],
+  ['Pantone 13-1520 TCX Rose Quartz','#F7CAC9'],
+  ['Pantone 17-3910 TCX Classic Gray','#939598'],
+  ['Pantone 16-3801 TCX Vapor','#D8DADE'],
+
+  // --- neutrals ---
+  ['Black','#000000'],
+  ['Jet Black','#0B0B0C'],
+  ['Charcoal','#36454F'],
+  ['Dark Grey','#4D4D4D'],
+  ['Graphite','#4A4A4A'],
+  ['Gunmetal','#2A3439'],
+  ['Slate Grey','#708090'],
+  ['Grey','#808080'],
+  ['Silver Grey','#C0C0C0'],
+  ['Light Grey','#C4C4C4'],
+  ['Ash Grey','#B2BEB5'],
+  ['Off White','#FAFAF7'],
+  ['White','#FFFFFF'],
+  ['Pearl White','#F0EFEA'],
+  ['Eggshell','#F0EAD6'],
+  ['Ivory','#FFFFF0'],
+  ['Almond','#EFDECD'],
+  ['Bone','#E3DAC9'],
+  ['Stone','#A8A29E'],
+  ['Taupe','#8B7E74'],
+  ['Greige','#B5A99C'],
+  ['Khaki','#BDB76B'],
+  ['Sand','#C2B280'],
+  ['Beige','#E8DCC8'],
+  ['Cream','#FFFDD0'],
+  ['Oatmeal','#D9CDBE'],
+
+  // --- reds ---
+  ['Red','#C8102E'],
+  ['Scarlet','#FF2400'],
+  ['Crimson','#DC143C'],
+  ['Brick Red','#CB4154'],
+  ['Burgundy','#800020'],
+  ['Wine','#722F37'],
+  ['Maroon','#7B241C'],
+  ['Ruby','#9B111E'],
+  ['Rose Red','#FF007F'],
+  ['Pink','#FFC0CB'],
+  ['Dusty Pink','#D8A7B1'],
+  ['Rose','#E890A6'],
+  ['Magenta','#C2185B'],
+  ['Fuchsia','#D6249F'],
+  ['Coral','#FF7F50'],
+  ['Salmon','#FA8072'],
+  ['Coral Pink','#F88379'],
+  ['Peach','#FFE5B4'],
+  ['Peach Bloom','#F5C0A8'],
+  ['Apricot','#FBCEB1'],
+
+  // --- oranges / browns ---
+  ['Orange','#E8702A'],
+  ['Dark Orange','#FF8C00'],
+  ['Burnt Orange','#CC5500'],
+  ['Terracotta','#E2725B'],
+  ['Rust','#B7410E'],
+  ['Copper','#B87333'],
+  ['Bronze','#CD7F32'],
+  ['Brown','#8B4513'],
+  ['Chestnut','#954535'],
+  ['Chocolate','#7B3F00'],
+  ['Coffee','#6F4E37'],
+  ['Mocha','#967969'],
+  ['Sepia','#704214'],
+  ['Camel','#C19A6B'],
+  ['Tan','#D2B48C'],
+  ['Cognac','#9B4F0F'],
+  ['Caramel','#C68E17'],
+  ['Mahogany','#C04000'],
+  ['Russet','#80461B'],
+  ['Bark','#7C4A2D'],
+  ['Fawn','#E9C46A'],
+
+  // --- yellows ---
+  ['Yellow','#F2C200'],
+  ['Lemon Yellow','#F7E463'],
+  ['Mustard','#D4A017'],
+  ['Golden Yellow','#F0B323'],
+  ['Gold','#C9A227'],
+  ['Straw','#E6D690'],
+  ['Butter','#FFF3B0'],
+  ['Chartreuse','#C5D834'],
+  ['Citrine','#E4D00A'],
+
+  // --- greens ---
+  ['Forest Green','#228B22'],
+  ['Dark Green','#006400'],
+  ['Hunter Green','#355E3B'],
+  ['Olive Green','#708238'],
+  ['Army Green','#4B5320'],
+  ['Moss Green','#8A9A5B'],
+  ['Sage Green','#9CAF88'],
+  ['Pine Green','#01796F'],
+  ['Sea Green','#2E8B57'],
+  ['Emerald','#50C878'],
+  ['Kelly Green','#4CBB17'],
+  ['Lime Green','#32CD32'],
+  ['Mint','#9FE2BF'],
+  ['Eucalyptus','#44D7A8'],
+  ['Basil','#579229'],
+
+  // --- blues / teals ---
+  ['Navy Blue','#1B2A47'],
+  ['Midnight Navy','#1B1B3A'],
+  ['Royal Blue','#4169E1'],
+  ['Cobalt Blue','#0047AB'],
+  ['Denim Blue','#4B6EAF'],
+  ['Steel Blue','#4682B4'],
+  ['Powder Blue','#B0C4DE'],
+  ['Baby Blue','#89CFF0'],
+  ['Light Blue','#ADD8E6'],
+  ['Ice Blue','#D6ECEF'],
+  ['Sky Blue','#87CEEB'],
+  ['Teal','#008080'],
+  ['Deep Teal','#006D77'],
+  ['Turquoise','#00B7C7'],
+  ['Dusty Blue','#6A8CAE'],
+  ['Indigo','#4B0082'],
+
+  // --- purples ---
+  ['Purple','#6B2FA0'],
+  ['Violet','#8F5FA9'],
+  ['Lavender','#E6E6FA'],
+  ['Lilac','#C8A2C8'],
+  ['Mauve','#B784A7'],
+  ['Plum','#8E4585'],
+  ['Heather Purple','#B6A0C8'],
+  ['Aubergine','#3D0734'],
+];
+
+// sRGB -> linear -> XYZ -> CIELAB
+function hexToRgb(hex){
+  const h=String(hex||'').replace('#','').trim();
+  if(!/^[0-9a-fA-F]{6}$/.test(h))return null;
+  return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
+}
+function rgbToLab(rgb){
+  const lin=rgb.map(v=>{
+    const c=v/255;
+    return c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4);
+  });
+  const [r,g,b]=lin;
+  let x=(r*0.4124+g*0.3576+b*0.1805)/0.95047;
+  let y=(r*0.2126+g*0.7152+b*0.0722);
+  let z=(r*0.0193+g*0.1192+b*0.9505)/1.08883;
+  const f=t=>t>0.008856?Math.cbrt(t):(7.787*t+16/116);
+  x=f(x);y=f(y);z=f(z);
+  return [116*y-16,500*(x-y),200*(y-z)];
+}
+function deltaE(a,b){
+  const dl=a[0]-b[0],da=a[1]-b[1],db=a[2]-b[2];
+  return Math.sqrt(dl*dl+da*da+db*db);
+}
+
+// Returns the closest English colour name, or null when the hex is unusable.
+function matchColourName(hex){
+  const rgb=hexToRgb(hex);
+  if(!rgb)return null;
+  const lab=rgbToLab(rgb);
+  let best=null,bestD=Infinity;
+  for(const [name,h] of COLOUR_LIBRARY){
+    const d=deltaE(lab,rgbToLab(hexToRgb(h)));
+    if(d<bestD){bestD=d;best=name;}
+  }
+  return best;
+}
+
 let DATA={categories:[],products:[],meta:null};
 let SEL_CAT=null;
 
@@ -302,7 +507,7 @@ function openEditor(id){
     +'<div class="field"><label>Gallery URLs (one per line)</label><textarea id="e_gallery">'+esc((p.gallery||[]).join('\n'))+'</textarea></div>'
     +'</div>'
     +'<div class="preview"><div class="preview-head">Colour swatches</div>'
-    +'<div class="hint" style="margin-bottom:8px">Each colour needs a name — rows without a name and without an image are dropped on save. '
+    +'<div class="hint" style="margin-bottom:8px">Pick a colour and the closest English colour name is filled in automatically — you can rename it. '
     +'Use <strong>Pick</strong> to point a colour at one of this product\'s photos.</div>'
     +'<div id="e_colors"></div>'
     +'<button class="ghost small" id="e_addcolor" type="button">+ Add colour</button></div>'
@@ -336,14 +541,29 @@ function openEditor(id){
   function drawColors(){
     $('e_colors').innerHTML=state.colors.map((c,i)=>
       '<div class="row" style="margin-bottom:6px">'
-      +'<input type="color" value="'+esc(c.hex||'#cccccc')+'" data-cidx="'+i+'" data-cfield="hex" style="width:44px;padding:3px;flex:0 0 auto">'
-      +'<input value="'+esc(c.name||'')+'" placeholder="Colour name" data-cidx="'+i+'" data-cfield="name" style="flex:1">'
+      +'<input type="color" value="'+esc(c.hex||'#cccccc')+'" data-cidx="'+i+'" data-cfield="hex" title="'+esc(c.hex||'Pick a colour')+'" style="width:44px;padding:3px;flex:0 0 auto">'
+      +'<input value="'+esc(c.name||'')+'" placeholder="Colour name (auto-filled on pick)" data-cidx="'+i+'" data-cfield="name" style="flex:1">'
       +'<input value="'+esc(c.image||'')+'" placeholder="Image URL for this colour" data-cidx="'+i+'" data-cfield="image" style="flex:1.4">'
       +'<button class="ghost small" type="button" data-cpick="'+i+'" title="Pick from this product\'s images">Pick</button>'
       +'<button class="secondary small" type="button" data-cdel="'+i+'">✕</button></div>').join('')
       ||'<p class="hint">No colours yet.</p>';
     $('e_colors').querySelectorAll('[data-cidx]').forEach(inp=>inp.addEventListener('input',()=>{
-      state.colors[+inp.dataset.cidx][inp.dataset.cfield]=inp.value;
+      const i=+inp.dataset.cidx,f=inp.dataset.cfield;
+      state.colors[i][f]=inp.value;
+      // Picking a colour fills in the closest English name. A name the user
+      // typed themselves is never overwritten.
+      if(f==='hex'&&!state.colors[i].namedManually){
+        const nm=matchColourName(inp.value);
+        if(nm&&nm!==state.colors[i].name){
+          state.colors[i].name=nm;
+          const nameInput=$('e_colors').querySelector('[data-cidx="'+i+'"][data-cfield="name"]');
+          if(nameInput)nameInput.value=nm;
+        }
+      }
+    }));
+    // Mark a name as user-entered so auto-matching stops overwriting it.
+    $('e_colors').querySelectorAll('[data-cfield=name]').forEach(inp=>inp.addEventListener('input',()=>{
+      state.colors[+inp.dataset.cidx].namedManually=true;
     }));
     $('e_colors').querySelectorAll('[data-cdel]').forEach(b=>b.addEventListener('click',()=>{
       state.colors.splice(+b.dataset.cdel,1);drawColors();
@@ -447,7 +667,9 @@ function openEditor(id){
   $('e_image').addEventListener('input',drawImgs);
   $('e_gallery').addEventListener('input',()=>{state.gallery=$('e_gallery').value.split('\n').map(s=>s.trim()).filter(Boolean);drawImgs()});
 
-  $('e_addcolor').addEventListener('click',()=>{state.colors.push({name:'',hex:'#cccccc',image:''});drawColors()});
+  // hex stays empty until a colour is actually picked, so an untouched row
+  // is not written to the database.
+  $('e_addcolor').addEventListener('click',()=>{state.colors.push({name:'',hex:'',image:''});drawColors();});
   $('e_addsize').addEventListener('click',()=>{
     const v=prompt('Size','One Size');if(v)state.sizes.push(v.trim());drawSizes();
   });
@@ -487,7 +709,11 @@ function openEditor(id){
       materials:$('e_materials').value.trim(),
       image:$('e_image').value.trim(),
       gallery:state.gallery,
-      colors:state.colors.filter(c=>c.name||c.image),
+      // Keep every row that carries a colour value — a swatch without a name
+      // is still a valid swatch.
+      colors:state.colors.filter(c=>c.hex||c.name||c.image).map(c=>({
+        name:c.name||'',hex:c.hex||'',image:c.image||'',
+      })),
       sizes:state.sizes,
       pricing:state.pricing.filter(t=>t.quantity!==''&&t.price!==''),
       priceIncludes:$('e_pi').value.trim(),
