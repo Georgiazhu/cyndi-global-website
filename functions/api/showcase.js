@@ -16,7 +16,8 @@ const SCHEMA = [
      id TEXT PRIMARY KEY, category_id TEXT NOT NULL, sku TEXT, name TEXT NOT NULL, description TEXT,
      features_json TEXT, materials TEXT, image TEXT, gallery_json TEXT, colors_json TEXT, sizes_json TEXT,
      pricing_json TEXT, price_includes TEXT, price_notes_json TEXT, charges_json TEXT,
-     currency TEXT NOT NULL DEFAULT '$', sort INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`,
+     currency TEXT NOT NULL DEFAULT '$', spec TEXT, moq INTEGER, lead_time INTEGER,
+     sort INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS showcase_meta (
      id INTEGER PRIMARY KEY CHECK (id = 1), data_json TEXT NOT NULL, updated_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS showcase_media (
@@ -24,6 +25,14 @@ const SCHEMA = [
      image_data TEXT NOT NULL, created_at TEXT NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_showcase_products_category ON showcase_products(category_id, sort)`,
   `CREATE INDEX IF NOT EXISTS idx_showcase_media_category ON showcase_media(category_id)`,
+];
+
+// Column migration for tables created before these fields existed.
+// ALTER TABLE ADD COLUMN is idempotent-safe via the error swallow below.
+const MIGRATIONS = [
+  `ALTER TABLE showcase_products ADD COLUMN spec TEXT`,
+  `ALTER TABLE showcase_products ADD COLUMN moq INTEGER`,
+  `ALTER TABLE showcase_products ADD COLUMN lead_time INTEGER`,
 ];
 
 let schemaReady = null;
@@ -34,6 +43,11 @@ async function ensureSchema(env) {
     for (const stmt of SCHEMA) {
       try { await env.DB.prepare(stmt).run(); }
       catch (e) { console.error('showcase schema:', e?.message); }
+    }
+    // Existing tables keep their old shape; add the newer columns if missing.
+    for (const stmt of MIGRATIONS) {
+      try { await env.DB.prepare(stmt).run(); }
+      catch (e) { console.error('showcase migration:', e?.message); }
     }
   })();
   return schemaReady;
@@ -63,14 +77,16 @@ async function seedIfEmpty(env) {
             `INSERT OR REPLACE INTO showcase_products
                (id, category_id, sku, name, description, features_json, materials, image, gallery_json,
                 colors_json, sizes_json, pricing_json, price_includes, price_notes_json, charges_json,
-                currency, sort, updated_at)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18)`
+                currency, spec, moq, lead_time, sort, updated_at)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21)`
           ).bind(
             p.id, cat.id, p.sku || null, p.name, p.description || null,
             JSON.stringify(p.features || []), p.materials || null, p.image || null,
             JSON.stringify(p.gallery || []), JSON.stringify(p.colors || []), JSON.stringify(p.sizes || []),
             JSON.stringify(p.pricing || []), p.priceIncludes || null, JSON.stringify(p.priceNotes || []),
-            JSON.stringify(p.additionalCharges || []), p.currency || '$', (pi + 1) * 10, ts
+            JSON.stringify(p.additionalCharges || []), p.currency || '$',
+            p.spec || null, Number.isFinite(p.moq) ? p.moq : null,
+            Number.isFinite(p.leadTime) ? p.leadTime : null, (pi + 1) * 10, ts
           )
         );
       });
@@ -110,7 +126,7 @@ export async function onRequestGet({ request, env }) {
     const prodRows = await env.DB.prepare(
       `SELECT id, category_id, sku, name, description, features_json, materials,
               image, gallery_json, colors_json, sizes_json, pricing_json,
-              price_includes, price_notes_json, charges_json, currency, sort
+              price_includes, price_notes_json, charges_json, currency, spec, moq, lead_time, sort
        FROM showcase_products ORDER BY sort ASC, name ASC`
     ).all();
 
@@ -132,6 +148,9 @@ export async function onRequestGet({ request, env }) {
         priceNotes: parse(p.price_notes_json, []),
         additionalCharges: parse(p.charges_json, []),
         currency: p.currency || '$',
+        spec: p.spec,
+        moq: p.moq ?? null,
+        leadTime: p.lead_time ?? null,
       });
     }
 
