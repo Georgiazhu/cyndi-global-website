@@ -7,6 +7,24 @@ const parse = (raw, fallback) => {
   try { return JSON.parse(raw); } catch { return fallback; }
 };
 
+// Size charts are stored as a JSON array of image URLs. Older rows were
+// written as a single URL string, so accept both and always return an array.
+const parseCharts = (raw) => {
+  if (!raw) return [];
+  let val = raw;
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[')) {
+      try { val = JSON.parse(trimmed); } catch { val = [trimmed]; }
+    } else {
+      val = [trimmed];
+    }
+  }
+  if (!Array.isArray(val)) return [];
+  return val.map((v) => (typeof v === 'string' ? v.trim() : '')).filter(Boolean);
+};
+
 // The D1 tables may not exist yet (migration not run). Creating them idempotently here
 // avoids an unhandled error (Worker 1101) and means no manual migration on first deploy.
 const SCHEMA = [
@@ -151,7 +169,7 @@ export async function onRequestGet({ request, env }) {
         spec: p.spec,
         moq: p.moq ?? null,
         leadTime: p.lead_time ?? null,
-        sizeChart: p.size_chart ?? null,
+        sizeChart: parseCharts(p.size_chart),
       });
     }
 

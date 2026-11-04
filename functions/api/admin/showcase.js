@@ -6,6 +6,24 @@ const parse = (raw, fallback) => {
   try { return JSON.parse(raw); } catch { return fallback; }
 };
 
+// Size charts are stored as a JSON array of image URLs. Older rows were
+// written as a single URL string, so accept both and always return an array.
+const parseCharts = (raw) => {
+  if (!raw) return [];
+  let val = raw;
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[')) {
+      try { val = JSON.parse(trimmed); } catch { val = [trimmed]; }
+    } else {
+      val = [trimmed];
+    }
+  }
+  if (!Array.isArray(val)) return [];
+  return val.map((v) => (typeof v === 'string' ? v.trim() : '')).filter(Boolean);
+};
+
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS showcase_categories (
      id TEXT PRIMARY KEY, name TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`,
@@ -89,7 +107,7 @@ export async function onRequestGet({ request, env }) {
       currency: p.currency || '$',
       spec: p.spec,
       moq: p.moq ?? null,
-      sizeChart: p.size_chart ?? null,
+      sizeChart: parseCharts(p.size_chart),
       leadTime: p.lead_time ?? null,
       sort: p.sort,
     })),
@@ -198,7 +216,7 @@ export async function onRequestPost({ request, env }) {
         p.spec || null,
         Number.isFinite(p.moq) ? p.moq : null,
         Number.isFinite(p.leadTime) ? p.leadTime : null,
-        p.sizeChart || null,
+        JSON.stringify(parseCharts(p.sizeChart)),
         sort, ts
       ).run();
       return json({ ok: true, id });

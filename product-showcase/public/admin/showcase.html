@@ -473,7 +473,7 @@ $('addProd').addEventListener('click',()=>{
 function openEditor(id){
   const p=id?DATA.products.find(x=>x.id===id):{
     id:'cy-'+Date.now().toString(36),categoryId:(SEL_CAT||DATA.categories[0].id),sku:'',name:'',
-    description:'',features:[],materials:'',image:'',gallery:[],colors:[],sizes:[],sizeChart:'',
+    description:'',features:[],materials:'',image:'',gallery:[],colors:[],sizes:[],sizeChart:[],
     pricing:[{quantity:300,price:''}],priceIncludes:'',priceNotes:[],currency:'$',
     spec:'',moq:null,leadTime:null
   };
@@ -515,11 +515,11 @@ function openEditor(id){
     +'<div id="e_sizes" class="row" style="margin-bottom:8px"></div>'
     +'<button class="ghost small" id="e_addsize" type="button">+ Add size</button></div>'
     +'<div class="preview"><div class="preview-head">Size Chart</div>'
-    +'<div class="hint" style="margin-bottom:8px">Upload a size chart image. Customers see a <strong>Size Chart</strong> link next to the sizes on the product card, which opens this image.</div>'
-    +'<div class="img-upload" id="e_sc_upload">Click to upload a size chart image</div>'
-    +'<input type="file" id="e_sc_file" accept="image/*" class="hidden">'
+    +'<div class="hint" style="margin-bottom:8px">Upload one or more size chart images. Customers see a <strong>Size Chart</strong> link next to the sizes on the product card, which opens these images.</div>'
+    +'<div class="img-upload" id="e_sc_upload">Click to upload size chart images (multiple allowed)</div>'
+    +'<input type="file" id="e_sc_file" accept="image/*" multiple class="hidden">'
     +'<div id="e_sc_preview" style="margin-top:10px"></div>'
-    +'<div class="field" style="margin-top:10px"><label>Size chart image URL</label><input id="e_sc_url" value="'+esc(p.sizeChart||'')+'" placeholder="(optional) paste an image URL"></div>'
+    +'<div class="field" style="margin-top:10px"><label>Size chart image URLs (one per line)</label><textarea id="e_sc_url">'+esc((p.sizeChart||[]).join('\n'))+'</textarea></div>'
     +'</div>'
     +'<div class="preview"><div class="preview-head">Tiered pricing</div><div id="e_pricing"></div>'
     +'<button class="ghost small" id="e_addprice" type="button">+ Add price tier</button></div>'
@@ -541,7 +541,7 @@ function openEditor(id){
   // so editing here would leak into the list even when the user hits Cancel.
   const clone=v=>JSON.parse(JSON.stringify(v==null?[]:v));
   const state={colors:clone(p.colors),sizes:clone(p.sizes),pricing:clone(p.pricing),
-               gallery:clone(p.gallery),sizeChart:(p.sizeChart||'').trim()};
+               gallery:clone(p.gallery),sizeChart:Array.isArray(p.sizeChart)?clone(p.sizeChart):(p.sizeChart?[String(p.sizeChart)]:[])};
 
   function drawColors(){
     $('e_colors').innerHTML=state.colors.map((c,i)=>
@@ -664,41 +664,50 @@ function openEditor(id){
     const v=prompt('Size','One Size');if(v)state.sizes.push(v.trim());drawSizes();
   });
 
-  // Size chart: one image, uploaded like a product photo but kept separate
-  // from the gallery so it never becomes the card's main image.
+  // Size charts: one or more images, kept separate from the gallery so they
+  // never become the card's main image.
   function drawSizeChart(){
     const box=$('e_sc_preview');
-    if(!state.sizeChart){box.innerHTML='';return;}
-    box.innerHTML='<div class="row" style="align-items:flex-start;gap:10px">'
-      +'<img class="thumb" style="width:96px;height:96px" src="'+esc(state.sizeChart)+'" alt="Size chart">'
-      +'<button class="secondary small" type="button" id="e_sc_clear">Remove size chart</button></div>';
+    if(!state.sizeChart.length){box.innerHTML='';return;}
+    box.innerHTML='<div class="img-grid">'+state.sizeChart.map((u,i)=>
+      '<div style="position:relative">'
+      +'<img src="'+esc(u)+'" alt="Size chart '+(i+1)+'">'
+      +'<button class="secondary small" type="button" data-sc-del="'+i+'" title="Remove" '
+      +'style="position:absolute;top:3px;right:3px;padding:1px 6px;line-height:1.3;border-radius:6px">✕</button>'
+      +'</div>').join('')+'</div>'
+      +'<button class="secondary small" type="button" id="e_sc_clear" style="margin-top:8px">Remove all size charts</button>';
+    box.querySelectorAll('[data-sc-del]').forEach(btn=>btn.addEventListener('click',()=>{
+      state.sizeChart.splice(+btn.dataset.scDel,1);
+      $('e_sc_url').value=state.sizeChart.join('\n');
+      drawSizeChart();
+    }));
     $('e_sc_clear').addEventListener('click',()=>{
-      state.sizeChart='';$('e_sc_url').value='';drawSizeChart();
+      state.sizeChart=[];$('e_sc_url').value='';drawSizeChart();
     });
   }
   drawSizeChart();
   $('e_sc_upload').addEventListener('click',()=>$('e_sc_file').click());
   $('e_sc_file').addEventListener('change',async()=>{
-    const f=($('e_sc_file').files||[])[0];
-    if(!f)return;
+    const files=Array.from($('e_sc_file').files||[]);
+    if(!files.length)return;
     const fd=new FormData();
-    fd.append('file',f);
+    files.forEach(f=>fd.append('file',f));
     fd.append('categoryId',$('e_cat').value);
     $('e_sc_upload').textContent='Uploading…';
     try{
       const res=await api('/api/admin/showcase/upload',{method:'POST',body:fd});
-      const u=res.url||(res.urls||[])[0];
-      if(!u)throw new Error('no url returned');
-      state.sizeChart=u;
-      $('e_sc_url').value=u;
+      const urls=res.urls||(res.url?[res.url]:[]);
+      if(!urls.length)throw new Error('no url returned');
+      urls.forEach(u=>{if(u&&!state.sizeChart.includes(u))state.sizeChart.push(u)});
+      $('e_sc_url').value=state.sizeChart.join('\n');
       drawSizeChart();
-      showMsg('Size chart uploaded','ok');
+      showMsg('Uploaded '+urls.length+' size chart image(s)','ok');
     }catch(err){showMsg('Size chart upload failed: '+err.message,'err')}
-    $('e_sc_upload').textContent='Click to upload a size chart image';
+    $('e_sc_upload').textContent='Click to upload size chart images (multiple allowed)';
     $('e_sc_file').value='';
   });
   $('e_sc_url').addEventListener('input',()=>{
-    state.sizeChart=$('e_sc_url').value.trim();
+    state.sizeChart=$('e_sc_url').value.split('\n').map(s=>s.trim()).filter(Boolean);
     drawSizeChart();
   });
   $('e_addprice').addEventListener('click',()=>{state.pricing.push({quantity:'',price:''});drawPricing()});
