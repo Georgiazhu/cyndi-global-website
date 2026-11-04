@@ -16,7 +16,7 @@ const SCHEMA = [
      id TEXT PRIMARY KEY, category_id TEXT NOT NULL, sku TEXT, name TEXT NOT NULL, description TEXT,
      features_json TEXT, materials TEXT, image TEXT, gallery_json TEXT, colors_json TEXT, sizes_json TEXT,
      pricing_json TEXT, price_includes TEXT, price_notes_json TEXT, charges_json TEXT,
-     currency TEXT NOT NULL DEFAULT '$', spec TEXT, moq INTEGER, lead_time INTEGER,
+     currency TEXT NOT NULL DEFAULT '$', spec TEXT, moq INTEGER, lead_time INTEGER, size_chart TEXT,
      sort INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS showcase_meta (
      id INTEGER PRIMARY KEY CHECK (id = 1), data_json TEXT NOT NULL, updated_at TEXT NOT NULL)`,
@@ -33,6 +33,7 @@ const MIGRATIONS = [
   `ALTER TABLE showcase_products ADD COLUMN spec TEXT`,
   `ALTER TABLE showcase_products ADD COLUMN moq INTEGER`,
   `ALTER TABLE showcase_products ADD COLUMN lead_time INTEGER`,
+  `ALTER TABLE showcase_products ADD COLUMN size_chart TEXT`,
 ];
 
 let schemaReady = null;
@@ -126,7 +127,7 @@ export async function onRequestGet({ request, env }) {
     const prodRows = await env.DB.prepare(
       `SELECT id, category_id, sku, name, description, features_json, materials,
               image, gallery_json, colors_json, sizes_json, pricing_json,
-              price_includes, price_notes_json, currency, spec, moq, lead_time, sort
+              price_includes, price_notes_json, currency, spec, moq, lead_time, size_chart, sort
        FROM showcase_products ORDER BY sort ASC, name ASC`
     ).all();
 
@@ -150,6 +151,7 @@ export async function onRequestGet({ request, env }) {
         spec: p.spec,
         moq: p.moq ?? null,
         leadTime: p.lead_time ?? null,
+        sizeChart: p.size_chart ?? null,
       });
     }
 

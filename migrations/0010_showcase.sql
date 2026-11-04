@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS showcase_products (
   gallery_json       TEXT,                -- JSON 数组：图库
   colors_json        TEXT,                -- JSON 数组：{name, hex, image}
   sizes_json         TEXT,                -- JSON 数组：尺寸
+  size_chart         TEXT,                -- 尺码表图片 URL
   pricing_json       TEXT,                -- JSON 数组：{quantity, price}
   price_includes     TEXT,
   price_notes_json   TEXT,                -- JSON 数组：价格备注

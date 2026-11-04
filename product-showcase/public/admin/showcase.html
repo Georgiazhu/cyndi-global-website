@@ -473,7 +473,7 @@ $('addProd').addEventListener('click',()=>{
 function openEditor(id){
   const p=id?DATA.products.find(x=>x.id===id):{
     id:'cy-'+Date.now().toString(36),categoryId:(SEL_CAT||DATA.categories[0].id),sku:'',name:'',
-    description:'',features:[],materials:'',image:'',gallery:[],colors:[],sizes:[],
+    description:'',features:[],materials:'',image:'',gallery:[],colors:[],sizes:[],sizeChart:'',
     pricing:[{quantity:300,price:''}],priceIncludes:'',priceNotes:[],currency:'$',
     spec:'',moq:null,leadTime:null
   };
@@ -514,6 +514,13 @@ function openEditor(id){
     +'<div class="preview"><div class="preview-head">Sizes</div>'
     +'<div id="e_sizes" class="row" style="margin-bottom:8px"></div>'
     +'<button class="ghost small" id="e_addsize" type="button">+ Add size</button></div>'
+    +'<div class="preview"><div class="preview-head">Size Chart</div>'
+    +'<div class="hint" style="margin-bottom:8px">Upload a size chart image. Customers see a <strong>Size Chart</strong> link next to the sizes on the product card, which opens this image.</div>'
+    +'<div class="img-upload" id="e_sc_upload">Click to upload a size chart image</div>'
+    +'<input type="file" id="e_sc_file" accept="image/*" class="hidden">'
+    +'<div id="e_sc_preview" style="margin-top:10px"></div>'
+    +'<div class="field" style="margin-top:10px"><label>Size chart image URL</label><input id="e_sc_url" value="'+esc(p.sizeChart||'')+'" placeholder="(optional) paste an image URL"></div>'
+    +'</div>'
     +'<div class="preview"><div class="preview-head">Tiered pricing</div><div id="e_pricing"></div>'
     +'<button class="ghost small" id="e_addprice" type="button">+ Add price tier</button></div>'
     +'<div class="grid2">'
@@ -534,7 +541,7 @@ function openEditor(id){
   // so editing here would leak into the list even when the user hits Cancel.
   const clone=v=>JSON.parse(JSON.stringify(v==null?[]:v));
   const state={colors:clone(p.colors),sizes:clone(p.sizes),pricing:clone(p.pricing),
-               gallery:clone(p.gallery)};
+               gallery:clone(p.gallery),sizeChart:(p.sizeChart||'').trim()};
 
   function drawColors(){
     $('e_colors').innerHTML=state.colors.map((c,i)=>
@@ -656,6 +663,44 @@ function openEditor(id){
   $('e_addsize').addEventListener('click',()=>{
     const v=prompt('Size','One Size');if(v)state.sizes.push(v.trim());drawSizes();
   });
+
+  // Size chart: one image, uploaded like a product photo but kept separate
+  // from the gallery so it never becomes the card's main image.
+  function drawSizeChart(){
+    const box=$('e_sc_preview');
+    if(!state.sizeChart){box.innerHTML='';return;}
+    box.innerHTML='<div class="row" style="align-items:flex-start;gap:10px">'
+      +'<img class="thumb" style="width:96px;height:96px" src="'+esc(state.sizeChart)+'" alt="Size chart">'
+      +'<button class="secondary small" type="button" id="e_sc_clear">Remove size chart</button></div>';
+    $('e_sc_clear').addEventListener('click',()=>{
+      state.sizeChart='';$('e_sc_url').value='';drawSizeChart();
+    });
+  }
+  drawSizeChart();
+  $('e_sc_upload').addEventListener('click',()=>$('e_sc_file').click());
+  $('e_sc_file').addEventListener('change',async()=>{
+    const f=($('e_sc_file').files||[])[0];
+    if(!f)return;
+    const fd=new FormData();
+    fd.append('file',f);
+    fd.append('categoryId',$('e_cat').value);
+    $('e_sc_upload').textContent='Uploading…';
+    try{
+      const res=await api('/api/admin/showcase/upload',{method:'POST',body:fd});
+      const u=res.url||(res.urls||[])[0];
+      if(!u)throw new Error('no url returned');
+      state.sizeChart=u;
+      $('e_sc_url').value=u;
+      drawSizeChart();
+      showMsg('Size chart uploaded','ok');
+    }catch(err){showMsg('Size chart upload failed: '+err.message,'err')}
+    $('e_sc_upload').textContent='Click to upload a size chart image';
+    $('e_sc_file').value='';
+  });
+  $('e_sc_url').addEventListener('input',()=>{
+    state.sizeChart=$('e_sc_url').value.trim();
+    drawSizeChart();
+  });
   $('e_addprice').addEventListener('click',()=>{state.pricing.push({quantity:'',price:''});drawPricing()});
 
   // Image upload
@@ -697,6 +742,7 @@ function openEditor(id){
         name:c.name||'',hex:c.hex||'',image:c.image||'',
       })),
       sizes:state.sizes,
+      sizeChart:state.sizeChart,
       pricing:state.pricing.filter(t=>t.quantity!==''&&t.price!==''),
       priceIncludes:$('e_pi').value.trim(),
       priceNotes:$('e_pn').value.split('\n').map(s=>s.trim()).filter(Boolean),

@@ -14,6 +14,7 @@ const SCHEMA = [
      features_json TEXT, materials TEXT, image TEXT, gallery_json TEXT, colors_json TEXT, sizes_json TEXT,
      pricing_json TEXT, price_includes TEXT, price_notes_json TEXT, charges_json TEXT,
      currency TEXT NOT NULL DEFAULT '$', spec TEXT, moq INTEGER, lead_time INTEGER,
+     size_chart TEXT,
      sort INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS showcase_meta (
      id INTEGER PRIMARY KEY CHECK (id = 1), data_json TEXT NOT NULL, updated_at TEXT NOT NULL)`,
@@ -29,6 +30,7 @@ const MIGRATIONS = [
   `ALTER TABLE showcase_products ADD COLUMN spec TEXT`,
   `ALTER TABLE showcase_products ADD COLUMN moq INTEGER`,
   `ALTER TABLE showcase_products ADD COLUMN lead_time INTEGER`,
+  `ALTER TABLE showcase_products ADD COLUMN size_chart TEXT`,
 ];
 
 let schemaReady = null;
@@ -87,6 +89,7 @@ export async function onRequestGet({ request, env }) {
       currency: p.currency || '$',
       spec: p.spec,
       moq: p.moq ?? null,
+      sizeChart: p.size_chart ?? null,
       leadTime: p.lead_time ?? null,
       sort: p.sort,
     })),
@@ -165,13 +168,14 @@ export async function onRequestPost({ request, env }) {
            (id, category_id, sku, name, description, features_json, materials,
             image, gallery_json, colors_json, sizes_json, pricing_json,
             price_includes, price_notes_json, charges_json, currency, spec, moq, lead_time,
-            sort, updated_at)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21)
+            size_chart, sort, updated_at)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22)
          ON CONFLICT(id) DO UPDATE SET
            category_id=?2, sku=?3, name=?4, description=?5, features_json=?6,
            materials=?7, image=?8, gallery_json=?9, colors_json=?10, sizes_json=?11,
            pricing_json=?12, price_includes=?13, price_notes_json=?14, charges_json=?15,
-           currency=?16, spec=?17, moq=?18, lead_time=?19, sort=?20, updated_at=?21`
+           currency=?16, spec=?17, moq=?18, lead_time=?19, size_chart=?20, sort=?21,
+           updated_at=?22`
       ).bind(
         id, categoryId,
         p.sku || null,
@@ -194,6 +198,7 @@ export async function onRequestPost({ request, env }) {
         p.spec || null,
         Number.isFinite(p.moq) ? p.moq : null,
         Number.isFinite(p.leadTime) ? p.leadTime : null,
+        p.sizeChart || null,
         sort, ts
       ).run();
       return json({ ok: true, id });
