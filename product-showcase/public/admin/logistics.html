@@ -15,7 +15,6 @@
     h1 { margin:0 0 10px; color:var(--navy); font-size:32px; }
     .intro { margin:0 0 28px; color:var(--muted); line-height:1.7; }
     .card { margin-top:18px; padding:24px; background:var(--white); border-radius:14px; box-shadow:0 10px 28px rgba(15,31,58,.06); }
-    .login-card { max-width:440px; margin:40px auto; }
     label { display:block; margin:0 0 8px; color:var(--muted); font-size:12px; font-weight:700; }
     input, textarea { width:100%; padding:13px 14px; border:1px solid var(--line); border-radius:8px; color:var(--text); font:inherit; outline:none; }
     input:focus, textarea:focus { border-color:#4a9fd4; box-shadow:0 0 0 3px rgba(74,159,212,.12); }
@@ -37,7 +36,7 @@
 <body>
   <header style="display:flex;justify-content:space-between;align-items:center">
     <strong>CYNDI GLOBAL · SHIPPING</strong>
-    <div style="display:flex;gap:18px;align-items:center">
+    <div style="display:flex;gap:18px;align-items:center" data-admin-auth-slot>
       <a href="/admin/" style="color:#cfe0ee;text-decoration:none;font-size:14px">Home</a>
       <a href="/admin/products" style="color:#cfe0ee;text-decoration:none;font-size:14px">Products</a>
       <a href="/admin/orders.html" style="color:#cfe0ee;text-decoration:none;font-size:14px">Orders</a>
@@ -48,12 +47,6 @@
     </div>
   </header>
   <main>
-    <section id="loginView" class="card login-card">
-      <h1>后台登录</h1>
-      <p class="intro">请输入管理员用户名和密码进入物流数据编辑区。</p>
-      <form id="loginForm"><div class="field"><label for="username">管理员用户名</label><input id="username" type="text" autocomplete="username" required></div><div class="field"><label for="password">管理员密码</label><input id="password" type="password" autocomplete="current-password" required></div><button type="submit">登录</button></form>
-      <div id="loginMessage" class="message hidden"></div>
-    </section>
     <section id="editorView" class="hidden">
       <h1>物流数据管理</h1>
       <p class="intro">产品编号作为查询键。保存后，公开查询页面会立即读取最新数据。物流节点和图片字段都写在同一份 JSON 中。</p>
@@ -65,23 +58,18 @@
       <div class="card"><div class="field"><label for="recordJson">物流记录 JSON（支持大量自定义字段、数组和备注）</label><textarea id="recordJson" spellcheck="false"></textarea><p class="help">可以继续增加客户、订单、SKU、箱规、报关、运输、仓库、联系人、单证和自定义字段。必填字段只有 <code>productNo</code>、<code>productName</code>；单条物流记录建议控制在 1.8MB 内。</p></div><div class="actions"><button id="saveButton" type="button">保存物流记录</button><button id="logoutButton" type="button" class="secondary">退出登录</button></div><div id="editorMessage" class="message hidden"></div></div>
     </section>
   </main>
+  <script src="/admin/admin-auth.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
     const demo = { productNo:'CY-THERMOS-001', productName:'Cyndi Thermal Bottle Gift Set', productNameZh:'保温杯礼盒', status:'in_transit', lastUpdated:new Date().toISOString(), origin:'Shenzhen, China', originZh:'中国 · 深圳', destination:'Hong Kong, China', destinationZh:'中国 · 香港', carrier:'Cyndi Global Logistics', trackingNo:'CYG20260810001', eta:'2026-08-13', packages:12, quantity:480, warehouseLocation:'HK Warehouse · A-03-18', warehouseLocationZh:'香港仓 · A-03-18', warehouseUpdated:new Date().toISOString(), order:{ orderNo:'CG-2026-001', customer:'Customer name', incoterm:'DAP', currency:'USD' }, cargo:{ sku:'CY-THERMOS', cartons:12, unitsPerCarton:40, grossWeightKg:96, dimensionsCm:'60 x 40 x 45' }, customs:{ hsCode:'9617.00', declarationNo:'', clearanceStatus:'pending' }, transport:{ mode:'sea', vessel:'', containerNo:'', bookingNo:'' }, contacts:{ carrier:'', warehouse:'', consignee:'' }, events:[], warehouseImages:[], documents:[], notes:'', customFields:{} };
     function show(element, message, error = false) { element.textContent = message; element.classList.toggle('error', error); element.classList.remove('hidden'); }
     function hide(element) { element.classList.add('hidden'); }
-    function setEditor() { $('loginView').classList.add('hidden'); $('editorView').classList.remove('hidden'); if (!$('recordJson').value) $('recordJson').value = JSON.stringify(demo, null, 2); }
-    $('loginForm').addEventListener('submit', async (event) => { event.preventDefault(); const button = event.target.querySelector('button'); button.disabled = true; hide($('loginMessage')); const response = await fetch('../api/admin/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:$('username').value.trim(),password:$('password').value}) }); const payload = await response.json().catch(() => ({})); button.disabled = false; if (!response.ok) { show($('loginMessage'), payload.error || '登录失败', true); return; } setEditor(); });
+    function setEditor() { $('editorView').classList.remove('hidden'); if (!$('recordJson').value) $('recordJson').value = JSON.stringify(demo, null, 2); }
     $('uploadButton').addEventListener('click', async () => { const productNo = $('productNo').value.trim().toUpperCase(); const files = [...$('imageFile').files]; if (!productNo || !files.length) { show($('editorMessage'), '请填写产品编号并选择至少一张图片。', true); return; } if (files.length > 20) { show($('editorMessage'), '一次最多上传 20 张图片。', true); return; } const formData = new FormData(); formData.append('productNo', productNo); files.forEach((file) => formData.append('file', file)); const response = await fetch('../api/admin/upload', { method:'POST', body:formData }); const payload = await response.json().catch(() => ({})); if (!response.ok) { show($('editorMessage'), payload.error || '上传失败', true); return; } const urls = payload.urls || (payload.url ? [payload.url] : []); let record; try { record = JSON.parse($('recordJson').value); } catch { record = { ...demo, productNo }; } if (!Array.isArray(record.warehouseImages)) record.warehouseImages = []; urls.forEach((url) => record.warehouseImages.push({ url, caption:'', captionZh:'', date:new Date().toISOString() })); $('recordJson').value = JSON.stringify(record, null, 2); $('uploadResult').textContent = `已上传 ${urls.length} 张，已自动加入 warehouseImages；请继续保存物流记录。`; show($('editorMessage'), '图片已批量上传并加入当前记录，请点击“保存物流记录”。'); });
     $('saveButton').addEventListener('click', async () => { let record; try { record = JSON.parse($('recordJson').value); } catch { show($('editorMessage'), 'JSON 格式错误，请检查逗号、引号和括号。', true); return; } const response = await fetch('../api/admin/record', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(record) }); const payload = await response.json().catch(() => ({})); if (!response.ok) { show($('editorMessage'), payload.error || '保存失败', true); return; } show($('editorMessage'), `已保存 ${payload.productNo}，公开查询页面现在可以读取。`); });
-    $('logoutButton').addEventListener('click', async () => { await fetch('../api/admin/logout', { method:'POST' }); location.reload(); });
-    // 已登录则自动进入(与商品页共用 logistics_admin 会话)：试调需鉴权的接口，非 401 即已登录
-    (async () => {
-      try {
-        const r = await fetch('../api/admin/record?productNo=__probe__');
-        if (r.status !== 401) setEditor();   // 401=未登录; 404/其它=已登录
-      } catch {}
-    })();
+    $('logoutButton').addEventListener('click', () => AdminAuth.logout());
+    // 统一登录（admin-auth.js）：会话有效则进入编辑区，未登录时显示共享登录框
+    AdminAuth.require({ onReady: setEditor });
   </script>
 </body>
 </html>

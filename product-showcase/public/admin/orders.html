@@ -11,7 +11,6 @@ header{padding:16px 5%;background:var(--navy);color:#fff;display:flex;justify-co
 header a{color:#cfe0ee;text-decoration:none;font-size:14px}header a.on{color:#fff;font-weight:700}
 main{max-width:1200px;margin:24px auto;padding:0 16px}
 .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 8px 24px #0f1f3a12;margin-bottom:16px}
-.login-card{max-width:420px;margin:48px auto}
 .field{margin-bottom:12px}label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
 input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:14px}
 button{border:0;border-radius:8px;padding:9px 14px;background:var(--navy);color:#fff;font-weight:700;cursor:pointer;font-size:13px}
@@ -63,29 +62,16 @@ code{font-size:12px}
 <body>
 <header>
   <strong>CYNDI GLOBAL — ADMIN</strong>
-  <nav class="row" style="gap:16px;align-items:center" aria-label="Admin">
+  <nav class="row" style="gap:16px;align-items:center" aria-label="Admin" data-admin-auth-slot>
     <a href="/admin/">Home</a>
     <a href="/admin/products">Products</a>
     <a href="/admin/orders.html" class="on" aria-current="page">Orders</a>
     <a href="/admin/customers.html">Customers</a>
     <a href="/admin/showcase">Showcase</a>
     <a href="/admin/logistics.html">Shipping</a>
-    <a href="#" id="logout">Log out</a>
   </nav>
 </header>
 <main>
-  <!-- Login -->
-  <section id="loginView" class="card login-card hidden">
-    <h1 style="margin:0 0 6px">Admin login</h1>
-    <p style="color:var(--muted);font-size:13px;margin:0 0 16px">Sign in to view orders and update their status.</p>
-    <form id="loginForm">
-      <div class="field"><label for="username">Admin username</label><input id="username" type="text" autocomplete="username" required></div>
-      <div class="field"><label for="password">Admin password</label><input id="password" type="password" autocomplete="current-password" required></div>
-      <button type="submit">Sign in</button>
-    </form>
-    <div id="loginMsg" class="msg err hidden" role="alert"></div>
-  </section>
-
   <!-- Orders -->
   <section id="editorView" class="hidden">
     <div class="card">
@@ -127,6 +113,7 @@ code{font-size:12px}
   <div id="dBody"></div>
 </aside>
 
+<script src="/admin/admin-auth.js"></script>
 <script>
 // All order data is customer-supplied: it is only ever rendered via textContent /
 // DOM properties (never innerHTML), image URLs are restricted to http(s) and
@@ -175,8 +162,9 @@ function safeImg(raw){
 }
 const EMAIL_RE=/^[^@\s<>"'()\\,;:]+@[^@\s<>"'()\\,;:]+\.[^@\s<>"'()\\,;:]+$/;
 
-function showLogin(){$('editorView').classList.add('hidden');$('loginView').classList.remove('hidden');closeDrawer()}
-function showEditor(){$('loginView').classList.add('hidden');$('editorView').classList.remove('hidden')}
+// 401 from a feature API -> shared login overlay (admin-auth.js)
+function showLogin(){closeDrawer();AdminAuth.requireLogin()}
+function showEditor(){$('editorView').classList.remove('hidden')}
 
 // ---------- List ----------
 async function load(){
@@ -366,19 +354,9 @@ $('dClose').addEventListener('click',closeDrawer);
 $('overlay').addEventListener('click',closeDrawer);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
 
-$('loginForm').addEventListener('submit',async e=>{
-  e.preventDefault();hide($('loginMsg'));
-  try{
-    const r=await fetch('../api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('username').value.trim(),password:$('password').value})});
-    const b=await r.json().catch(()=>({}));
-    if(!r.ok)throw new Error(b.error||'Sign in failed');
-    $('password').value='';showEditor();load();
-  }catch(err){show($('loginMsg'),err.message,true)}
-});
-$('logout').addEventListener('click',async e=>{e.preventDefault();await fetch('../api/admin/logout',{method:'POST'});location.reload()});
 
-// Already signed in -> straight to the list; a 401 shows the login form.
-load();
+// Shared sign-in (admin-auth.js): valid session -> straight to the list; a 401 shows the shared login overlay.
+AdminAuth.require({onReady(){showEditor();load();}});
 </script>
 </body>
 </html>

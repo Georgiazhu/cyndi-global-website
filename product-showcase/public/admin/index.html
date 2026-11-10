@@ -23,7 +23,7 @@ h1{margin:0 0 8px}.sub{color:var(--muted);margin:0 0 28px}
 <body>
 <header>
   <strong>CYNDI GLOBAL — ADMIN</strong>
-  <nav class="nav">
+  <nav class="nav" data-admin-auth-slot>
     <a href="/admin/" class="active">Home</a>
     <a href="/admin/products">Products</a>
     <a href="/admin/orders.html">Orders</a>
@@ -63,5 +63,7 @@ h1{margin:0 0 8px}.sub{color:var(--muted);margin:0 0 28px}
     </a>
   </div>
 </main>
+<script src="/admin/admin-auth.js"></script>
+<script>AdminAuth.require({ onReady: function () {} });</script>
 </body>
 </html>
