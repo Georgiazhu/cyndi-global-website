@@ -1,3 +1,5 @@
+import { groupAmount } from '../data/money.js'
+
 // 商品筛选侧栏：品类 / 品牌 / 尺寸 / 价格。竖排，sticky 跟随滚动。
 const STD_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL']
 
@@ -83,7 +85,7 @@ export default function Filters({
           </div>
         </Group>
 
-        <Group title={`Max price · $${filters.maxPrice}`}>
+        <Group title={`Max price · $${groupAmount(filters.maxPrice)}`}>
           <input
             type="range"
             min={0}
@@ -94,7 +96,7 @@ export default function Filters({
             className="w-full accent-stone-900"
           />
           <div className="flex justify-between text-[10px] text-stone-400 mt-1">
-            <span>$0</span><span>${priceMax}</span>
+            <span>$0</span><span>${groupAmount(priceMax)}</span>
           </div>
         </Group>
 

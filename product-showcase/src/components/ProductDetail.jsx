@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { groupAmount } from '../data/money.js'
 import { useCart } from '../context/CartContext'
 import Toast from './Toast'
 
@@ -154,9 +155,9 @@ export default function ProductDetail({ product, initialColor }) {
             <h1 className="mt-2 text-2xl md:text-3xl font-semibold text-stone-900 leading-tight">{detail.name}</h1>
 
             <p className="mt-4 text-2xl font-semibold text-stone-900">
-              {cur(priceDisplay.curr)}{priceDisplay.min}
+              {cur(priceDisplay.curr)}{groupAmount(priceDisplay.min)}
               {priceDisplay.max != null && priceDisplay.max !== priceDisplay.min && (
-                <span className="text-stone-500"> – {cur(priceDisplay.curr)}{priceDisplay.max}</span>
+                <span className="text-stone-500"> – {cur(priceDisplay.curr)}{groupAmount(priceDisplay.max)}</span>
               )}
               <span className="text-base font-normal text-stone-400"> /unit</span>
             </p>
@@ -165,7 +166,7 @@ export default function ProductDetail({ product, initialColor }) {
             {tierPrices && tierPrices.length > 1 && (
               <div className="mt-2 text-xs text-stone-500">
                 {tierPrices.map((t, i) => (
-                  <span key={i} className="mr-3">≥{t.beginAmount}: {cur(priceDisplay.curr)}{t.price}</span>
+                  <span key={i} className="mr-3">≥{t.beginAmount}: {cur(priceDisplay.curr)}{groupAmount(t.price)}</span>
                 ))}
               </div>
             )}

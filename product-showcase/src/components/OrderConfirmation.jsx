@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { fixedAmount } from '../data/money.js'
 
 const STATUS_LABELS = {
   pending: 'Order received',
@@ -70,7 +71,7 @@ export default function OrderConfirmation({ orderNo }) {
     acc[c] = (acc[c] || 0) + (Number(it.price) || 0) * (it.quantity || 0)
     return acc
   }, {})
-  const totalText = Object.entries(totalsByCurrency).map(([c, v]) => `${symOf(c)}${v.toFixed(2)}`).join('  +  ') || '$0.00'
+  const totalText = Object.entries(totalsByCurrency).map(([c, v]) => `${symOf(c)}${fixedAmount(v)}`).join('  +  ') || '$0.00'
 
   const isCancelled = order.status === 'cancelled'
   const normStep = STEP_ALIAS[order.status] || order.status
@@ -136,10 +137,10 @@ export default function OrderConfirmation({ orderNo }) {
                     {[it.selectedColor, it.selectedSize].filter(Boolean).join(' · ')}
                   </p>
                 )}
-                <p className="text-xs text-stone-500 mt-1">{symOf(it.currency)}{Number(it.price).toFixed(2)} × {it.quantity}</p>
+                <p className="text-xs text-stone-500 mt-1">{symOf(it.currency)}{fixedAmount(it.price)} × {it.quantity}</p>
               </div>
               <div className="text-sm font-medium text-stone-900 whitespace-nowrap">
-                {symOf(it.currency)}{(Number(it.price) * it.quantity).toFixed(2)}
+                {symOf(it.currency)}{fixedAmount(Number(it.price) * it.quantity)}
               </div>
             </div>
           ))}

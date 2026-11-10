@@ -166,7 +166,7 @@ async function api(url,opts){
 function label(s){return LABELS[s]||String(s||'—')}
 function badge(s){return h('span',{class:'pill '+(KNOWN.includes(s)?'st-'+s:''),text:label(s)})}
 function sym(c){if(!c)return '';if(c==='USD'||c==='$')return '$';if(c==='CNY'||c==='¥')return '¥';return String(c)+' '}
-function money(v,c){const n=Number(v);return Number.isFinite(n)?sym(c)+n.toFixed(2):'—'}
+function money(v,c){const n=Number(v);return Number.isFinite(n)?sym(c)+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}
 function fmtDate(v){if(!v)return '—';const d=new Date(v);return isNaN(d)?String(v):d.toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'})}
 function safeImg(raw){
   if(typeof raw!=='string'||!raw.trim())return null;

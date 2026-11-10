@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { fixedAmount } from '../data/money.js'
 
 const STATUS_LABELS = {
   received: 'Order received',
@@ -75,7 +76,7 @@ export default function MyOrdersModal({ isOpen, onClose, onTrack }) {
                 </div>
                 <div className="text-right">
                   <p className="text-xs uppercase tracking-wide text-stone-600">{STATUS_LABELS[o.status] || o.status}</p>
-                  <p className="text-sm font-medium text-stone-900">${Number(o.total).toFixed(2)}</p>
+                  <p className="text-sm font-medium text-stone-900">${fixedAmount(o.total)}</p>
                 </div>
               </button>
             ))}

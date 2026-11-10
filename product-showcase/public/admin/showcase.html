@@ -160,6 +160,7 @@ th{font-size:11px;text-transform:uppercase;color:var(--muted)}
 <script>
 function $(id){return document.getElementById(id)}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function groupAmount(v){const s=String(v==null?'':v).trim();const m=/^(\d+)((?:\.\d+)?)$/.exec(s);return m?m[1].replace(/\B(?=(\d{3})+(?!\d))/g,',')+m[2]:s}
 function showMsg(text,kind){const el=$('msg');el.textContent=text;el.className='msg'+(kind?' '+kind:'');el.classList.remove('hidden');if(kind==='ok')setTimeout(()=>el.classList.add('hidden'),2500)}
 async function api(url,opts){const r=await fetch(url,opts||{});const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.error||('HTTP '+r.status));return b}
 
@@ -451,7 +452,7 @@ function renderProds(){
   if(!list.length){el.innerHTML='<p class="hint">No matching products.</p>';return}
   el.innerHTML=list.map(p=>{
     const cat=DATA.categories.find(c=>c.id===p.categoryId);
-    const price=(p.pricing&&p.pricing.length)?(p.pricing[0].price+(p.currency||'$')):'—';
+    const price=(p.pricing&&p.pricing.length)?(groupAmount(p.pricing[0].price)+(p.currency||'$')):'—';
     const img=p.image?'<img class="thumb" src="'+esc(p.image)+'" alt="">':'<div class="thumb"></div>';
     return '<div class="list-row">'+img
       +'<div><b>'+esc(p.name)+'</b><br><span class="hint">'+esc(p.sku||'No SKU')+' · '+esc(cat?cat.name:'Uncategorised')+' · from '+esc(price)+' · '+((p.colors||[]).length)+' colours</span></div>'

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { groupAmount, fixedAmount } from '../data/money.js'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 
@@ -14,7 +15,7 @@ export default function Cart() {
     return acc
   }, {})
   const totalText = Object.entries(totalsByCurrency)
-    .map(([c, v]) => `${symOf(c)}${v.toFixed(2)}`)
+    .map(([c, v]) => `${symOf(c)}${fixedAmount(v)}`)
     .join(' + ') || '$0.00'
   const [showOrderForm, setShowOrderForm] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -185,10 +186,10 @@ export default function Cart() {
                             {[item.selectedColor, item.selectedSize].filter(Boolean).join(' · ')}
                           </p>
                         )}
-                        <p className="text-xs text-stone-500">{item.currency === 'CNY' ? '¥' : '$'}{item.price[0]} each</p>
+                        <p className="text-xs text-stone-500">{item.currency === 'CNY' ? '¥' : '$'}{groupAmount(item.price[0])} each</p>
                         {item.tierPrices && item.tierPrices.length > 1 && (
                           <p className="text-[11px] text-stone-400 mt-0.5">
-                            Bulk: {item.tierPrices.map((t, i) => `≥${t.beginAmount} ${item.currency === 'CNY' ? '¥' : '$'}${t.price}`).join(' · ')}
+                            Bulk: {item.tierPrices.map((t, i) => `≥${t.beginAmount} ${item.currency === 'CNY' ? '¥' : '$'}${groupAmount(t.price)}`).join(' · ')}
                           </p>
                         )}
                         <div className="flex items-center gap-2 mt-2">

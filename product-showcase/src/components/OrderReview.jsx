@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { groupAmount, fixedAmount } from '../data/money.js'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 
@@ -25,7 +26,7 @@ export default function OrderReview() {
     acc[c] = (acc[c] || 0) + parseFloat(item.price[0]) * item.quantity
     return acc
   }, {})
-  const totalText = Object.entries(totalsByCurrency).map(([c, v]) => `${symOf(c)}${v.toFixed(2)}`).join('  +  ') || '$0.00'
+  const totalText = Object.entries(totalsByCurrency).map(([c, v]) => `${symOf(c)}${fixedAmount(v)}`).join('  +  ') || '$0.00'
 
   const info = checkoutInfo || {}
   const contactName = user ? user.displayName : info.name
@@ -106,7 +107,7 @@ export default function OrderReview() {
                     {(item.selectedColor || item.selectedSize) && (
                       <p className="text-[11px] text-stone-400 mt-0.5">{[item.selectedColor, item.selectedSize].filter(Boolean).join(' · ')}</p>
                     )}
-                    <p className="text-xs text-stone-500 mt-1">{sym}{item.price[0]} each</p>
+                    <p className="text-xs text-stone-500 mt-1">{sym}{groupAmount(item.price[0])} each</p>
                     {/* 数量步进 + 删除 */}
                     <div className="flex items-center gap-2 mt-3">
                       <button onClick={() => updateQuantity(key, item.quantity - 1)}
@@ -119,7 +120,7 @@ export default function OrderReview() {
                     </div>
                   </div>
                   <div className="text-sm font-medium text-stone-900 whitespace-nowrap">
-                    {sym}{(parseFloat(item.price[0]) * item.quantity).toFixed(2)}
+                    {sym}{fixedAmount(parseFloat(item.price[0]) * item.quantity)}
                   </div>
                 </div>
               )

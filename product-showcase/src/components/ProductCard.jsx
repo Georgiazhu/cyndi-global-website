@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { groupAmount } from '../data/money.js'
 import { useCart } from '../context/CartContext'
 import Toast from './Toast'
 
@@ -91,9 +92,9 @@ export default function ProductCard({ product }) {
               <div className="bg-white/97 backdrop-blur border-t border-stone-200 p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-semibold text-stone-900">
-                    {sym}{product.price[0]}
+                    {sym}{groupAmount(product.price[0])}
                     {product.price[1] && product.price[1] !== product.price[0] && (
-                      <span className="text-stone-500"> – {sym}{product.price[1]}</span>
+                      <span className="text-stone-500"> – {sym}{groupAmount(product.price[1])}</span>
                     )}
                     <span className="text-xs font-normal text-stone-400"> /unit</span>
                   </span>
@@ -174,9 +175,9 @@ export default function ProductCard({ product }) {
           {/* Price */}
           <div className="mt-2">
             <p className="text-lg font-semibold text-stone-900">
-              {sym}{product.price[0]}
+              {sym}{groupAmount(product.price[0])}
               {product.price[1] && product.price[1] !== product.price[0] && (
-                <span className="text-stone-500"> – {sym}{product.price[1]}</span>
+                <span className="text-stone-500"> – {sym}{groupAmount(product.price[1])}</span>
               )}
               <span className="text-sm font-normal text-stone-400"> /unit</span>
             </p>

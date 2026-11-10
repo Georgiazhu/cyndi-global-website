@@ -123,6 +123,7 @@ let EDITING=null;    // 当前编辑的 spu
 let EDITDATA=null;   // 当前编辑商品的详情(含 colorOptions/skus)
 
 function cur(c){return c==='CNY'?'¥':'$'}
+function groupAmount(v){const s=String(v==null?'':v).trim();const m=/^(\d+)((?:\.\d+)?)$/.exec(s);return m?m[1].replace(/\B(?=(\d{3})+(?!\d))/g,',')+m[2]:s}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
 function filtered(){
@@ -204,7 +205,7 @@ function render(){
 
   let html='';
   for(const p of pageItems){
-    const price=cur(p.currency)+p.priceRange[0]+(p.priceRange[1]!==p.priceRange[0]?(' – '+cur(p.currency)+p.priceRange[1]):'');
+    const price=cur(p.currency)+groupAmount(p.priceRange[0])+(p.priceRange[1]!==p.priceRange[0]?(' – '+cur(p.currency)+groupAmount(p.priceRange[1])):'');
     html+='<tr data-spu="'+p.spu+'">'
       +'<td><img class="thumb" src="'+(p.image||'')+'" alt=""></td>'
       +'<td><a href="/shop.html#product/'+encodeURIComponent(p.spu)+'" target="_blank" rel="noopener" title="Open PDP"><code>'+p.spu+'</code></a></td>'
