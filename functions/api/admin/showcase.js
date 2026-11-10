@@ -1,4 +1,5 @@
 import { getAdminSecret, isAuthenticated, json } from '../../_lib/auth.js';
+import { repricePendingShowcaseOrders } from '../../_lib/showcase-order-pricing.js';
 
 const now = () => new Date().toISOString();
 const parse = (raw, fallback) => {
@@ -219,7 +220,25 @@ export async function onRequestPost({ request, env }) {
         JSON.stringify(parseCharts(p.sizeChart)),
         sort, ts
       ).run();
+
+      // A price edit must also update PENDING showcase orders that contain
+      // this product. Never let bookkeeping failure roll back a saved product.
+      try {
+        const synced = await repricePendingShowcaseOrders(env.DB, id);
+        if (synced.updated) {
+          console.log(`showcase: repriced ${synced.updated} pending order(s) for ${id}`);
+        }
+      } catch (e) {
+        console.error('showcase: reprice pending orders', e?.message);
+      }
       return json({ ok: true, id });
+    }
+
+    // Manual full re-price: useful when a price was edited before this
+    // automatic sync existed, or as a one-off reconciliation.
+    if (op === 'repricePendingOrders') {
+      const result = await repricePendingShowcaseOrders(env.DB);
+      return json({ ok: true, ...result });
     }
 
     if (op === 'deleteProduct') {
