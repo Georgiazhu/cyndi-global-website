@@ -1,10 +1,10 @@
 /**
- * Keep PENDING showcase (SC-) orders in sync with current product pricing.
+ * Keep PENDING showcase (SHOWCASE- / legacy SC-) orders in sync with current product pricing.
  *
  * Order items are normally a snapshot taken at checkout. This portal is a
  * proposal / shortlist that is still being priced, so when an admin edits a
  * product's price in the showcase editor we re-price the affected lines of
- * every PENDING SC- order. Confirmed, cancelled and completed orders are
+ * every PENDING SHOWCASE- order. Confirmed, cancelled and completed orders are
  * deliberately left untouched — those are historical records.
  *
  * Only unitPrice / lineTotal / total are rewritten. Colour, quantity, size,
@@ -13,6 +13,7 @@
  * All helpers carry a `sop` prefix: Pages bundles functions/_lib modules into
  * a shared namespace, so generic names like `parse` would collide.
  */
+import { SHOWCASE_ORDERS_WHERE } from './orders.js';
 
 const sopRound2 = (n) => Math.round(n * 100) / 100;
 
@@ -43,7 +44,7 @@ function sopTierUnitPrice(pricing, quantity) {
 export async function repricePendingShowcaseOrders(db, onlyProductId = null) {
   const res = await db.prepare(
     `SELECT order_no, items_json, total FROM orders
-     WHERE order_no LIKE 'SC-%' AND status = 'pending'`
+     WHERE ${SHOWCASE_ORDERS_WHERE} AND status = 'pending'`
   ).all();
   const rows = res.results || [];
   const parsedRows = [];

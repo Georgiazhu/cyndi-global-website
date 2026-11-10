@@ -1,5 +1,5 @@
 import { json } from '../../_lib/auth.js';
-import { genOrderNo, insertOrder } from '../../_lib/orders.js';
+import { SHOWCASE_ORDERS_WHERE, SHOWCASE_ORDER_NO_RE, sgonNextShowcaseOrderNo, insertOrder } from '../../_lib/orders.js';
 import { ensureSchema } from '../showcase.js';
 import { requireShowcaseCustomer } from './auth-lib.js';
 
@@ -7,8 +7,9 @@ import { requireShowcaseCustomer } from './auth-lib.js';
  * /api/showcase/orders — real server-side orders placed from the Showcase.
  *
  * Writes into the same `orders` table as the shop (functions/api/orders.js) through
- * functions/_lib/orders.js. Showcase orders use the `SC-` prefix; shop orders use `SW-`.
- * This endpoint only ever reads or writes `SC-` rows.
+ * functions/_lib/orders.js. New showcase orders use the `SHOWCASE-` prefix (legacy rows may
+ * still be `SC-` until renamed by the admin op); shop orders use `SW-`.
+ * This endpoint only ever reads showcase rows and only writes `SHOWCASE-` rows.
  *
  * Security:
  *  - Every method requires a customer session with Showcase access (see auth-lib.js).
@@ -20,13 +21,11 @@ import { requireShowcaseCustomer } from './auth-lib.js';
  *  - Responses are private, no-store.
  */
 
-const PREFIX = 'SC';
 const MAX_LINES = 100;
 const MAX_QTY = 1000000;
 const MAX_BODY_BYTES = 64 * 1024;
 const LIMITS = { name: 120, email: 254, phone: 40, company: 160, notes: 2000, size: 60 };
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-const ORDER_NO_RE = /^SC-\d{8}-[A-Z0-9]{1,12}$/;
 const PRIVATE = { 'Cache-Control': 'private, no-store', Vary: 'Cookie' };
 
 const reply = (data, status = 200) => json(data, status, PRIVATE);
@@ -243,11 +242,12 @@ export async function onRequestPost({ request, env }) {
   // The order belongs to customer_id; the notes prefix is kept so existing reports keep working.
   const tag = `[showcase:${String(customer.username || customer.email).replace(/[\[\]]/g, '').slice(0, 64)}]`;
   const storedNotes = notes.value ? `${tag} ${notes.value}` : tag;
-  const orderNo = genOrderNo(PREFIX);
   total = round2(total);
 
+  let orderNo;
   let createdAt;
   try {
+    orderNo = await sgonNextShowcaseOrderNo(env.DB);
     ({ createdAt } = await insertOrder(env.DB, {
       orderNo,
       name: name.value,
@@ -282,8 +282,8 @@ export async function onRequestPost({ request, env }) {
   return reply({ ok: true, orderNo, order }, 200);
 }
 
-// GET /api/showcase/orders?orderNo=SC-...  -> one order
-// GET /api/showcase/orders                 -> the caller's 50 most recent SC- orders (summary)
+// GET /api/showcase/orders?orderNo=SHOWCASE-... (or legacy SC-...)  -> one of the caller's orders
+// GET /api/showcase/orders  -> the caller's 50 most recent showcase orders (summary)
 export async function onRequestGet({ request, env }) {
   if (!env.DB) return reply({ error: 'Database binding is not configured' }, 503);
   const gate = await requireShowcaseCustomer(request, env);
@@ -295,11 +295,11 @@ export async function onRequestGet({ request, env }) {
   try {
     if (orderNo) {
       // Never serve shop (SW-) or any other non-showcase order here.
-      if (!ORDER_NO_RE.test(orderNo)) return reply({ error: 'Order not found' }, 404);
+      if (!SHOWCASE_ORDER_NO_RE.test(orderNo)) return reply({ error: 'Order not found' }, 404);
       const row = await env.DB.prepare(
         `SELECT order_no, customer_name, customer_email, customer_phone, company, notes,
                 items_json, item_count, total, status, created_at, status_updated_at
-         FROM orders WHERE order_no = ?1 AND order_no LIKE 'SC-%' AND customer_id = ?2`
+         FROM orders WHERE order_no = ?1 AND ${SHOWCASE_ORDERS_WHERE} AND customer_id = ?2`
       ).bind(orderNo, customer.id).first();
       if (!row) return reply({ error: 'Order not found' }, 404);
       return reply({ order: rowToOrder(row) });
@@ -308,7 +308,7 @@ export async function onRequestGet({ request, env }) {
     // Summary list: no email/phone/notes, just what the "Previous orders" list needs.
     const res = await env.DB.prepare(
       `SELECT order_no, company, items_json, item_count, total, status, created_at
-       FROM orders WHERE order_no LIKE 'SC-%' AND customer_id = ?1
+       FROM orders WHERE ${SHOWCASE_ORDERS_WHERE} AND customer_id = ?1
        ORDER BY created_at DESC LIMIT 50`
     ).bind(customer.id).all();
     const orders = (res.results || []).map((r) => {

@@ -1,9 +1,10 @@
 import { corsHeaders, json } from '../../_lib/auth.js';
 import { NOT_CONFIGURED_ERROR, readCustomerSession } from '../../_lib/customer-auth.js';
+import { SHOWCASE_ORDERS_WHERE, isShowcaseOrderNo } from '../../_lib/orders.js';
 
 function orderType(orderNo) {
-  const p = String(orderNo || '').slice(0, 3);
-  return p === 'SW-' ? 'SW' : p === 'SC-' ? 'SC' : null;
+  if (String(orderNo || '').startsWith('SW-')) return 'SW';
+  return isShowcaseOrderNo(orderNo) ? 'SC' : null;
 }
 
 // 单一币种时返回该币种（SC 单的 currency 是 '$' / '¥' 之类符号），否则 null
@@ -15,7 +16,7 @@ function itemsCurrency(raw) {
   return set.size === 1 ? [...set][0] : null;
 }
 
-// GET /api/orders/mine —— 当前登录客户自己的订单（商城 SW- 与 Showcase SC- 都有，带 type）
+// GET /api/orders/mine —— 当前登录客户自己的订单（商城 SW- 与 Showcase SHOWCASE-/旧 SC- 都有，带 type）
 export async function onRequestGet({ request, env }) {
   const cors = { ...corsHeaders(request), 'Cache-Control': 'private, no-store', Vary: 'Cookie' };
   if (!env.DB) return json({ error: 'Database binding is not configured' }, 503, cors);
@@ -27,7 +28,7 @@ export async function onRequestGet({ request, env }) {
   const rows = await env.DB.prepare(
     `SELECT order_no, item_count, total, status, created_at, items_json
      FROM orders
-     WHERE customer_id = ?1 AND (order_no LIKE 'SW-%' OR order_no LIKE 'SC-%')
+     WHERE customer_id = ?1 AND (order_no LIKE 'SW-%' OR ${SHOWCASE_ORDERS_WHERE})
      ORDER BY created_at DESC
      LIMIT 100`
   ).bind(session.customer.id).all();

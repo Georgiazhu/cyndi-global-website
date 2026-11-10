@@ -8,6 +8,8 @@
 // 密码：新哈希一律 PBKDF2-SHA256，格式 `pbkdf2$<iterations>$<saltHex>$<hashHex>`（存在 password_hash；
 //   password_salt 同步存 saltHex，仅为满足 NOT NULL）。兼容旧格式 SHA-256(password + salt) hex，
 //   旧格式登录成功后自动升级。password_hash = '!' 表示"没有可用密码"（只能由管理员重置）。
+import { SHOWCASE_ORDERS_WHERE } from './orders.js';
+
 const encoder = new TextEncoder();
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;   // 30 天
@@ -223,11 +225,11 @@ async function migrateShowcaseUser(env, identifier, password, existing) {
     ).bind(email, rec.hash, rec.salt, su.display_name || su.username, now, clientId, su.username).run();
     customerId = res.meta?.last_row_id;
   }
-  // 历史 SC- 订单（notes 以 [showcase:<username>] 开头、尚未关联客户）归到这个账户
+  // 历史 Showcase 订单（SHOWCASE-/旧 SC-，notes 以 [showcase:<username>] 开头、尚未关联客户）归到这个账户
   const tag = `[showcase:${su.username}]`;
   await env.DB.prepare(
     `UPDATE orders SET customer_id = ?1
-     WHERE order_no LIKE 'SC-%' AND customer_id IS NULL AND substr(notes, 1, length(?2)) = ?2`
+     WHERE ${SHOWCASE_ORDERS_WHERE} AND customer_id IS NULL AND substr(notes, 1, length(?2)) = ?2`
   ).bind(customerId, tag).run();
   await env.DB.prepare("UPDATE showcase_users SET status = 'migrated', updated_at = ?2 WHERE username = ?1")
     .bind(su.username, now).run();

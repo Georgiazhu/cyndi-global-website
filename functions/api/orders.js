@@ -1,6 +1,6 @@
 import { corsHeaders, json } from '../_lib/auth.js';
 import { NOT_CONFIGURED_ERROR, hasCustomerCookie, readCustomerSession } from '../_lib/customer-auth.js';
-import { genOrderNo, insertOrder, normaliseShopItems } from '../_lib/orders.js';
+import { genOrderNo, insertOrder, isShowcaseOrderNo, normaliseShopItems } from '../_lib/orders.js';
 
 // 订单号：SW-YYYYMMDD-XXXXXX（生成、快照、INSERT 逻辑在 functions/_lib/orders.js，与 showcase 共用）
 
@@ -63,15 +63,17 @@ export async function onRequestPost({ request, env }) {
 
 // GET /api/orders?orderNo=... —— 按订单号查询
 //  - SW-（商城单）：公开跟踪，知道单号即可查（行为不变）
-//  - SC-（Showcase 单）：只有下单本人（customer_session 的 id == orders.customer_id）能查，其他人一律 404
+//  - SHOWCASE- / 旧 SC-（Showcase 单）：只有下单本人（customer_session 的 id == orders.customer_id）能查，其他人一律 404
 export async function onRequestGet({ request, env }) {
   const cors = { ...corsHeaders(request), 'Cache-Control': 'private, no-store', Vary: 'Cookie' };
   const orderNo = new URL(request.url).searchParams.get('orderNo')?.trim();
   if (!orderNo) return json({ error: 'orderNo is required' }, 400, cors);
   if (!env.DB) return json({ error: 'Database binding is not configured' }, 503, cors);
 
+  // 允许名单：只认 SW-（公开）和 Showcase 单（SHOWCASE-/旧 SC-，仅限下单本人）；其他前缀一律 404。
+  // 匿名或非本人请求 Showcase 单，与“不存在”返回同样的 404。
   const notFound = () => json({ error: 'Order not found' }, 404, cors);
-  const type = orderNo.startsWith('SW-') ? 'SW' : orderNo.startsWith('SC-') ? 'SC' : null;
+  const type = orderNo.startsWith('SW-') ? 'SW' : isShowcaseOrderNo(orderNo) ? 'SC' : null;
   if (!type) return notFound();
 
   const row = await env.DB.prepare(
