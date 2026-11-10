@@ -1,9 +1,9 @@
 // Shared order helpers for the `orders` table (migrations/0005_orders.sql + 0006 customer_id).
 // Used by the shop (functions/api/orders.js, prefix SW-) and the showcase
-// (functions/api/showcase/orders.js, prefix SC-). The prefix is the only thing that
-// tells the two order sources apart — there is no source column.
+// (functions/api/showcase/orders.js, prefix SHOWCASE-). The prefix is the only thing
+// that tells the two order sources apart — there is no source column.
 
-// Order number: <PREFIX>-YYYYMMDD-XXXXXX
+// Shop order number: SW-YYYYMMDD-XXXXXX
 export function genOrderNo(prefix) {
   const d = new Date();
   const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
@@ -14,6 +14,23 @@ export function genOrderNo(prefix) {
 function toNumber(v) {
   const n = parseFloat(Array.isArray(v) ? v[0] : v);
   return Number.isFinite(n) ? n : 0;
+}
+
+// Showcase order number: SHOWCASE-YYYYMMDD-NNN, where NNN is a daily sequence.
+// Helpers use an `sgon` prefix because Pages bundles _lib modules into one namespace.
+export async function sgonNextShowcaseOrderNo(db) {
+  const d = new Date();
+  const sgonYmd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  const sgonPrefix = `SHOWCASE-${sgonYmd}-`;
+  const sgonRows = await db.prepare(
+    'SELECT order_no FROM orders WHERE order_no LIKE ?1'
+  ).bind(`${sgonPrefix}%`).all();
+  let sgonMax = 0;
+  for (const r of sgonRows?.results || []) {
+    const n = Number.parseInt(String(r.order_no).slice(sgonPrefix.length), 10);
+    if (Number.isFinite(n) && n > sgonMax) sgonMax = n;
+  }
+  return sgonPrefix + String(sgonMax + 1).padStart(3, '0');
 }
 
 // Shop item snapshot (unchanged shop behaviour: price comes from the request body).

@@ -1,5 +1,5 @@
 import { json } from '../../_lib/auth.js';
-import { genOrderNo, insertOrder } from '../../_lib/orders.js';
+import { sgonNextShowcaseOrderNo, insertOrder } from '../../_lib/orders.js';
 import { ensureSchema } from '../showcase.js';
 import { getShowcaseSecret, readShowcaseSession } from './auth-lib.js';
 
@@ -7,8 +7,8 @@ import { getShowcaseSecret, readShowcaseSession } from './auth-lib.js';
  * /api/showcase/orders — real server-side orders placed from the Showcase.
  *
  * Writes into the same `orders` table as the shop (functions/api/orders.js) through
- * functions/_lib/orders.js. Showcase orders use the `SC-` prefix; shop orders use `SW-`.
- * This endpoint only ever reads or writes `SC-` rows.
+ * functions/_lib/orders.js. Showcase orders use the `SHOWCASE-` prefix; shop orders use `SW-`.
+ * This endpoint only ever reads or writes `SHOWCASE-` rows.
  *
  * Security:
  *  - Every method requires a valid showcase session for an active showcase_users row.
@@ -18,17 +18,16 @@ import { getShowcaseSecret, readShowcaseSession } from './auth-lib.js';
  *  - Responses are private, no-store.
  *
  * Note: showcase accounts are currently shared (one login per client team), so every
- * signed-in showcase user can read and list all SC- orders, including contact details.
+ * signed-in showcase user can read and list all SHOWCASE- orders, including contact details.
  * Scope GET by username once accounts become per-person.
  */
 
-const PREFIX = 'SC';
 const MAX_LINES = 100;
 const MAX_QTY = 1000000;
 const MAX_BODY_BYTES = 64 * 1024;
 const LIMITS = { name: 120, email: 254, phone: 40, company: 160, notes: 2000, size: 60 };
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-const ORDER_NO_RE = /^SC-\d{8}-[A-Z0-9]{1,12}$/;
+const ORDER_NO_RE = /^SHOWCASE-\d{8}-\d{3,}$/;
 const PRIVATE = { 'Cache-Control': 'private, no-store', Vary: 'Cookie' };
 
 const reply = (data, status = 200) => json(data, status, PRIVATE);
@@ -258,11 +257,12 @@ export async function onRequestPost({ request, env }) {
   // No username column on orders: record who placed it as a labelled notes prefix.
   const tag = `[showcase:${session.username.slice(0, 64)}]`;
   const storedNotes = notes.value ? `${tag} ${notes.value}` : tag;
-  const orderNo = genOrderNo(PREFIX);
   total = round2(total);
 
+  let orderNo;
   let createdAt;
   try {
+    orderNo = await sgonNextShowcaseOrderNo(env.DB);
     ({ createdAt } = await insertOrder(env.DB, {
       orderNo,
       name: name.value,
@@ -297,8 +297,8 @@ export async function onRequestPost({ request, env }) {
   return reply({ ok: true, orderNo, order }, 200);
 }
 
-// GET /api/showcase/orders?orderNo=SC-...  -> one order
-// GET /api/showcase/orders                 -> 50 most recent SC- orders (summary)
+// GET /api/showcase/orders?orderNo=SHOWCASE-...  -> one order
+// GET /api/showcase/orders                 -> 50 most recent SHOWCASE- orders (summary)
 export async function onRequestGet({ request, env }) {
   if (!env.DB) return reply({ error: 'Database binding is not configured' }, 503);
   const session = await requireSession(request, env);
@@ -313,7 +313,7 @@ export async function onRequestGet({ request, env }) {
       const row = await env.DB.prepare(
         `SELECT order_no, customer_name, customer_email, customer_phone, company, notes,
                 items_json, item_count, total, status, created_at, status_updated_at
-         FROM orders WHERE order_no = ?1 AND order_no LIKE 'SC-%'`
+         FROM orders WHERE order_no = ?1 AND order_no LIKE 'SHOWCASE-%'`
       ).bind(orderNo).first();
       if (!row) return reply({ error: 'Order not found' }, 404);
       return reply({ order: rowToOrder(row) });
@@ -322,7 +322,7 @@ export async function onRequestGet({ request, env }) {
     // Summary list: no email/phone/notes, just what the "Previous orders" list needs.
     const res = await env.DB.prepare(
       `SELECT order_no, company, items_json, item_count, total, status, created_at
-       FROM orders WHERE order_no LIKE 'SC-%'
+       FROM orders WHERE order_no LIKE 'SHOWCASE-%'
        ORDER BY created_at DESC LIMIT 50`
     ).all();
     const orders = (res.results || []).map((r) => {

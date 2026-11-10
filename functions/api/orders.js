@@ -67,7 +67,7 @@ export async function onRequestGet({ request, env }) {
   if (!orderNo) return json({ error: 'orderNo is required' }, 400, cors);
   if (!env.DB) return json({ error: 'Database binding is not configured' }, 503, cors);
 
-  // 只查商城订单（SW-）：orders 表与 showcase 共用，SC- 订单只能经需要会话的 /api/showcase/orders 读取，这里一律按“不存在”返回 404
+  // 只查商城订单（SW-）：orders 表与 showcase 共用，SHOWCASE- 订单只能经需要会话的 /api/showcase/orders 读取，这里一律按“不存在”返回 404
   const row = await env.DB.prepare(
     `SELECT order_no, customer_name, customer_email, customer_phone, company, notes,
             items_json, item_count, total, status, created_at, status_updated_at

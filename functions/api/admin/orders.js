@@ -3,18 +3,20 @@ import { ORDER_STATUSES, allowedNext, statusLabel, transitionError } from '../..
 
 /**
  * /api/admin/orders — admin view of every order in the `orders` table
- * (shop SW- orders from /api/orders and showcase SC- orders from /api/showcase/orders).
+ * (shop SW- orders from /api/orders and showcase SHOWCASE- orders from /api/showcase/orders).
  *
  *  GET  /api/admin/orders?type=&status=&q=&page=&pageSize=  -> paged list
  *  GET  /api/admin/orders?orderNo=SW-...                     -> one order with items + allowedNext
  *  POST /api/admin/orders {orderNo, status, expectedStatus}   -> change status
+ *  POST /api/admin/orders {op:'migrateShowcaseOrderNumbers'}  -> rename legacy SC- numbers
+ *  POST /api/admin/orders {op:'deleteCancelledOrders', orderNos:[...]} -> delete cancelled only
  *
  * Security: admin session required on every method; same-origin only (no CORS);
  * responses are no-store; parameterized queries only.
  */
 
 const NO_STORE = { 'Cache-Control': 'no-store', Vary: 'Cookie' };
-const ORDER_NO_RE = /^(SW|SC)-\d{8}-[A-Z0-9]{1,12}$/;
+const ORDER_NO_RE = /^(SW-\d{8}-[A-Z0-9]{1,12}|SHOWCASE-\d{8}-\d{3,})$/;
 const MAX_BODY_BYTES = 4 * 1024;
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -42,8 +44,10 @@ const parseItems = (raw) => {
 };
 
 function orderType(orderNo) {
-  const p = String(orderNo || '').slice(0, 3);
-  return p === 'SW-' ? 'SW' : p === 'SC-' ? 'SC' : null;
+  const s = String(orderNo || '');
+  if (s.startsWith('SW-')) return 'SW';
+  if (s.startsWith('SHOWCASE-')) return 'SC';
+  return null;
 }
 
 function itemsCurrency(items) {
@@ -138,7 +142,8 @@ export async function onRequestGet({ request, env }) {
   const where = [];
   const binds = [];
   const bind = (v) => { binds.push(v); return `?${binds.length}`; };
-  if (type !== 'all') where.push(`order_no LIKE ${bind(`${type}-%`)}`);
+  if (type === 'SW') where.push(`order_no LIKE 'SW-%'`);
+  else if (type === 'SC') where.push(`order_no LIKE 'SHOWCASE-%'`);
   if (q) {
     const p = bind(`%${escapeLike(q)}%`);
     where.push(`(order_no LIKE ${p} ESCAPE '\\' OR customer_name LIKE ${p} ESCAPE '\\'`
@@ -209,7 +214,80 @@ async function readJsonBody(request) {
   }
 }
 
-// POST /api/admin/orders — change one order's status.
+// One-off maintenance: rename legacy SC-YYYYMMDD-XXXXXX rows to
+// SHOWCASE-YYYYMMDD-NNN. Idempotent — a second call finds no SC- rows.
+async function adminMigrateOrderNumbers(db, admin) {
+  try {
+    const legacy = await db.prepare(
+      "SELECT order_no, created_at FROM orders WHERE order_no LIKE 'SC-%' ORDER BY created_at ASC"
+    ).all();
+    const renamed = [];
+    for (const row of legacy.results || []) {
+      const from = String(row.order_no);
+      const day = String(row.created_at || '').slice(0, 10).replace(/-/g, '');
+      const ymd = /^\d{8}$/.test(day) ? day : '19700101';
+      const prefix = `SHOWCASE-${ymd}-`;
+      const existing = await db.prepare(
+        'SELECT order_no FROM orders WHERE order_no LIKE ?1'
+      ).bind(`${prefix}%`).all();
+      let seq = 0;
+      for (const r of existing.results || []) {
+        const n = Number.parseInt(String(r.order_no).slice(prefix.length), 10);
+        if (Number.isFinite(n) && n > seq) seq = n;
+      }
+      let to = prefix + String(seq + 1).padStart(3, '0');
+      while (await db.prepare('SELECT 1 FROM orders WHERE order_no = ?1').bind(to).first()) {
+        seq += 1;
+        to = prefix + String(seq + 1).padStart(3, '0');
+      }
+      await db.prepare('UPDATE orders SET order_no = ?1 WHERE order_no = ?2').bind(to, from).run();
+      renamed.push({ from, to });
+    }
+    console.log(`admin orders: ${admin.username} migrated ${renamed.length} legacy order number(s)`);
+    return reply({ ok: true, renamed, count: renamed.length });
+  } catch (e) {
+    console.error('admin orders: migrate', e?.message);
+    return reply({ error: 'Could not migrate order numbers' }, 500);
+  }
+}
+
+// Delete cancelled orders only. Every other status is refused so a live order
+// can never be removed by accident. Requires an admin session (checked by caller).
+async function adminDeleteCancelledOrders(db, orderNos, admin) {
+  const list = Array.isArray(orderNos) ? orderNos.map((v) => String(v).trim()) : [];
+  if (!list.length || list.length > 50) {
+    return reply({ error: 'orderNos must be a non-empty array (max 50)' }, 400);
+  }
+  const deleted = [];
+  const skipped = [];
+  try {
+    for (const no of list) {
+      if (!/^[A-Za-z0-9-]{6,64}$/.test(no)) {
+        skipped.push({ orderNo: no, reason: 'invalid number' });
+        continue;
+      }
+      const row = await db.prepare('SELECT status FROM orders WHERE order_no = ?1').bind(no).first();
+      if (!row) {
+        skipped.push({ orderNo: no, reason: 'not found' });
+        continue;
+      }
+      if (String(row.status).toLowerCase() !== 'cancelled') {
+        skipped.push({ orderNo: no, reason: 'not cancelled' });
+        continue;
+      }
+      await db.prepare('DELETE FROM orders WHERE order_no = ?1 AND status = ?2')
+        .bind(no, row.status).run();
+      deleted.push(no);
+    }
+    console.log(`admin orders: ${admin.username} deleted ${deleted.length} cancelled order(s)`);
+    return reply({ ok: true, deleted, skipped });
+  } catch (e) {
+    console.error('admin orders: delete', e?.message);
+    return reply({ error: 'Could not delete orders', deleted }, 500);
+  }
+}
+
+// POST /api/admin/orders — change one order's status, or run a maintenance op.
 export async function onRequestPost({ request, env }) {
   if (!env.DB) return reply({ error: 'Database binding is not configured' }, 503);
   const admin = await requireAdmin(request, env);
@@ -217,6 +295,9 @@ export async function onRequestPost({ request, env }) {
 
   const parsed = await readJsonBody(request);
   if (parsed.error) return reply({ error: parsed.error }, parsed.status);
+  const op = typeof parsed.body.op === 'string' ? parsed.body.op.trim() : '';
+  if (op === 'migrateShowcaseOrderNumbers') return adminMigrateOrderNumbers(env.DB, admin);
+  if (op === 'deleteCancelledOrders') return adminDeleteCancelledOrders(env.DB, parsed.body.orderNos, admin);
   const { orderNo, status, expectedStatus } = parsed.body;
 
   if (typeof orderNo !== 'string' || !ORDER_NO_RE.test(orderNo.trim())) return reply({ error: 'Invalid order number' }, 400);
