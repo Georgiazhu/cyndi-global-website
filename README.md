@@ -57,7 +57,7 @@ Cyndi Global Limited 的官方网站、Swag 定制商城与物流查询平台，
 │   ├── orders.js, orders/mine.js        # 下单 / 我的订单
 │   ├── logistics.js, media.js           # 物流查询 / 图片
 │   └── admin/                            # 后台 API（商品/物流/上传/登录）
-├── migrations/                  # D1 迁移 SQL（0001-0009）
+├── migrations/                  # D1 迁移 SQL（0001-0011）
 ├── scripts/                     # 爬虫 + 导入脚本（build/import products, crawlers）
 ├── wrangler.toml                # 本地开发 + 部署配置
 ├── ADMIN_GUIDE.md               # 控制台使用说明
@@ -78,6 +78,7 @@ npx wrangler pages dev --port 8788
 ```
 
 - 本地 D1：`npx wrangler d1 execute DB --local --file=migrations/000X.sql`（用 binding 名 `DB`，加 `--local`）。
+- 本地密钥：根目录 `.dev.vars`（已 gitignore）写 `CUSTOMER_SESSION_SECRET=<随机串>`，否则客户登录 / Showcase 返回 503。
 - 导入商品到本地 D1：`.crawl-venv/bin/python scripts/import_products_to_d1.py` 生成 SQL，再 `wrangler d1 execute DB --local --file=scripts/output/_import_products.sql`。
 - 纯前端预览（无后端，登录/下单不可用）：`cd product-showcase && npm run dev`（`http://localhost:5173/shop.html`）。
 
@@ -88,7 +89,7 @@ npx wrangler pages dev --port 8788
 - Build command：`cd product-showcase && npm install && npm run build`
 - Build output：`product-showcase/dist`
 - Bindings：D1 `DB` → `cyndi-logistics`；R2 `MEDIA` → `cyndi-products`
-- Variables：`R2_PUBLIC_BASE` = `https://img.cyndiglobal.com`；`LOGISTICS_ADMIN_PASSWORD`（兜底后台密码）
+- Variables：`R2_PUBLIC_BASE` = `https://img.cyndiglobal.com`；`LOGISTICS_ADMIN_PASSWORD`（兜底后台密码）；**`CUSTOMER_SESSION_SECRET`（必填 Secret，客户/Showcase 会话签名密钥，缺失时客户登录 fail closed 返回 503）**，详见 [`CLOUDFLARE_DEPLOY.md`](./CLOUDFLARE_DEPLOY.md#客户账户与-showcase-登录customer_session_secret)
 
 生产 D1 建表/导数据（用真实 UUID，不加 `--local`）见 [`CLOUDFLARE_DEPLOY.md`](./CLOUDFLARE_DEPLOY.md)。
 

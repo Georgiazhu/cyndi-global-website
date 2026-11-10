@@ -34,8 +34,9 @@ export function AuthProvider({ children }) {
     return data.user
   }, [])
 
+  // `email` may be an email address or a username.
   const login = useCallback(async ({ email, password }) => {
-    const data = await apiRequest('/api/login', { method: 'POST', body: { email, password } })
+    const data = await apiRequest('/api/login', { method: 'POST', body: { email: email.trim(), password } })
     setUser(data.user)
     return data.user
   }, [])

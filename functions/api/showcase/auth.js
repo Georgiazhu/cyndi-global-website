@@ -1,87 +1,67 @@
 import { json } from '../../_lib/auth.js';
 import {
-  SHOWCASE_DEFAULT_USER,
-  SHOWCASE_USERS_SCHEMA,
-  clearShowcaseSessionCookie,
-  createShowcaseSession,
-  getShowcaseSecret,
-  hashPassword,
-  isShowcaseAuthenticated,
-  randomSalt,
-  readShowcaseSession,
-  showcaseSessionCookie,
-  verifyShowcaseCredentials,
-} from './auth-lib.js';
+  NOT_CONFIGURED_ERROR,
+  authenticateCustomer,
+  clearCookie,
+  clearLegacyShowcaseCookie,
+  createCustomerSession,
+  customerSessionsConfigured,
+  hasShowcaseAccess,
+  jsonWithCookies,
+  publicUser,
+  readCustomerSession,
+  sessionCookie,
+} from '../../_lib/customer-auth.js';
+import { NO_SHOWCASE_ACCESS } from './auth-lib.js';
 
-// Idempotent init: create the table and write the initial HRT / Aa123456 account.
-let ready = null;
+/**
+ * /api/showcase/auth — Showcase sign-in, backed by the shop's customer accounts.
+ *  POST   { username | email | identifier, password } -> same login as /api/login, plus
+ *         showcase access is required. Sets the customer_session cookie.
+ *  GET    -> { authenticated, user:{username,email,displayName}, showcaseAccess }
+ *  DELETE -> clears the customer cookie (and the legacy showcase_gate_session cookie).
+ */
 
-async function ensureReady(env) {
-  if (ready) return ready;
-  ready = (async () => {
-    if (!env.DB) return;
-    for (const stmt of SHOWCASE_USERS_SCHEMA) {
-      try { await env.DB.prepare(stmt).run(); }
-      catch (e) { console.error('showcase_users schema:', e?.message); }
-    }
-    // Write the initial account when it does not exist yet
-    try {
-      const row = await env.DB.prepare('SELECT username FROM showcase_users WHERE username = ?1')
-        .bind(SHOWCASE_DEFAULT_USER.username).first();
-      if (!row) {
-        const salt = randomSalt();
-        const hash = await hashPassword(SHOWCASE_DEFAULT_USER.password, salt);
-        const ts = new Date().toISOString();
-        await env.DB.prepare(
-          `INSERT INTO showcase_users (username, password_hash, password_salt, display_name, status, created_at, updated_at)
-           VALUES (?1, ?2, ?3, ?4, 'active', ?5, ?5)`
-        ).bind(SHOWCASE_DEFAULT_USER.username, hash, salt, SHOWCASE_DEFAULT_USER.displayName, ts).run();
-        console.log('showcase: initial account created');
-      }
-    } catch (e) {
-      console.error('showcase seed user:', e?.message);
-    }
-  })();
-  return ready;
-}
+const PRIVATE = { 'Cache-Control': 'private, no-store', Vary: 'Cookie' };
 
-// POST /api/showcase/auth — sign in with { username, password }
 export async function onRequestPost({ request, env }) {
-  if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
-  await ensureReady(env);
+  if (!env.DB) return json({ error: 'Database binding is not configured' }, 503, PRIVATE);
+  if (!customerSessionsConfigured(env)) return json({ error: NOT_CONFIGURED_ERROR }, 503, PRIVATE);
 
   const body = await request.json().catch(() => ({}));
-  const username = String(body.username || '').trim();
-  const password = String(body.password || '');
+  const identifier = String((body && (body.identifier || body.username || body.email)) || '').trim();
+  const password = body && typeof body.password === 'string' ? body.password : '';
 
-  const user = await verifyShowcaseCredentials(env, username, password);
-  if (!user) return json({ error: 'Incorrect username or password' }, 401);
+  const result = await authenticateCustomer(env, identifier, password);
+  // Wrong credentials (whether or not the account exists) always look the same.
+  if (result.status === 'invalid') return json({ error: 'Incorrect email/username or password' }, 401, PRIVATE);
+  if (result.status === 'disabled') return json({ error: 'Account is disabled' }, 403, PRIVATE);
+  // Correct credentials but no access: say so, and do not sign the user in.
+  if (!hasShowcaseAccess(result.customer)) {
+    return json({ error: NO_SHOWCASE_ACCESS, showcaseAccess: false }, 403, PRIVATE);
+  }
 
-  const secret = await getShowcaseSecret(env);
-  const token = await createShowcaseSession(secret, user.username);
-  const isHttps = new URL(request.url).protocol === 'https:';
-
-  return json(
-    { ok: true, user: { username: user.username, displayName: user.displayName } },
+  const token = await createCustomerSession(env, result.customer.id);
+  return jsonWithCookies(
+    { ok: true, user: publicUser(result.customer), showcaseAccess: true },
     200,
-    { 'Set-Cookie': showcaseSessionCookie(token, isHttps) }
+    PRIVATE,
+    [sessionCookie(token, request), clearLegacyShowcaseCookie(request)]
   );
 }
 
-// GET /api/showcase/auth — session status
 export async function onRequestGet({ request, env }) {
-  if (!env.DB) return json({ authenticated: false }, 503);
-  await ensureReady(env);
-
-  const secret = await getShowcaseSecret(env);
-  const session = await readShowcaseSession(request, secret);
-  if (!session) return json({ authenticated: false });
-
-  return json({ authenticated: true, user: { username: session.username } });
+  if (!env.DB) return json({ authenticated: false, error: 'Database binding is not configured' }, 503, PRIVATE);
+  const session = await readCustomerSession(request, env);
+  if (!session.configured) return json({ authenticated: false, error: NOT_CONFIGURED_ERROR }, 503, PRIVATE);
+  if (!session.customer) return json({ authenticated: false, showcaseAccess: false }, 200, PRIVATE);
+  return json({
+    authenticated: true,
+    user: publicUser(session.customer),
+    showcaseAccess: hasShowcaseAccess(session.customer),
+  }, 200, PRIVATE);
 }
 
-// DELETE /api/showcase/auth — sign out
 export async function onRequestDelete({ request }) {
-  const isHttps = new URL(request.url).protocol === 'https:';
-  return json({ ok: true }, 200, { 'Set-Cookie': clearShowcaseSessionCookie(isHttps) });
+  return jsonWithCookies({ ok: true }, 200, PRIVATE, [clearCookie(request), clearLegacyShowcaseCookie(request)]);
 }

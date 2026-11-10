@@ -67,6 +67,7 @@ code{font-size:12px}
     <a href="/admin/">Home</a>
     <a href="/admin/products">Products</a>
     <a href="/admin/orders.html" class="on" aria-current="page">Orders</a>
+    <a href="/admin/customers.html">Customers</a>
     <a href="/admin/showcase">Showcase</a>
     <a href="/admin/logistics.html">Shipping</a>
     <a href="#" id="logout">Log out</a>
@@ -282,8 +283,19 @@ function renderDetail(o){
   body.appendChild(h('h3',{text:'Contact'}));
   body.appendChild(h('dl',{class:'dl'},
     dlItem('Name',c.name),dlItem('Email',emailNode(c.email)),dlItem('Phone',c.phone),dlItem('Company',c.company),
-    o.placedBy?dlItem('Placed by (showcase account)',o.placedBy):null,
-    o.customerId?dlItem('Customer account id',String(o.customerId)):null));
+    o.placedBy?dlItem('Placed by (showcase account)',o.placedBy):null));
+
+  // Customer account (orders placed while signed in)
+  if(o.customerId){
+    const a=o.account;
+    body.appendChild(h('h3',{text:'Customer account'}));
+    body.appendChild(h('dl',{class:'dl'},
+      dlItem('Account',a?h('a',{href:'/admin/customers.html',text:'#'+o.customerId}):'#'+o.customerId+' (deleted)'),
+      a?dlItem('Login email',a.email):null,
+      a?dlItem('Username',a.username):null,
+      a?dlItem('Client',a.clientCode?(a.clientCode+(a.clientName&&a.clientName!==a.clientCode?' — '+a.clientName:'')):'—'):null,
+      a&&a.status&&a.status!=='active'?dlItem('Account status',a.status):null));
+  }
 
   if(o.notes){body.appendChild(h('h3',{text:'Notes'}));body.appendChild(h('div',{class:'notes',text:o.notes}))}
 

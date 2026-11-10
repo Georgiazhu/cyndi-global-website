@@ -22,7 +22,13 @@ const STEP_ALIAS = {
   producing: 'processing',
   completed: 'delivered',
 }
-const symOf = (c) => (c === 'CNY' ? '¥' : '$')
+// Shop items use codes ('CNY'/'USD' or none); showcase (SC-) items store a symbol ('$', '¥').
+const symOf = (c) => (c === 'CNY' || c === '¥' ? '¥' : c && c.length === 1 ? c : '$')
+// Normalise shop and showcase item shapes
+const unitOf = (it) => Number(it.price ?? it.unitPrice) || 0
+const lineOf = (it) => (it.lineTotal != null ? Number(it.lineTotal) || 0 : unitOf(it) * (Number(it.quantity) || 0))
+const colorOf = (it) => it.selectedColor || it.colorName || null
+const sizeOf = (it) => it.selectedSize || it.size || null
 
 function formatDate(value) {
   if (!value) return ''
@@ -64,14 +70,14 @@ export default function OrderConfirmation({ orderNo }) {
     )
   }
 
-  const items = order.items || []
+  const items = Array.isArray(order.items) ? order.items.filter((it) => it && typeof it === 'object') : []
   // 按币种分别合计（购物车/明细可能混 ¥ 和 $）
   const totalsByCurrency = items.reduce((acc, it) => {
-    const c = it.currency || 'USD'
-    acc[c] = (acc[c] || 0) + (Number(it.price) || 0) * (it.quantity || 0)
+    const c = symOf(it.currency)
+    acc[c] = (acc[c] || 0) + lineOf(it)
     return acc
   }, {})
-  const totalText = Object.entries(totalsByCurrency).map(([c, v]) => `${symOf(c)}${fixedAmount(v)}`).join('  +  ') || '$0.00'
+  const totalText = Object.entries(totalsByCurrency).map(([c, v]) => `${c}${fixedAmount(v)}`).join('  +  ') || '$0.00'
 
   const isCancelled = order.status === 'cancelled'
   const normStep = STEP_ALIAS[order.status] || order.status
@@ -128,19 +134,19 @@ export default function OrderConfirmation({ orderNo }) {
         <h2 className="text-xs font-medium uppercase tracking-wide text-stone-500 mb-3">Items</h2>
         <div className="border border-stone-200 bg-white divide-y divide-stone-100">
           {items.map((it, i) => (
-            <div key={it.sku || it.id || i} className="flex gap-4 p-4">
+            <div key={`${it.sku || it.id || it.productId || ''}-${i}`} className="flex gap-4 p-4">
               {it.image && <img src={it.image} alt={it.name} className="w-16 h-16 object-contain shrink-0" />}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-stone-900">{it.name}</p>
-                {(it.selectedColor || it.selectedSize) && (
+                {(colorOf(it) || sizeOf(it)) && (
                   <p className="text-[11px] text-stone-400 mt-0.5">
-                    {[it.selectedColor, it.selectedSize].filter(Boolean).join(' · ')}
+                    {[colorOf(it), sizeOf(it)].filter(Boolean).join(' · ')}
                   </p>
                 )}
-                <p className="text-xs text-stone-500 mt-1">{symOf(it.currency)}{fixedAmount(it.price)} × {it.quantity}</p>
+                <p className="text-xs text-stone-500 mt-1">{symOf(it.currency)}{fixedAmount(unitOf(it))} × {it.quantity}</p>
               </div>
               <div className="text-sm font-medium text-stone-900 whitespace-nowrap">
-                {symOf(it.currency)}{fixedAmount(Number(it.price) * it.quantity)}
+                {symOf(it.currency)}{fixedAmount(lineOf(it))}
               </div>
             </div>
           ))}
@@ -168,6 +174,11 @@ export default function OrderConfirmation({ orderNo }) {
         <a href="/shop" className="flex-1 text-center border border-stone-300 text-stone-900 py-3 text-sm font-medium uppercase tracking-wide hover:bg-stone-100 transition-colors">
           Continue shopping
         </a>
+        {order.type === 'SC' && (
+          <a href="/showcase/" className="flex-1 text-center border border-stone-300 text-stone-900 py-3 text-sm font-medium uppercase tracking-wide hover:bg-stone-100 transition-colors">
+            Back to showcase
+          </a>
+        )}
       </div>
     </div>
   )

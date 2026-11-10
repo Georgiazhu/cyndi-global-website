@@ -1,4 +1,4 @@
-import { getAdminSecret, isAuthenticated, json, readSession } from '../../_lib/auth.js';
+import { getAdminSecret, json, readSession } from '../../_lib/auth.js';
 import { ORDER_STATUSES, allowedNext, statusLabel, transitionError } from '../../_lib/order-status.js';
 
 /**
@@ -24,12 +24,7 @@ const reply = (data, status = 200) => json(data, status, NO_STORE);
 
 // Returns { username } for a valid admin session, else null.
 async function requireAdmin(request, env) {
-  const secret = await getAdminSecret(env);
-  const session = await readSession(request, secret);
-  if (session) return session;
-  // Legacy token format still accepted by the other admin endpoints.
-  if (await isAuthenticated(request, secret)) return { username: 'admin' };
-  return null;
+  return readSession(request, await getAdminSecret(env));
 }
 
 const parseItems = (raw) => {
@@ -72,6 +67,17 @@ function rowToDetail(row) {
     createdAt: row.created_at,
     statusUpdatedAt: row.status_updated_at,
     customerId: row.customer_id ?? null,
+    account: row.customer_id != null && row.account_email
+      ? {
+          id: row.customer_id,
+          email: row.account_email,
+          username: row.account_username || null,
+          displayName: row.account_display_name || null,
+          status: row.account_status || null,
+          clientCode: row.client_code || null,
+          clientName: row.client_name || null,
+        }
+      : null,
     placedBy,
     contact: {
       name: row.customer_name,
@@ -89,9 +95,16 @@ function rowToDetail(row) {
   };
 }
 
-const DETAIL_SQL = `SELECT order_no, customer_name, customer_email, customer_phone, company, notes,
-                           items_json, item_count, total, status, created_at, status_updated_at, customer_id
-                    FROM orders WHERE order_no = ?1`;
+// LEFT JOIN customers/clients so the detail shows which account (and client) placed the order.
+// Requires migration 0011 (clients table, customers.username/client_id).
+const DETAIL_SQL = `SELECT o.order_no, o.customer_name, o.customer_email, o.customer_phone, o.company, o.notes,
+                           o.items_json, o.item_count, o.total, o.status, o.created_at, o.status_updated_at, o.customer_id,
+                           c.email AS account_email, c.username AS account_username, c.display_name AS account_display_name,
+                           c.status AS account_status, cl.code AS client_code, cl.name AS client_name
+                    FROM orders o
+                    LEFT JOIN customers c ON c.id = o.customer_id
+                    LEFT JOIN clients cl ON cl.id = c.client_id
+                    WHERE o.order_no = ?1`;
 
 function escapeLike(s) {
   return s.replace(/[\\%_]/g, (c) => `\\${c}`);

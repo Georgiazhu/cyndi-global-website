@@ -65,3 +65,23 @@ POST /api/admin/upload
 ## 密码管理
 
 在 Cloudflare Dashboard 的 Pages 项目 `cyndiglobal` → Settings → Environment variables 中修改 `LOGISTICS_ADMIN_PASSWORD`。修改后重新部署一次 Pages 项目，使新密码生效。
+
+## 客户账户与 Showcase 登录（`CUSTOMER_SESSION_SECRET`）
+
+商城（`/shop`）和 Showcase（`/showcase/`）共用同一套客户账户（D1 `customers` 表，cookie `customer_session`）。每个人只看到自己下的订单。后台 `/admin/customers.html` 管理客户公司（clients）和客户账户：改邮箱 / 用户名 / 显示名 / 所属客户 / Showcase 权限 / 启用禁用、重置密码（不填密码时生成一次性临时密码，只显示一次）。
+
+- **Pages Secret：`CUSTOMER_SESSION_SECRET`（必填）**。客户会话的签名密钥，没有任何兜底：缺了它，客户登录、注册、`/api/me`、我的订单、整个 Showcase 都会返回 503 `Customer sessions are not configured`（fail closed）。
+  - 生成：`openssl rand -base64 48`。
+  - 设置：Pages 项目 `cyndiglobal` → Settings → Environment variables → Production（Preview 也要单独设）→ 添加为 **Secret**。设置后重新部署一次才生效。
+  - 更换密钥会让所有客户会话失效（需要重新登录），不影响密码。
+- 可选：`CUSTOMER_PBKDF2_ITERATIONS`（默认且最大 100000，Cloudflare Workers 的 PBKDF2 上限；最小 10000）。新密码用 PBKDF2-SHA256，格式 `pbkdf2$<次数>$<salt>$<hash>`；旧的 SHA-256 哈希登录成功后自动升级。如果 Workers Free 计划登录时出现 CPU 超限（1102 错误），可以调低到 50000。
+- 本地开发：在仓库根目录 `.dev.vars`（已被 `.gitignore` 忽略）写一行 `CUSTOMER_SESSION_SECRET=<随机串>`，然后重启 `wrangler pages dev`。
+- 迁移：`migrations/0011_customer_showcase_access.sql`（clients 表、customers 新增 `client_id` / `showcase_access` / `username`，把原 Showcase 的 HRT 账号复制成客户账户并保留原密码，回填 HRT 的 SC- 订单）。线上执行：
+
+  ```bash
+  npx wrangler d1 execute cyndi-logistics --remote --file=migrations/0011_customer_showcase_access.sql
+  ```
+
+  该文件只能执行一次（含 `ALTER TABLE ADD COLUMN`）。**必须先执行迁移，再部署新代码**，否则登录会因为缺列报错。
+- 管理员会话 token 现在带 `aud:'admin'`，部署后所有已登录的管理员需要重新登录一次。
+

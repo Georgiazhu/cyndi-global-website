@@ -74,9 +74,13 @@ export default function AuthModal({ isOpen, onClose }) {
             </div>
           )}
           <div>
-            <label className="block text-xs font-medium uppercase tracking-wide text-stone-500 mb-1.5">Email</label>
+            <label htmlFor="auth-email" className="block text-xs font-medium uppercase tracking-wide text-stone-500 mb-1.5">
+              {mode === 'login' ? 'Email or username' : 'Email'}
+            </label>
             <input
-              type="email"
+              id="auth-email"
+              type={mode === 'login' ? 'text' : 'email'}
+              autoComplete={mode === 'login' ? 'username' : 'email'}
               required
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -84,11 +88,13 @@ export default function AuthModal({ isOpen, onClose }) {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium uppercase tracking-wide text-stone-500 mb-1.5">Password</label>
+            <label htmlFor="auth-password" className="block text-xs font-medium uppercase tracking-wide text-stone-500 mb-1.5">Password</label>
             <input
+              id="auth-password"
               type="password"
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               required
-              minLength={8}
+              minLength={mode === 'register' ? 8 : undefined}
               maxLength={128}
               value={password}
               onChange={e => setPassword(e.target.value)}

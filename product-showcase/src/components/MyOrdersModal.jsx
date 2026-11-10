@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { fixedAmount } from '../data/money.js'
 
 const STATUS_LABELS = {
+  pending: 'Order received',
   received: 'Order received',
   processing: 'Processing',
   shipped: 'Shipped',
@@ -9,6 +10,10 @@ const STATUS_LABELS = {
   delivered: 'Delivered',
   cancelled: 'Cancelled',
 }
+
+const TYPE_LABELS = { SW: 'Shop', SC: 'Showcase' }
+// SC orders store a currency symbol ('$', '¥'); shop orders have none (USD)
+const symOf = (c) => (c === 'CNY' || c === '¥' ? '¥' : c && c.length === 1 ? c : '$')
 
 function formatDate(value) {
   if (!value) return '-'
@@ -71,12 +76,19 @@ export default function MyOrdersModal({ isOpen, onClose, onTrack }) {
                 className="w-full flex items-center justify-between py-4 text-left hover:bg-stone-100 transition-colors px-2 -mx-2"
               >
                 <div>
-                  <p className="text-sm font-semibold text-stone-900">{o.orderNo}</p>
+                  <p className="text-sm font-semibold text-stone-900">
+                    {o.orderNo}
+                    {TYPE_LABELS[o.type] && (
+                      <span className={`ml-2 align-middle border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${o.type === 'SC' ? 'border-[#1e5a8a] text-[#1e5a8a]' : 'border-stone-400 text-stone-600'}`}>
+                        {TYPE_LABELS[o.type]}
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-stone-400">{formatDate(o.createdAt)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs uppercase tracking-wide text-stone-600">{STATUS_LABELS[o.status] || o.status}</p>
-                  <p className="text-sm font-medium text-stone-900">${fixedAmount(o.total)}</p>
+                  <p className="text-sm font-medium text-stone-900">{symOf(o.currency)}{fixedAmount(o.total)}</p>
                 </div>
               </button>
             ))}

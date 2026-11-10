@@ -97,14 +97,24 @@ export async function verifyAdminCredentials(env, username, password) {
   return null;
 }
 
-// 会话 token：payload 含 username 与过期时间，HMAC 签名。
+// 常量时间字符串比较
+function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+// 会话 token：payload 含用途 aud:'admin'、username 与过期时间，HMAC 签名。
+// aud 用来区分管理员 token 与其他系统（客户会话等）签出的 token，校验时强制要求。
 export async function createSession(secret, username = '') {
-  const payload = JSON.stringify({ u: username, exp: Date.now() + 1000 * 60 * 60 * 8 });
+  const payload = JSON.stringify({ aud: 'admin', u: username, exp: Date.now() + 1000 * 60 * 60 * 8 });
   const encoded = toBase64Url(encoder.encode(payload));
   return `${encoded}.${await sign(encoded, secret)}`;
 }
 
 // 校验会话，返回 { username } 或 null。
+// 只接受 aud === 'admin' 的 token：旧格式（无 aud / 纯时间戳）一律拒绝，需要重新登录。
 export async function readSession(request, secret) {
   if (!secret) return null;
   const cookie = request.headers.get('Cookie') || '';
@@ -114,43 +124,19 @@ export async function readSession(request, secret) {
   if (!encoded || !signature) return null;
   try {
     const expected = await sign(encoded, secret);
-    if (expected !== signature) return null;
+    if (!safeEqual(expected, signature)) return null;
     const payload = JSON.parse(new TextDecoder().decode(fromBase64Url(encoded)));
-    // 兼容旧格式：旧 token 的 payload 是纯数字过期时间戳
-    if (typeof payload === 'number') {
-      return Number(payload) < Date.now() ? null : { username: 'admin' };
-    }
-    if (!payload || Number(payload.exp) < Date.now()) return null;
+    if (!payload || typeof payload !== 'object' || payload.aud !== 'admin') return null;
+    if (!(Number(payload.exp) >= Date.now())) return null;
     return { username: payload.u || 'admin' };
   } catch {
-    // 兼容旧格式：payload 曾是 base64(纯数字时间戳)，签名对的也是旧 token
     return null;
   }
 }
 
-// 向后兼容：record.js / upload.js 仍调用 isAuthenticated(request, secret)
+// 向后兼容：record.js / upload.js 等仍调用 isAuthenticated(request, secret)
 export async function isAuthenticated(request, secret) {
-  if (!secret) return false;
-  const session = await readSession(request, secret);
-  if (session) return true;
-  // 兼容旧 token 格式：payload = base64(纯数字过期时间戳)
-  const cookie = request.headers.get('Cookie') || '';
-  const match = cookie.match(/(?:^|;\s*)logistics_admin=([^;]+)/);
-  if (!match) return false;
-  const [encoded, signature] = match[1].split('.');
-  if (!encoded || !signature) return false;
-  try {
-    const expected = await sign(encoded, secret);
-    if (expected !== signature) return false;
-    const raw = new TextDecoder().decode(fromBase64Url(encoded));
-    const asNum = Number(raw);
-    if (Number.isFinite(asNum) && String(asNum) === raw) {
-      return asNum >= Date.now();
-    }
-    return false;
-  } catch {
-    return false;
-  }
+  return !!(await readSession(request, secret));
 }
 
 export function json(data, status = 200, extraHeaders = {}) {

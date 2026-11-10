@@ -1,6 +1,6 @@
 import { json } from '../_lib/auth.js';
 import { showcaseSeed } from '../_lib/showcaseSeed.js';
-import { isShowcaseAuthenticated } from './showcase/auth-lib.js';
+import { requireShowcaseCustomer } from './showcase/auth-lib.js';
 
 const parse = (raw, fallback) => {
   if (!raw) return fallback;
@@ -127,14 +127,13 @@ async function seedIfEmpty(env) {
 
 // GET /api/showcase — categories + products + global settings.
 // Used by https://www.cyndiglobal.com/showcase/.
-// Requires a valid showcase session (visible only after sign-in).
+// Requires a customer session with Showcase access (401 signed out, 403 no access).
 export async function onRequestGet({ request, env }) {
   if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
 
-  // Reject every unsigned request so the data cannot be fetched around the front end
-  if (!await isShowcaseAuthenticated(request, env)) {
-    return json({ error: 'Unauthorized', authenticated: false }, 401);
-  }
+  // Reject every request without access so the data cannot be fetched around the front end
+  const gate = await requireShowcaseCustomer(request, env);
+  if (gate.response) return gate.response;
 
   try {
     await ensureSchema(env);

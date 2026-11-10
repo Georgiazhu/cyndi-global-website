@@ -1,13 +1,12 @@
 import { json } from '../../_lib/auth.js';
-import { isShowcaseAuthenticated } from './auth-lib.js';
+import { requireShowcaseCustomer } from './auth-lib.js';
 
 // GET /api/showcase/media?id=xxx — read a product image stored in D1 (fallback when R2 is off)
-// Requires a valid showcase session.
+// Requires a customer session with Showcase access.
 export async function onRequestGet({ request, env }) {
   if (!env.DB) return json({ error: 'Database binding is not configured' }, 503);
-  if (!await isShowcaseAuthenticated(request, env)) {
-    return json({ error: 'Unauthorized' }, 401);
-  }
+  const gate = await requireShowcaseCustomer(request, env);
+  if (gate.response) return gate.response;
 
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
@@ -24,7 +23,9 @@ export async function onRequestGet({ request, env }) {
   return new Response(bytes, {
     headers: {
       'Content-Type': row.content_type || 'image/jpeg',
-      'Cache-Control': 'public, max-age=31536000, immutable',
+      // Access-controlled content: never store it in shared caches.
+      'Cache-Control': 'private, max-age=86400',
+      Vary: 'Cookie',
     },
   });
 }

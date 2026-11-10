@@ -1,9 +1,9 @@
-import { corsHeaders, json } from '../_lib/auth.js';
-import { clearCookie } from '../_lib/customer-auth.js';
+import { corsHeaders } from '../_lib/auth.js';
+import { clearCookie, clearLegacyShowcaseCookie, jsonWithCookies } from '../_lib/customer-auth.js';
 
 export async function onRequestPost({ request }) {
   const cors = corsHeaders(request);
-  return json({ ok: true }, 200, { ...cors, 'Set-Cookie': clearCookie() });
+  return jsonWithCookies({ ok: true }, 200, cors, [clearCookie(request), clearLegacyShowcaseCookie(request)]);
 }
 
 export async function onRequestOptions({ request }) {

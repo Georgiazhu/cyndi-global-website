@@ -1,7 +1,7 @@
 import { json } from '../../_lib/auth.js';
 import { genOrderNo, insertOrder } from '../../_lib/orders.js';
 import { ensureSchema } from '../showcase.js';
-import { getShowcaseSecret, readShowcaseSession } from './auth-lib.js';
+import { requireShowcaseCustomer } from './auth-lib.js';
 
 /**
  * /api/showcase/orders — real server-side orders placed from the Showcase.
@@ -11,15 +11,13 @@ import { getShowcaseSecret, readShowcaseSession } from './auth-lib.js';
  * This endpoint only ever reads or writes `SC-` rows.
  *
  * Security:
- *  - Every method requires a valid showcase session for an active showcase_users row.
+ *  - Every method requires a customer session with Showcase access (see auth-lib.js).
+ *  - Orders belong to the customer who placed them (orders.customer_id): the list and the
+ *    by-number lookup only ever return the caller's own orders; anyone else's -> 404.
  *  - Prices are never taken from the client: unit price, line totals and the order total
  *    are computed here from showcase_products.pricing_json.
  *  - Same-origin only (no CORS headers); POST must be application/json.
  *  - Responses are private, no-store.
- *
- * Note: showcase accounts are currently shared (one login per client team), so every
- * signed-in showcase user can read and list all SC- orders, including contact details.
- * Scope GET by username once accounts become per-person.
  */
 
 const PREFIX = 'SC';
@@ -37,20 +35,6 @@ const parse = (raw, fallback) => {
   if (!raw) return fallback;
   try { return JSON.parse(raw); } catch { return fallback; }
 };
-
-// Returns { username } for a valid session whose account is still active, else null.
-async function requireSession(request, env) {
-  const session = await readShowcaseSession(request, await getShowcaseSecret(env));
-  if (!session || !session.username) return null;
-  try {
-    const row = await env.DB.prepare('SELECT status FROM showcase_users WHERE username = ?1')
-      .bind(session.username).first();
-    if (!row || (row.status && row.status !== 'active')) return null;
-  } catch {
-    return null;
-  }
-  return session;
-}
 
 /**
  * Unit price rule (mirrors unitPrice() in showcase/src/data/cart.js):
@@ -82,7 +66,7 @@ function field(raw, label, max, required = false) {
   return { value };
 }
 
-// Split the stored notes back into the placing username and the customer's own notes.
+// Split the stored notes back into the placing account and the customer's own notes.
 function splitNotes(notes) {
   const m = /^\[showcase:([^\]]*)\]\s?/.exec(notes || '');
   if (!m) return { placedBy: null, notes: notes || '' };
@@ -136,8 +120,9 @@ async function readJsonBody(request) {
 // Body: { contact:{name,email,phone?,company?,notes?}, items:[{productId, colorIndex?, size?, quantity}] }
 export async function onRequestPost({ request, env }) {
   if (!env.DB) return reply({ error: 'Database binding is not configured' }, 503);
-  const session = await requireSession(request, env);
-  if (!session) return reply({ error: 'Unauthorized' }, 401);
+  const gate = await requireShowcaseCustomer(request, env);
+  if (gate.response) return gate.response;
+  const { customer } = gate;
 
   const parsed = await readJsonBody(request);
   if (parsed.error) return reply({ error: parsed.error }, parsed.status);
@@ -255,8 +240,8 @@ export async function onRequestPost({ request, env }) {
     return reply({ error: 'All products in one order must share a currency' }, 400);
   }
 
-  // No username column on orders: record who placed it as a labelled notes prefix.
-  const tag = `[showcase:${session.username.slice(0, 64)}]`;
+  // The order belongs to customer_id; the notes prefix is kept so existing reports keep working.
+  const tag = `[showcase:${String(customer.username || customer.email).replace(/[\[\]]/g, '').slice(0, 64)}]`;
   const storedNotes = notes.value ? `${tag} ${notes.value}` : tag;
   const orderNo = genOrderNo(PREFIX);
   total = round2(total);
@@ -273,7 +258,7 @@ export async function onRequestPost({ request, env }) {
       items: snapshot,
       itemCount,
       total,
-      customerId: null,
+      customerId: customer.id,
     }));
   } catch (e) {
     console.error('showcase orders: insert', e?.message);
@@ -298,11 +283,12 @@ export async function onRequestPost({ request, env }) {
 }
 
 // GET /api/showcase/orders?orderNo=SC-...  -> one order
-// GET /api/showcase/orders                 -> 50 most recent SC- orders (summary)
+// GET /api/showcase/orders                 -> the caller's 50 most recent SC- orders (summary)
 export async function onRequestGet({ request, env }) {
   if (!env.DB) return reply({ error: 'Database binding is not configured' }, 503);
-  const session = await requireSession(request, env);
-  if (!session) return reply({ error: 'Unauthorized' }, 401);
+  const gate = await requireShowcaseCustomer(request, env);
+  if (gate.response) return gate.response;
+  const { customer } = gate;
 
   const orderNo = new URL(request.url).searchParams.get('orderNo')?.trim();
 
@@ -313,8 +299,8 @@ export async function onRequestGet({ request, env }) {
       const row = await env.DB.prepare(
         `SELECT order_no, customer_name, customer_email, customer_phone, company, notes,
                 items_json, item_count, total, status, created_at, status_updated_at
-         FROM orders WHERE order_no = ?1 AND order_no LIKE 'SC-%'`
-      ).bind(orderNo).first();
+         FROM orders WHERE order_no = ?1 AND order_no LIKE 'SC-%' AND customer_id = ?2`
+      ).bind(orderNo, customer.id).first();
       if (!row) return reply({ error: 'Order not found' }, 404);
       return reply({ order: rowToOrder(row) });
     }
@@ -322,9 +308,9 @@ export async function onRequestGet({ request, env }) {
     // Summary list: no email/phone/notes, just what the "Previous orders" list needs.
     const res = await env.DB.prepare(
       `SELECT order_no, company, items_json, item_count, total, status, created_at
-       FROM orders WHERE order_no LIKE 'SC-%'
+       FROM orders WHERE order_no LIKE 'SC-%' AND customer_id = ?1
        ORDER BY created_at DESC LIMIT 50`
-    ).all();
+    ).bind(customer.id).all();
     const orders = (res.results || []).map((r) => {
       const items = parse(r.items_json, []);
       const list = Array.isArray(items) ? items : [];

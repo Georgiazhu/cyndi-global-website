@@ -258,7 +258,7 @@ export default function Navbar() {
       <MyOrdersModal
         isOpen={ordersOpen}
         onClose={() => setOrdersOpen(false)}
-        onTrack={(no) => { setOrdersOpen(false); openTrack(no) }}
+        onTrack={(no) => { setOrdersOpen(false); window.location.hash = `order/${encodeURIComponent(no)}` }}
       />
     </header>
   )
