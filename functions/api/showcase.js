@@ -56,7 +56,8 @@ const MIGRATIONS = [
 
 let schemaReady = null;
 
-async function ensureSchema(env) {
+// Exported so functions/api/showcase/orders.js reuses the same DDL instead of duplicating it.
+export async function ensureSchema(env) {
   if (schemaReady) return schemaReady;
   schemaReady = (async () => {
     for (const stmt of SCHEMA) {

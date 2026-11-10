@@ -1,18 +1,8 @@
 import { corsHeaders, json } from '../_lib/auth.js';
 import { getCustomerId } from '../_lib/customer-auth.js';
+import { genOrderNo, insertOrder, normaliseShopItems } from '../_lib/orders.js';
 
-// 生成订单号：SW-YYYYMMDD-XXXXXX
-function genOrderNo() {
-  const d = new Date();
-  const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
-  return `SW-${ymd}-${rand}`;
-}
-
-function toNumber(v) {
-  const n = parseFloat(Array.isArray(v) ? v[0] : v);
-  return Number.isFinite(n) ? n : 0;
-}
+// 订单号：SW-YYYYMMDD-XXXXXX（生成、快照、INSERT 逻辑在 functions/_lib/orders.js，与 showcase 共用）
 
 // POST /api/orders —— 提交订单
 export async function onRequestPost({ request, env }) {
@@ -46,47 +36,23 @@ export async function onRequestPost({ request, env }) {
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: 'A valid email is required' }, 400, cors);
 
   // 计算件数与合计（以服务端为准，不信任前端传的 total）
-  let itemCount = 0;
-  let total = 0;
-  const snapshot = items.map((it) => {
-    const qty = Math.max(1, parseInt(it.quantity) || 1);
-    const price = toNumber(it.price);
-    itemCount += qty;
-    total += price * qty;
-    return {
-      id: it.id,
-      sku: it.sku || null,
-      name: it.name,
-      price,
-      quantity: qty,
-      selectedColor: it.selectedColor || null,
-      selectedSize: it.selectedSize || null,
-      image: it.image || null,
-    };
-  });
+  const { snapshot, itemCount, total } = normaliseShopItems(items);
 
-  const now = new Date().toISOString();
-  const orderNo = genOrderNo();
+  const orderNo = genOrderNo('SW');
 
   try {
-    await env.DB.prepare(
-      `INSERT INTO orders
-        (order_no, customer_name, customer_email, customer_phone, company, notes,
-         items_json, item_count, total, status, created_at, status_updated_at, customer_id)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'pending', ?10, ?10, ?11)`
-    ).bind(
+    await insertOrder(env.DB, {
       orderNo,
       name,
       email,
-      (body.phone || '').trim() || null,
-      (body.company || '').trim() || null,
-      (body.notes || '').trim() || null,
-      JSON.stringify(snapshot),
+      phone: (body.phone || '').trim() || null,
+      company: (body.company || '').trim() || null,
+      notes: (body.notes || '').trim() || null,
+      items: snapshot,
       itemCount,
-      Number(total.toFixed(2)),
-      now,
-      customerId || null
-    ).run();
+      total,
+      customerId: customerId || null,
+    });
   } catch (e) {
     return json({ error: 'Could not place order' }, 500, cors);
   }
@@ -101,10 +67,11 @@ export async function onRequestGet({ request, env }) {
   if (!orderNo) return json({ error: 'orderNo is required' }, 400, cors);
   if (!env.DB) return json({ error: 'Database binding is not configured' }, 503, cors);
 
+  // 只查商城订单（SW-）：orders 表与 showcase 共用，SC- 订单只能经需要会话的 /api/showcase/orders 读取，这里一律按“不存在”返回 404
   const row = await env.DB.prepare(
     `SELECT order_no, customer_name, customer_email, customer_phone, company, notes,
             items_json, item_count, total, status, created_at, status_updated_at
-     FROM orders WHERE order_no = ?1`
+     FROM orders WHERE order_no = ?1 AND order_no LIKE 'SW-%'`
   ).bind(orderNo).first();
 
   if (!row) return json({ error: 'Order not found' }, 404, cors);
