@@ -1,6 +1,7 @@
 import { corsHeaders, json } from '../_lib/auth.js';
 import { NOT_CONFIGURED_ERROR, hasCustomerCookie, readCustomerSession } from '../_lib/customer-auth.js';
 import { genOrderNo, insertOrder, isShowcaseOrderNo, normaliseShopItems } from '../_lib/orders.js';
+import { shpLoadForOrderSafe } from '../_lib/shipments.js';
 
 // 订单号：SW-YYYYMMDD-XXXXXX（生成、快照、INSERT 逻辑在 functions/_lib/orders.js，与 showcase 共用）
 
@@ -94,6 +95,9 @@ export async function onRequestGet({ request, env }) {
   let items = [];
   try { items = JSON.parse(row.items_json); } catch {}
 
+  // 物流信息：只在上面的归属校验通过后才加载（失败时降级为 []）
+  const shipments = await shpLoadForOrderSafe(env.DB, row.order_no);
+
   return json({
     orderNo: row.order_no,
     type,
@@ -105,6 +109,7 @@ export async function onRequestGet({ request, env }) {
     status: row.status,
     createdAt: row.created_at,
     statusUpdatedAt: row.status_updated_at,
+    shipments,
   }, 200, cors);
 }
 

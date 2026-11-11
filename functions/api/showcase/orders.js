@@ -2,6 +2,7 @@ import { json } from '../../_lib/auth.js';
 import { SHOWCASE_ORDERS_WHERE, SHOWCASE_ORDER_NO_RE, sgonNextShowcaseOrderNo, insertOrder } from '../../_lib/orders.js';
 import { ensureSchema } from '../showcase.js';
 import { requireShowcaseCustomer } from './auth-lib.js';
+import { shpLoadForOrderSafe } from '../../_lib/shipments.js';
 
 /**
  * /api/showcase/orders — real server-side orders placed from the Showcase.
@@ -302,7 +303,7 @@ export async function onRequestGet({ request, env }) {
          FROM orders WHERE order_no = ?1 AND ${SHOWCASE_ORDERS_WHERE} AND customer_id = ?2`
       ).bind(orderNo, customer.id).first();
       if (!row) return reply({ error: 'Order not found' }, 404);
-      return reply({ order: rowToOrder(row) });
+      return reply({ order: { ...rowToOrder(row), shipments: await shpLoadForOrderSafe(env.DB, row.order_no) } });
     }
 
     // Summary list: no email/phone/notes, just what the "Previous orders" list needs.

@@ -1,6 +1,7 @@
 import { corsHeaders, json } from '../../_lib/auth.js';
 import { NOT_CONFIGURED_ERROR, readCustomerSession } from '../../_lib/customer-auth.js';
 import { SHOWCASE_ORDERS_WHERE, isShowcaseOrderNo } from '../../_lib/orders.js';
+import { shpCountForCustomer } from '../../_lib/shipments.js';
 
 function orderType(orderNo) {
   if (String(orderNo || '').startsWith('SW-')) return 'SW';
@@ -32,6 +33,7 @@ export async function onRequestGet({ request, env }) {
      ORDER BY created_at DESC
      LIMIT 100`
   ).bind(session.customer.id).all();
+  const counts = await shpCountForCustomer(env.DB, session.customer.id);
 
   const orders = (rows.results || []).map((r) => ({
     orderNo: r.order_no,
@@ -41,6 +43,7 @@ export async function onRequestGet({ request, env }) {
     currency: itemsCurrency(r.items_json),
     status: r.status,
     createdAt: r.created_at,
+    shipmentCount: counts.get(r.order_no) || 0,
   }));
 
   return json({ orders }, 200, cors);

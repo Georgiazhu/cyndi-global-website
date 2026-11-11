@@ -269,7 +269,9 @@ async function adminMigrateOrderNumbers(db, admin) {
 
 // Delete cancelled orders only. Every other status is refused so a live order
 // can never be removed by accident. Requires an admin session (checked by caller).
-async function adminDeleteCancelledOrders(db, orderNos, admin) {
+// Shipment rows go with the order through ON DELETE CASCADE (migration 0012); their R2 photo
+// objects do not, so the keys are read first and deleted best-effort after the row is gone.
+async function adminDeleteCancelledOrders(db, media, orderNos, admin) {
   const list = Array.isArray(orderNos) ? orderNos.map((v) => String(v).trim()) : [];
   if (!list.length || list.length > 50) {
     return reply({ error: 'orderNos must be a non-empty array (max 50)' }, 400);
@@ -291,8 +293,28 @@ async function adminDeleteCancelledOrders(db, orderNos, admin) {
         skipped.push({ orderNo: no, reason: 'not cancelled' });
         continue;
       }
-      await db.prepare('DELETE FROM orders WHERE order_no = ?1 AND status = ?2')
+      let photos = [];
+      try {
+        const keys = await db.prepare(
+          `SELECT p.id, p.r2_key FROM shipment_photos p JOIN shipments s ON s.id = p.shipment_id
+           WHERE s.order_no = ?1`
+        ).bind(no).all();
+        photos = keys.results || [];
+      } catch (e) {
+        console.warn('admin orders: shipment photo lookup failed', no, e?.message);
+        photos = [];
+      }
+      const res = await db.prepare('DELETE FROM orders WHERE order_no = ?1 AND status = ?2')
         .bind(no, row.status).run();
+      if (res?.meta?.changes) {
+        for (const p of photos) {
+          try {
+            await media?.delete(p.r2_key);
+          } catch (e) {
+            console.warn('shipments: r2 delete failed', 'photo', p.id, e?.message);
+          }
+        }
+      }
       deleted.push(no);
     }
     console.log(`admin orders: ${admin.username} deleted ${deleted.length} cancelled order(s)`);
@@ -313,7 +335,7 @@ export async function onRequestPost({ request, env }) {
   if (parsed.error) return reply({ error: parsed.error }, parsed.status);
   const op = typeof parsed.body.op === 'string' ? parsed.body.op.trim() : '';
   if (op === 'migrateShowcaseOrderNumbers') return adminMigrateOrderNumbers(env.DB, admin);
-  if (op === 'deleteCancelledOrders') return adminDeleteCancelledOrders(env.DB, parsed.body.orderNos, admin);
+  if (op === 'deleteCancelledOrders') return adminDeleteCancelledOrders(env.DB, env.MEDIA, parsed.body.orderNos, admin);
   const { orderNo, status, expectedStatus } = parsed.body;
 
   if (typeof orderNo !== 'string' || !isValidOrderNo(orderNo.trim())) return reply({ error: 'Invalid order number' }, 400);
