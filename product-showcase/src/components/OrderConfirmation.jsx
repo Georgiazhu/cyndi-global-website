@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fixedAmount } from '../data/money.js'
+import ShipmentTracking from './ShipmentTracking.jsx'
 
 const STATUS_LABELS = {
   pending: 'Order received',
@@ -128,6 +129,9 @@ export default function OrderConfirmation({ orderNo }) {
           ))}
         </div>
       )}
+
+      {/* Shipment tracking (also shown for cancelled orders if shipments exist) */}
+      <ShipmentTracking shipments={order.shipments} />
 
       {/* Items */}
       <div className="mt-8">

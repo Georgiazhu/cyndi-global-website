@@ -49,7 +49,7 @@ export default function TrackOrderModal({ isOpen, onClose, initialOrderNo = '' }
         </div>
 
         <div className="p-6 space-y-4">
-          <p className="text-sm text-stone-500">Enter your order number to view its status and details.</p>
+          <p className="text-sm text-stone-500">Enter your order number to view its status, shipment tracking and details.</p>
           <form onSubmit={lookup} className="flex gap-2">
             <input
               type="text"
