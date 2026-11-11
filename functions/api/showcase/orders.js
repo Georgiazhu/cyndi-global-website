@@ -3,6 +3,7 @@ import { SHOWCASE_ORDERS_WHERE, SHOWCASE_ORDER_NO_RE, sgonNextShowcaseOrderNo, i
 import { ensureSchema } from '../showcase.js';
 import { requireShowcaseCustomer } from './auth-lib.js';
 import { shpLoadForOrderSafe } from '../../_lib/shipments.js';
+import { CUSTOMER_CANCELLABLE_STATUSES, DISPATCHED_STATUSES } from '../../_lib/order-status.js';
 
 /**
  * /api/showcase/orders — real server-side orders placed from the Showcase.
@@ -20,6 +21,12 @@ import { shpLoadForOrderSafe } from '../../_lib/shipments.js';
  *    are computed here from showcase_products.pricing_json.
  *  - Same-origin only (no CORS headers); POST must be application/json.
  *  - Responses are private, no-store.
+ *
+ * Customer self-service cancel: POST /api/showcase/orders {op:'cancel', orderNo}
+ *  - same session gate and same ownership rule as the by-number GET (not yours -> 404);
+ *  - only while the order is pending/processing (before dispatch); enforced by a
+ *    conditional UPDATE, so a concurrent staff change wins and the caller gets a 409;
+ *  - touches only orders.status / status_updated_at (no inventory, no shipments).
  */
 
 const MAX_LINES = 100;
@@ -102,6 +109,64 @@ function rowToOrder(row) {
   };
 }
 
+// One of the caller's showcase orders (with shipments), or null when it is not theirs / not found.
+async function loadOwnOrder(db, orderNo, customerId) {
+  const row = await db.prepare(
+    `SELECT order_no, customer_name, customer_email, customer_phone, company, notes,
+            items_json, item_count, total, status, created_at, status_updated_at
+     FROM orders WHERE order_no = ?1 AND ${SHOWCASE_ORDERS_WHERE} AND customer_id = ?2`
+  ).bind(orderNo, customerId).first();
+  if (!row) return null;
+  return { ...rowToOrder(row), shipments: await shpLoadForOrderSafe(db, row.order_no) };
+}
+
+const SHIPPED_MESSAGE = 'This order has already shipped and can no longer be cancelled.';
+const ALREADY_CANCELLED_MESSAGE = 'This order has already been cancelled.';
+
+function cancelRefusal(order) {
+  const status = String(order.status || '').toLowerCase();
+  if (status === 'cancelled') return reply({ ok: true, alreadyCancelled: true, message: ALREADY_CANCELLED_MESSAGE, order });
+  if (DISPATCHED_STATUSES.includes(status)) return reply({ error: SHIPPED_MESSAGE, order }, 409);
+  return reply({ error: 'This order can no longer be cancelled. Please contact us for help.', order }, 409);
+}
+
+// POST {op:'cancel', orderNo} — the caller cancels one of their own orders before dispatch.
+async function cancelOwnOrder(env, customer, rawOrderNo) {
+  const orderNo = typeof rawOrderNo === 'string' ? rawOrderNo.trim() : '';
+  // Same rule as the GET: anything that is not a showcase order number is simply "not found".
+  if (!SHOWCASE_ORDER_NO_RE.test(orderNo)) return reply({ error: 'Order not found' }, 404);
+  try {
+    const current = await loadOwnOrder(env.DB, orderNo, customer.id);
+    if (!current) return reply({ error: 'Order not found' }, 404);
+    const from = String(current.status || '');
+    if (!CUSTOMER_CANCELLABLE_STATUSES.includes(from)) return cancelRefusal(current);
+
+    const now = new Date().toISOString();
+    const placeholders = CUSTOMER_CANCELLABLE_STATUSES.map((_, i) => `?${i + 4}`).join(', ');
+    const res = await env.DB.prepare(
+      `UPDATE orders SET status = 'cancelled', status_updated_at = ?3
+       WHERE order_no = ?1 AND customer_id = ?2 AND ${SHOWCASE_ORDERS_WHERE} AND status IN (${placeholders})`
+    ).bind(orderNo, customer.id, now, ...CUSTOMER_CANCELLABLE_STATUSES).run();
+
+    const updated = await loadOwnOrder(env.DB, orderNo, customer.id);
+    if (!updated) return reply({ error: 'Order not found' }, 404);
+    if (!res?.meta?.changes) {
+      // Status changed between the read and the update (e.g. staff dispatched it).
+      if (String(updated.status).toLowerCase() === 'cancelled') return cancelRefusal(updated);
+      const msg = DISPATCHED_STATUSES.includes(String(updated.status).toLowerCase())
+        ? SHIPPED_MESSAGE
+        : 'The order status has just changed, so it could not be cancelled. Please review the order and try again.';
+      return reply({ error: msg, order: updated }, 409);
+    }
+
+    console.log(`showcase orders: customer ${customer.id} cancelled ${orderNo} ${from} -> cancelled`);
+    return reply({ ok: true, order: updated });
+  } catch (e) {
+    console.error('showcase orders: cancel', e?.message);
+    return reply({ error: 'Could not cancel the order' }, 500);
+  }
+}
+
 async function readJsonBody(request) {
   const type = request.headers.get('Content-Type') || '';
   if (!type.toLowerCase().startsWith('application/json')) return { error: 'Content-Type must be application/json', status: 415 };
@@ -127,6 +192,11 @@ export async function onRequestPost({ request, env }) {
   const parsed = await readJsonBody(request);
   if (parsed.error) return reply({ error: parsed.error }, parsed.status);
   const { body } = parsed;
+
+  if (body.op !== undefined) {
+    if (body.op === 'cancel') return cancelOwnOrder(env, customer, body.orderNo);
+    return reply({ error: 'Unknown operation' }, 400);
+  }
 
   // ---- Contact ----
   const contact = body.contact && typeof body.contact === 'object' ? body.contact : {};
@@ -297,18 +367,14 @@ export async function onRequestGet({ request, env }) {
     if (orderNo) {
       // Never serve shop (SW-) or any other non-showcase order here.
       if (!SHOWCASE_ORDER_NO_RE.test(orderNo)) return reply({ error: 'Order not found' }, 404);
-      const row = await env.DB.prepare(
-        `SELECT order_no, customer_name, customer_email, customer_phone, company, notes,
-                items_json, item_count, total, status, created_at, status_updated_at
-         FROM orders WHERE order_no = ?1 AND ${SHOWCASE_ORDERS_WHERE} AND customer_id = ?2`
-      ).bind(orderNo, customer.id).first();
-      if (!row) return reply({ error: 'Order not found' }, 404);
-      return reply({ order: { ...rowToOrder(row), shipments: await shpLoadForOrderSafe(env.DB, row.order_no) } });
+      const order = await loadOwnOrder(env.DB, orderNo, customer.id);
+      if (!order) return reply({ error: 'Order not found' }, 404);
+      return reply({ order });
     }
 
     // Summary list: no email/phone/notes, just what the "Previous orders" list needs.
     const res = await env.DB.prepare(
-      `SELECT order_no, company, items_json, item_count, total, status, created_at
+      `SELECT order_no, company, items_json, item_count, total, status, created_at, status_updated_at
        FROM orders WHERE ${SHOWCASE_ORDERS_WHERE} AND customer_id = ?1
        ORDER BY created_at DESC LIMIT 50`
     ).bind(customer.id).all();
@@ -319,6 +385,7 @@ export async function onRequestGet({ request, env }) {
         orderNo: r.order_no,
         status: r.status,
         createdAt: r.created_at,
+        statusUpdatedAt: r.status_updated_at,
         company: r.company,
         lineCount: list.length,
         itemCount: r.item_count,

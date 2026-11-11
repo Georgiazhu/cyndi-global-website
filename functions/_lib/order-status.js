@@ -23,6 +23,12 @@ const TRANSITIONS = {
   cancelled: [],
 };
 
+// Statuses from which a customer may cancel their own order (before dispatch).
+// Used by the showcase self-service cancel (functions/api/showcase/orders.js).
+export const CUSTOMER_CANCELLABLE_STATUSES = ['pending', 'processing'];
+// Statuses meaning the order has left the warehouse.
+export const DISPATCHED_STATUSES = ['shipped', 'in_transit', 'delivered'];
+
 // Legacy / unknown values already in the DB can still be listed, and may only be
 // moved into the managed flow via processing or cancelled.
 const LEGACY_NEXT = ['processing', 'cancelled'];
