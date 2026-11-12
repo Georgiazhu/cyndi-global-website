@@ -77,10 +77,11 @@ th{font-size:11px;text-transform:uppercase;color:var(--muted)}
   <strong>CYNDI GLOBAL — ADMIN</strong>
   <div class="row" style="gap:16px;align-items:center" data-admin-auth-slot>
     <a href="/admin/">Home</a>
-    <a href="/admin/products">Products</a>
+    <a href="/admin/products.html">Products</a>
     <a href="/admin/orders.html">Orders</a>
     <a href="/admin/customers.html">Customers</a>
-    <a href="/admin/showcase" class="on">Showcase</a>
+    <a href="/admin/showcase.html" class="on">Showcase</a>
+    <a href="/admin/inventory.html">Inventory</a>
     <a href="/admin/logistics.html">Shipping</a>
   </div>
 </header>
@@ -150,7 +151,16 @@ function $(id){return document.getElementById(id)}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function groupAmount(v){const s=String(v==null?'':v).trim();const m=/^(\d+)((?:\.\d+)?)$/.exec(s);return m?m[1].replace(/\B(?=(\d{3})+(?!\d))/g,',')+m[2]:s}
 function showMsg(text,kind){const el=$('msg');el.textContent=text;el.className='msg'+(kind?' '+kind:'');el.classList.remove('hidden');if(kind==='ok')setTimeout(()=>el.classList.add('hidden'),2500)}
-async function api(url,opts){const r=await fetch(url,opts||{});const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.error||('HTTP '+r.status));return b}
+async function api(url,opts){const r=await fetch(url,opts||{});const b=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(b.error||('HTTP '+r.status));e.status=r.status;e.code=b.code||null;throw e}return b}
+// POST a save/delete; when tracked stock would be unlinked, ask once and resend with confirmStockOrphan.
+async function postGuarded(body){
+  const send=b=>api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+  try{return await send(body)}catch(e){
+    if(e.code!=='STOCK_CONFIRM_REQUIRED')throw e;
+    if(!confirm(e.message+'\n\nContinue anyway? The stock rows stay visible on the Inventory page.')){const c=new Error('Cancelled — nothing was changed');c.cancelled=true;throw c}
+    return send(Object.assign({},body,{confirmStockOrphan:true}));
+  }
+}
 
 /* ------------------------------------------------------------------
    Colour name matching.
@@ -344,6 +354,15 @@ function deltaE(a,b){
   return Math.sqrt(dl*dl+da*da+db*db);
 }
 
+// Stable colour id (inventory rows reference it): 'c_' + 6 random [a-z0-9].
+// Renaming, re-picking the hex or reordering a colour never changes its id.
+function newColourId(){
+  const chars='abcdefghijklmnopqrstuvwxyz0123456789',b=new Uint8Array(6);
+  crypto.getRandomValues(b);
+  let s='c_';for(const x of b)s+=chars[x%chars.length];
+  return s;
+}
+
 // Returns the closest English colour name, or null when the hex is unusable.
 function matchColourName(hex){
   const rgb=hexToRgb(hex);
@@ -403,7 +422,7 @@ function renderCats(){
   el.querySelectorAll('[data-delcat]').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.delcat,cur=DATA.categories.find(c=>c.id===id);
     if(!confirm('Delete category "'+cur.name+'"? Its '+DATA.products.filter(p=>p.categoryId===id).length+' product(s) will be deleted too.'))return;
-    try{await api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'deleteCategory',id})});await load();showMsg('Deleted','ok')}catch(e){showMsg(e.message,'err')}
+    try{await postGuarded({op:'deleteCategory',id});await load();showMsg('Deleted','ok')}catch(e){showMsg(e.message,'err')}
   }));
 }
 
@@ -437,8 +456,8 @@ function renderProds(){
   el.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>openEditor(b.dataset.edit)));
   el.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',async()=>{
     const p=DATA.products.find(x=>x.id===b.dataset.del);
-    if(!confirm('Delete product "'+p.name+'"?'))return;
-    try{await api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'deleteProduct',id:p.id})});await load();showMsg('Deleted','ok')}catch(e){showMsg(e.message,'err')}
+    if(!confirm('Delete product "'+p.name+'"?'+(p.trackedVariants?' Its stock is tracked for '+p.trackedVariants+' variant(s).':'')))return;
+    try{await postGuarded({op:'deleteProduct',id:p.id});await load();showMsg('Deleted','ok')}catch(e){showMsg(e.message,'err')}
   }));
 }
 $('addProd').addEventListener('click',()=>{
@@ -461,6 +480,13 @@ function openEditor(id){
   d.id='productEditor';
   d.innerHTML=''
     +'<h2>'+(id?'Edit product':'Add product')+'</h2>'
+    +(p.trackedVariants>0
+      ?'<div class="hint" role="note" style="margin:0 0 12px;padding:10px 12px;border:1px solid #f0d9a8;background:#fff8e8;border-radius:8px;color:#6b4b00">'
+        +'<strong>This product is tracked.</strong> Warehouse stock is tracked for '+Number(p.trackedVariants)+' variant(s)'
+        +(p.reservedUnits>0?' ('+Number(p.reservedUnits)+' unit(s) reserved by open orders)':'')+'. '
+        +'Renaming a colour or changing its hex keeps the stock linked. Removing a colour, or changing or removing a size, unlinks its stock row; '
+        +'variants with reserved units cannot be removed. <a href="/admin/inventory.html">Manage stock on the Inventory page</a>.</div>'
+      :'')
     +'<div class="grid2">'
     +'<div class="field"><label>Product name *</label><input id="e_name" value="'+esc(p.name)+'"></div>'
     +'<div class="field"><label>SKU / item number</label><input id="e_sku" value="'+esc(p.sku||'')+'"></div>'
@@ -636,7 +662,7 @@ function openEditor(id){
 
   // hex stays empty until a colour is actually picked, so an untouched row
   // is not written to the database.
-  $('e_addcolor').addEventListener('click',()=>{state.colors.push({name:'',hex:'',image:''});drawColors();});
+  $('e_addcolor').addEventListener('click',()=>{state.colors.push({id:newColourId(),name:'',hex:'',image:''});drawColors();});
   $('e_addsize').addEventListener('click',()=>{
     const v=prompt('Size','One Size');if(v)state.sizes.push(v.trim());drawSizes();
   });
@@ -725,7 +751,7 @@ function openEditor(id){
       // Keep every row that carries a colour value — a swatch without a name
       // is still a valid swatch.
       colors:state.colors.filter(c=>c.hex||c.name||c.image).map(c=>({
-        name:c.name||'',hex:c.hex||'',image:c.image||'',
+        id:c.id||'',name:c.name||'',hex:c.hex||'',image:c.image||'',
       })),
       sizes:state.sizes,
       sizeChart:state.sizeChart,
@@ -738,7 +764,7 @@ function openEditor(id){
       leadTime:$('e_lead').value===''?null:Number($('e_lead').value),
     };
     try{
-      await api('/api/admin/showcase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'saveProduct',product:prod})});
+      await postGuarded({op:'saveProduct',product:prod});
       await load();d.remove();showMsg('Product saved','ok');
     }catch(err){
       // Keep the editor open so the edits are not lost, and say what failed.

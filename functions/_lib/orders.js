@@ -13,6 +13,14 @@ export function isShowcaseOrderNo(orderNo) {
   return s.startsWith('SC-') || s.startsWith('SHOWCASE-');
 }
 
+// Customer-facing order item: drops internal fields. The inventory sku code (stockSku)
+// stays in items_json for admin and reconciliation; customers only ever see availability.
+export function customerItem(it) {
+  if (!it || typeof it !== 'object' || Array.isArray(it)) return it;
+  const { stockSku: _stockSku, ...rest } = it;
+  return rest;
+}
+
 // Shop order number: SW-YYYYMMDD-XXXXXX
 export function genOrderNo(prefix) {
   const d = new Date();
@@ -66,10 +74,11 @@ export function normaliseShopItems(items) {
   return { snapshot, itemCount, total };
 }
 
-// INSERT one order row. Throws on DB failure; callers map that to a 500.
-export async function insertOrder(db, { orderNo, name, email, phone, company, notes, items, itemCount, total, customerId }) {
+// The prepared INSERT for one order row, so a caller can run it inside a db.batch()
+// (showcase orders reserve stock in the same batch). Returns { stmt, createdAt }.
+export function prepareInsertOrder(db, { orderNo, name, email, phone, company, notes, items, itemCount, total, customerId }) {
   const now = new Date().toISOString();
-  await db.prepare(
+  const stmt = db.prepare(
     `INSERT INTO orders
       (order_no, customer_name, customer_email, customer_phone, company, notes,
        items_json, item_count, total, status, created_at, status_updated_at, customer_id)
@@ -86,6 +95,13 @@ export async function insertOrder(db, { orderNo, name, email, phone, company, no
     Number(total.toFixed(2)),
     now,
     customerId || null
-  ).run();
-  return { createdAt: now };
+  );
+  return { stmt, createdAt: now };
+}
+
+// INSERT one order row. Throws on DB failure; callers map that to a 500.
+export async function insertOrder(db, fields) {
+  const { stmt, createdAt } = prepareInsertOrder(db, fields);
+  await stmt.run();
+  return { createdAt };
 }

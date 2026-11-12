@@ -1,6 +1,7 @@
 import { getAdminSecret, json, readSession } from '../../_lib/auth.js';
 import { ORDER_STATUSES, allowedNext, statusLabel, transitionError } from '../../_lib/order-status.js';
 import { SHOWCASE_ORDERS_WHERE, SHOWCASE_ORDER_NO_RE, isShowcaseOrderNo } from '../../_lib/orders.js';
+import { invClassifyError, invStockEffect, invTransitionStatements } from '../../_lib/inventory.js';
 
 /**
  * /api/admin/orders — admin view of every order in the `orders` table
@@ -361,9 +362,42 @@ export async function onRequestPost({ request, env }) {
     if (invalid) return reply({ error: invalid }, 400);
 
     const now = new Date().toISOString();
-    const res = await env.DB.prepare(
+    const update = env.DB.prepare(
       'UPDATE orders SET status = ?3, status_updated_at = ?4 WHERE order_no = ?1 AND status = ?2'
-    ).bind(no, from, to, now).run();
+    ).bind(no, from, to, now);
+    // Showcase orders only: release / ship / unship reserved stock in the same batch, with
+    // the order UPDATE last (its meta.changes stays the optimistic lock). Shop orders and
+    // transitions without a stock effect keep the single UPDATE.
+    const effect = isShowcaseOrderNo(no) ? invStockEffect(from, to) : null;
+    let res;
+    if (effect) {
+      try {
+        const results = await env.DB.batch([
+          ...invTransitionStatements(env.DB, {
+            effect,
+            orderNo: no,
+            now,
+            actor: `admin:${admin.username}`,
+            guardSql: 'EXISTS (SELECT 1 FROM orders o WHERE o.order_no = ?1 AND o.status = ?4)',
+            guardBinds: [from],
+          }),
+          update,
+        ]);
+        res = results[results.length - 1];
+      } catch (e) {
+        const kind = invClassifyError(e);
+        if (kind === 'missing_table') {
+          res = await update.run(); // inventory not migrated: behave as before
+        } else if (kind === 'inconsistent' || kind === 'insufficient') {
+          console.error('admin orders: stock inconsistent', no, from, to, e?.message);
+          return reply({ error: 'Inventory is inconsistent for this order, so the status was not changed. Check the inventory page and try again.' }, 500);
+        } else {
+          throw e;
+        }
+      }
+    } else {
+      res = await update.run();
+    }
 
     const updated = await env.DB.prepare(DETAIL_SQL).bind(no).first();
     if (!res?.meta?.changes) {
@@ -373,7 +407,7 @@ export async function onRequestPost({ request, env }) {
       }, 409);
     }
 
-    console.log(`admin orders: ${admin.username} changed ${no} ${from} -> ${to}`);
+    console.log(`admin orders: ${admin.username} changed ${no} ${from} -> ${to}${effect ? ` (stock: ${effect})` : ''}`);
     return reply({ ok: true, order: rowToDetail(updated) });
   } catch (e) {
     console.error('admin orders: update', e?.message);

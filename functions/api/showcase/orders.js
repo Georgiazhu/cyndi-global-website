@@ -1,9 +1,18 @@
 import { json } from '../../_lib/auth.js';
-import { SHOWCASE_ORDERS_WHERE, SHOWCASE_ORDER_NO_RE, sgonNextShowcaseOrderNo, insertOrder } from '../../_lib/orders.js';
+import { SHOWCASE_ORDERS_WHERE, SHOWCASE_ORDER_NO_RE, sgonNextShowcaseOrderNo, insertOrder, prepareInsertOrder, customerItem } from '../../_lib/orders.js';
 import { ensureSchema } from '../showcase.js';
 import { requireShowcaseCustomer } from './auth-lib.js';
 import { shpLoadForOrderSafe } from '../../_lib/shipments.js';
 import { CUSTOMER_CANCELLABLE_STATUSES, DISPATCHED_STATUSES } from '../../_lib/order-status.js';
+import {
+  INV_ORDER_NO_ATTEMPTS,
+  invClassifyError,
+  invLoadForProducts,
+  invReserveStatements,
+  invResolveOrderLines,
+  invStockShortMessage,
+  invTransitionStatements,
+} from '../../_lib/inventory.js';
 
 /**
  * /api/showcase/orders — real server-side orders placed from the Showcase.
@@ -26,7 +35,14 @@ import { CUSTOMER_CANCELLABLE_STATUSES, DISPATCHED_STATUSES } from '../../_lib/o
  *  - same session gate and same ownership rule as the by-number GET (not yours -> 404);
  *  - only while the order is pending/processing (before dispatch); enforced by a
  *    conditional UPDATE, so a concurrent staff change wins and the caller gets a 409;
- *  - touches only orders.status / status_updated_at (no inventory, no shipments).
+ *  - updates orders.status / status_updated_at and, in the same batch, releases any stock the
+ *    order reserved (order_stock_lines reserved -> released, inventory reserved -> available,
+ *    one 'release' movement per sku). No shipments are touched.
+ *
+ * Inventory (migrations/0013_inventory.sql, functions/_lib/inventory.js):
+ *  - a line whose variant has an inventory row is tracked; placing the order reserves its
+ *    stock in the same batch as the order INSERT. A short sku fails the CHECK constraint and
+ *    the whole batch rolls back -> 409 code INSUFFICIENT_STOCK. Untracked lines are unlimited.
  */
 
 const MAX_LINES = 100;
@@ -86,7 +102,8 @@ function orderCurrency(items) {
 }
 
 function rowToOrder(row) {
-  const items = parse(row.items_json, []);
+  const parsed = parse(row.items_json, []);
+  const items = Array.isArray(parsed) ? parsed.map(customerItem) : parsed;
   const { placedBy, notes } = splitNotes(row.notes);
   return {
     orderNo: row.order_no,
@@ -143,10 +160,35 @@ async function cancelOwnOrder(env, customer, rawOrderNo) {
 
     const now = new Date().toISOString();
     const placeholders = CUSTOMER_CANCELLABLE_STATUSES.map((_, i) => `?${i + 4}`).join(', ');
-    const res = await env.DB.prepare(
+    const update = env.DB.prepare(
       `UPDATE orders SET status = 'cancelled', status_updated_at = ?3
        WHERE order_no = ?1 AND customer_id = ?2 AND ${SHOWCASE_ORDERS_WHERE} AND status IN (${placeholders})`
-    ).bind(orderNo, customer.id, now, ...CUSTOMER_CANCELLABLE_STATUSES).run();
+    ).bind(orderNo, customer.id, now, ...CUSTOMER_CANCELLABLE_STATUSES);
+
+    // Release reserved stock in the same batch; every statement checks the pre-change status,
+    // and the order UPDATE stays last so its meta.changes is the optimistic lock as before.
+    const statusPh = CUSTOMER_CANCELLABLE_STATUSES.map((_, i) => `?${i + 5}`).join(', ');
+    // SHOWCASE_ORDERS_WHERE is unqualified; safe here because `orders o` is the only table in this subquery.
+    const guardSql = `EXISTS (SELECT 1 FROM orders o WHERE o.order_no = ?1 AND o.customer_id = ?4 AND ${SHOWCASE_ORDERS_WHERE} AND o.status IN (${statusPh}))`;
+    const guardBinds = [customer.id, ...CUSTOMER_CANCELLABLE_STATUSES];
+    let res;
+    try {
+      const results = await env.DB.batch([
+        ...invTransitionStatements(env.DB, { effect: 'release', orderNo, now, actor: `customer:${customer.id}`, guardSql, guardBinds }),
+        update,
+      ]);
+      res = results[results.length - 1];
+    } catch (e) {
+      const kind = invClassifyError(e);
+      if (kind === 'missing_table') {
+        res = await update.run(); // inventory not migrated: behave as before (the batch rolled back)
+      } else if (kind === 'inconsistent') {
+        console.error('showcase orders: cancel stock inconsistent', orderNo, e?.message);
+        return reply({ error: 'Could not cancel the order' }, 500);
+      } else {
+        throw e;
+      }
+    }
 
     const updated = await loadOwnOrder(env.DB, orderNo, customer.id);
     if (!updated) return reply({ error: 'Order not found' }, 404);
@@ -315,25 +357,89 @@ export async function onRequestPost({ request, env }) {
   const storedNotes = notes.value ? `${tag} ${notes.value}` : tag;
   total = round2(total);
 
+  // ---- Stock: map lines to tracked skus and pre-check (advisory; the CHECK is the guard) ----
+  let stockRows;
+  try {
+    stockRows = await invLoadForProducts(env.DB, ids);
+  } catch (e) {
+    console.error('showcase orders: stock lookup', e?.message);
+    return reply({ error: 'Could not place order' }, 500);
+  }
+  const stock = invResolveOrderLines(products, lines, stockRows);
+  if (stock.error) return reply({ error: stock.error }, 400);
+  if (stock.shortages.length) {
+    return reply({ error: invStockShortMessage(stock.shortages), code: 'INSUFFICIENT_STOCK', shortages: stock.shortages }, 409);
+  }
+  snapshot.forEach((s, i) => { s.stockSku = stock.lineSkus[i]; });
+  const { needs } = stock;
+
+  const orderFields = {
+    name: name.value,
+    email: email.value,
+    phone: phone.value || null,
+    company: company.value || null,
+    notes: storedNotes,
+    items: snapshot,
+    itemCount,
+    total,
+    customerId: customer.id,
+  };
+
   let orderNo;
   let createdAt;
-  try {
-    orderNo = await sgonNextShowcaseOrderNo(env.DB);
-    ({ createdAt } = await insertOrder(env.DB, {
-      orderNo,
-      name: name.value,
-      email: email.value,
-      phone: phone.value || null,
-      company: company.value || null,
-      notes: storedNotes,
-      items: snapshot,
-      itemCount,
-      total,
-      customerId: customer.id,
-    }));
-  } catch (e) {
-    console.error('showcase orders: insert', e?.message);
-    return reply({ error: 'Could not place order' }, 500);
+  if (!needs.size) {
+    // No tracked lines: exactly the previous path.
+    try {
+      orderNo = await sgonNextShowcaseOrderNo(env.DB);
+      ({ createdAt } = await insertOrder(env.DB, { orderNo, ...orderFields }));
+    } catch (e) {
+      console.error('showcase orders: insert', e?.message);
+      return reply({ error: 'Could not place order' }, 500);
+    }
+  } else {
+    // Tracked lines: order INSERT + reserve in one batch. A concurrent order can take the
+    // same number (max+1, no lock); the batch then rolls back and is retried with a new one.
+    const actor = `customer:${customer.id}`;
+    const stockChanged = { error: 'Stock for an item just changed. Please review your cart and try again.', code: 'INSUFFICIENT_STOCK', shortages: [] };
+    for (let attempt = 1; ; attempt++) {
+      try {
+        orderNo = await sgonNextShowcaseOrderNo(env.DB);
+        const { stmt, createdAt: c } = prepareInsertOrder(env.DB, { orderNo, ...orderFields });
+        const results = await env.DB.batch([stmt, ...invReserveStatements(env.DB, { orderNo, now: c, actor, needs })]);
+        if (Number(results?.[1]?.meta?.changes) !== needs.size) {
+          console.error('showcase orders: reserve touched', results?.[1]?.meta?.changes, 'of', needs.size, 'sku(s)', orderNo);
+        }
+        createdAt = c;
+        break;
+      } catch (e) {
+        const kind = invClassifyError(e);
+        if (kind === 'order_no_taken' && attempt < INV_ORDER_NO_ATTEMPTS) {
+          console.warn('showcase orders: order number taken, retrying', orderNo, attempt);
+          await new Promise((r) => setTimeout(r, 5 + Math.floor(Math.random() * 21)));
+          continue;
+        }
+        if (kind === 'insufficient') {
+          console.warn('showcase orders: stock constraint rollback', orderNo);
+          try {
+            const fresh = invResolveOrderLines(products, lines, await invLoadForProducts(env.DB, ids));
+            if (!fresh.error && fresh.shortages.length) {
+              return reply({ error: invStockShortMessage(fresh.shortages), code: 'INSUFFICIENT_STOCK', shortages: fresh.shortages }, 409);
+            }
+          } catch (e2) {
+            console.error('showcase orders: stock re-read', e2?.message);
+          }
+          return reply(stockChanged, 409);
+        }
+        if (kind === 'fk') {
+          console.warn('showcase orders: stock row changed during reserve', orderNo);
+          return reply(stockChanged, 409);
+        }
+        if (kind === 'order_no_taken') console.error('showcase orders: order number still taken after retries', orderNo, attempt);
+        else console.error('showcase orders: insert', e?.message);
+        return reply({ error: 'Could not place order' }, 500);
+      }
+    }
+    console.log('showcase orders: reserved', orderNo, needs.size, 'sku(s)');
   }
 
   const order = rowToOrder({

@@ -1,6 +1,7 @@
 import { json } from '../_lib/auth.js';
 import { showcaseSeed } from '../_lib/showcaseSeed.js';
 import { requireShowcaseCustomer } from './showcase/auth-lib.js';
+import { invClassifyError } from '../_lib/inventory.js';
 
 const parse = (raw, fallback) => {
   if (!raw) return fallback;
@@ -149,8 +150,23 @@ export async function onRequestGet({ request, env }) {
        FROM showcase_products ORDER BY sort ASC, name ASC`
     ).all();
 
+    // Customer-visible stock: only `available` per tracked variant (no sku, reserved,
+    // incoming, damaged or threshold). Any failure degrades to "no stock" (untracked).
+    const stockByProduct = new Map();
+    try {
+      const stockRows = await env.DB.prepare('SELECT product_id, color_id, size, available FROM inventory').all();
+      for (const r of stockRows.results || []) {
+        if (!stockByProduct.has(r.product_id)) stockByProduct.set(r.product_id, []);
+        stockByProduct.get(r.product_id).push({ colorId: r.color_id, size: r.size, available: r.available });
+      }
+    } catch (e) {
+      stockByProduct.clear();
+      if (invClassifyError(e) !== 'missing_table') console.error('showcase: stock lookup', e?.message);
+    }
+
     const byCategory = {};
     for (const p of prodRows.results || []) {
+      const stock = stockByProduct.get(p.id);
       (byCategory[p.category_id] ||= []).push({
         id: p.id,
         sku: p.sku,
@@ -170,6 +186,7 @@ export async function onRequestGet({ request, env }) {
         moq: p.moq ?? null,
         leadTime: p.lead_time ?? null,
         sizeChart: parseCharts(p.size_chart),
+        ...(stock ? { stock } : {}),
       });
     }
 
