@@ -28,7 +28,10 @@ table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
 th{font-size:11px;text-transform:uppercase;color:var(--muted)}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
-#rows tr{cursor:pointer}#rows tr:hover{background:#f7fafc}#rows tr.sel{background:#eef6fb}
+#rows>tr{cursor:pointer}#rows>tr:hover{background:#f7fafc}#rows>tr.sel{background:#eef6fb}
+#rows>tr.detail{cursor:default}#rows>tr.detail:hover{background:transparent}
+#rows>tr.detail>td{padding:6px 0 16px;border-bottom:2px solid var(--line)}
+#rows>tr.detail .card{margin:0;box-shadow:inset 0 0 0 1px var(--line),inset 3px 0 0 var(--orange)}
 .sub{color:var(--muted);font-size:11px}
 code{font-size:12px}
 h2{margin:0;font-size:20px;color:var(--navy)}
@@ -158,6 +161,7 @@ async function loadProducts(){
   const rows=$('rows');
   try{
     const b=await api(API+(state.q?'?q='+encodeURIComponent(state.q):''));
+    parkPanel();   // move #panel out before clearing so the node (and its ids) survives
     clear(rows);
     if(b.migrationRequired){migrationMessage($('msg'));$('count').textContent='';return}
     hide($('msg'));
@@ -166,6 +170,7 @@ async function loadProducts(){
     if(!state.products.length){rows.appendChild(h('tr',null,h('td',{colspan:8,class:'empty',text:'No products found.'})));return}
     for(const p of state.products){
       const tr=h('tr',{tabindex:0,'aria-label':'Open '+p.name,class:p.id===state.productId?'sel':null,
+        'aria-expanded':p.id===state.productId?'true':'false',
         onclick:()=>openProduct(p.id,tr),
         onkeydown:e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openProduct(p.id,tr)}}},
         h('td',null,h('strong',{text:p.name}),h('div',{class:'sub',text:p.deleted?'Removed from the Showcase · stock kept':(p.sku||p.id)})),
@@ -176,22 +181,65 @@ async function loadProducts(){
         h('td',{class:'num hide-sm',text:p.trackedCount?String(p.damaged):'—'}),
         h('td',{class:'num'},p.lowCount?h('span',{class:'pill low',text:p.lowCount+' of '+p.variantCount}):('0 of '+p.variantCount)),
         h('td',{class:'num'},p.outCount?h('span',{class:'pill out',text:p.outCount+' of '+p.variantCount}):('0 of '+p.variantCount)));
+      tr.dataset.pid=p.id;
       rows.appendChild(tr);
     }
+    placePanel();
   }catch(e){if(!(e instanceof AuthError))show($('msg'),'Could not load products: '+e.message,true)}
 }
 
 // ---------- One product ----------
+// The single #panel node is moved into a detail <tr> right under the open product's row
+// (at most one such row exists). When no row matches, it is parked back below the table.
+const PANEL_HOME=$('panel').parentNode;
+function productRow(id){return [...$('rows').children].find(tr=>tr.dataset.pid===String(id))||null}
+function parkPanel(){
+  const panel=$('panel'),dr=$('detailRow');
+  if(panel.parentNode!==PANEL_HOME)PANEL_HOME.appendChild(panel);
+  if(dr)dr.remove();
+}
+function placePanel(){
+  const row=state.productId!=null?productRow(state.productId):null;
+  if(!row){parkPanel();return}
+  let dr=$('detailRow');
+  if(!dr||dr.previousElementSibling!==row){
+    // Move the panel to safety before removing the stale detail row, otherwise
+    // removing the row detaches #panel too and getElementById('panel') returns null.
+    const panel=$('panel');
+    if(panel.parentNode!==PANEL_HOME)PANEL_HOME.appendChild(panel);
+    if(dr)dr.remove();
+    dr=h('tr',{id:'detailRow',class:'detail'},h('td',{colspan:8}));
+    row.after(dr);
+  }
+  const td=dr.firstElementChild;
+  if($('panel').parentNode!==td)td.appendChild($('panel'));
+}
+function syncRowState(){
+  for(const tr of $('rows').children){
+    if(!tr.dataset.pid)continue;
+    const on=state.productId!=null&&tr.dataset.pid===String(state.productId);
+    tr.classList.toggle('sel',on);tr.setAttribute('aria-expanded',on?'true':'false');
+  }
+}
+function closeProduct(){
+  state.productId=null;state.detail=null;state.historySku=null;
+  hide($('panel'));parkPanel();syncRowState();
+}
+
 async function openProduct(id,focusFrom){
+  // Clicking the open product's row again collapses it (refresh calls pass no row).
+  if(focusFrom&&id===state.productId&&$('detailRow')){closeProduct();return}
   if(id!==state.productId)state.historySku=null;   // history filter is per product
   state.productId=id;
-  document.querySelectorAll('#rows tr').forEach(tr=>tr.classList.remove('sel'));
-  if(focusFrom)focusFrom.classList.add('sel');
+  syncRowState();
+  placePanel();
   try{
     const d=await api(API+'?productId='+encodeURIComponent(id));
+    if(state.productId!==id)return;   // closed or switched while loading
     state.detail=d;
     renderPanel(d);
-  }catch(e){if(!(e instanceof AuthError)){$('panel').classList.remove('hidden');show($('pMsg'),'Could not load the product: '+e.message,true)}}
+    placePanel();
+  }catch(e){if(!(e instanceof AuthError)&&state.productId===id){placePanel();$('panel').classList.remove('hidden');show($('pMsg'),'Could not load the product: '+e.message,true)}}
 }
 
 async function refreshProduct(){

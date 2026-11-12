@@ -129,6 +129,7 @@ A：Phase 1 暂无"停止跟踪"入口，见 _(Phase 2)_ 的 Tracking stopped。
 - 停止跟踪（`untrack`）、整仓盘点（`stocktake`）
 - 出货 / 销售报表与导出
 - 仓库角色权限与库存操作审计
+- Inventory 列表分页（当前一次性最多显示 500 个商品，超出需靠搜索缩小；Phase 2 做分页/翻页）
 
 ---
 
