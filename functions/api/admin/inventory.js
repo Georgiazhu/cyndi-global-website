@@ -26,6 +26,10 @@ import { SHOWCASE_ORDERS_WHERE } from '../../_lib/orders.js';
  *  POST {op:'set', sku, available, expected, reason}            -> set available (optimistic lock)
  *  POST {op:'adjust', sku, delta, reason}                       -> add/remove available
  *  POST {op:'threshold', sku, threshold|null, reason?}          -> low-stock threshold
+ *  POST {op:'resetFromOrder', orderNo, confirm:'RESET-INVENTORY'} -> one-off maintenance:
+ *        wipe all stock rows/movements/reservations, then seed opening stock from one
+ *        showcase order (one tracked variant per order line, available = line quantity).
+ *        Requires admin session + explicit confirmation; orders are never touched.
  *
  * Admins never write reserved (orders do) and incoming/damaged are read-only in Phase 1.
  * Security: admin session (HMAC cookie) verified before any DB access; same-origin only
@@ -493,12 +497,157 @@ async function opThreshold(db, body, admin) {
   return reply({ ok: true, row: rowOut(fresh) });
 }
 
-const OPS = { track: opTrack, set: opSet, adjust: opAdjust, threshold: opThreshold };
+// ---- One-off maintenance: rebuild stock from one showcase order -----------------------
+// Everything is computed before the batch, so a mapping failure leaves the data untouched.
+// All writes (colour id backfill, wipe, seed) run in one D1 batch = one transaction.
+const IVR_CONFIRM = 'RESET-INVENTORY';
+const IVR_ORDER_RE = /^SHOWCASE-\d{8}-\d{3,}$/;
+const IVR_MOVEMENT_COLS = `(sku, type, d_available, d_reserved, d_incoming, d_damaged,
+  available_after, reserved_after, incoming_after, damaged_after, reason, ref_order_no, actor, created_at)`;
+
+async function ivrResetFromOrder(db, body, admin) {
+  if (body.confirm !== IVR_CONFIRM) return reply({ error: 'Confirmation required' }, 400);
+  const orderNo = typeof body.orderNo === 'string' ? body.orderNo.trim() : '';
+  if (!IVR_ORDER_RE.test(orderNo)) return reply({ error: 'Invalid showcase order number' }, 400);
+
+  const order = await db.prepare(
+    'SELECT order_no, status, items_json, item_count, total FROM orders WHERE order_no = ?1'
+  ).bind(orderNo).first();
+  if (!order) return reply({ error: 'Unknown order' }, 404);
+  if (String(order.status).toLowerCase() === 'cancelled') {
+    return reply({ error: 'A cancelled order cannot seed stock' }, 400);
+  }
+  let items;
+  try { items = JSON.parse(order.items_json || '[]'); } catch { return reply({ error: 'Order items are malformed' }, 400); }
+  if (!Array.isArray(items) || !items.length || items.length > MAX_TRACK) {
+    return reply({ error: 'Invalid order items' }, 400);
+  }
+
+  const byProduct = new Map();
+  for (const it of items) {
+    if (!it || typeof it !== 'object' || Array.isArray(it)) return reply({ error: 'Invalid order item' }, 400);
+    const productId = typeof it.productId === 'string' ? it.productId.trim() : '';
+    const qty = Number(it.quantity);
+    if (!productId || !Number.isInteger(qty) || qty <= 0 || qty > MAX_QTY) {
+      return reply({ error: 'Invalid order item quantity' }, 400);
+    }
+    if (!byProduct.has(productId)) byProduct.set(productId, []);
+    byProduct.get(productId).push(it);
+  }
+
+  const taken = new Set();
+  const cells = [];
+  const colourUpdates = [];
+  const now = new Date().toISOString();
+  const actor = `admin:${admin.username}`;
+  const reason = `Opening stock from ${orderNo}`;
+
+  for (const [productId, lines] of byProduct) {
+    const product = await loadProduct(db, productId);
+    if (!product) return reply({ error: `Unknown product ${productId}` }, 404);
+    const rawColours = typeof product.colors_json === 'string' ? product.colors_json : '';
+    let colours = [];
+    if (rawColours.trim()) {
+      try { colours = JSON.parse(rawColours); } catch { return reply({ error: `Malformed colours: ${productId}` }, 400); }
+      if (!Array.isArray(colours)) return reply({ error: `Malformed colours: ${productId}` }, 400);
+    }
+    // Same id backfill as opTrack: only adds ids, never changes names/order/hex.
+    const colours2 = invAssignColourIds(colours, colours);
+    const changed = colours2.some((c, i) => c && typeof c === 'object' && c.id !== colours[i]?.id);
+    if (changed) colourUpdates.push({ productId, rawColours, next: JSON.stringify(colours2) });
+    const matrix = invProductMatrix({ ...product, colors_json: colours2 });
+    if (matrix.some((c) => c.colorId === null)) {
+      return reply({ error: `Could not assign colour ids: ${productId}` }, 500);
+    }
+    const hasColours = colours2.length > 0;
+    for (const it of lines) {
+      const name = String(it.colorName ?? '').trim();
+      const candidates = matrix.filter((c) => String(c.colorName ?? '').trim() === name);
+      if (candidates.length !== 1) {
+        return reply({ error: `Ambiguous colour for ${productId}: ${name || '(unnamed)'}` }, 400);
+      }
+      const cell = candidates[0];
+      // Guard against a colour reorder since the order was placed.
+      if (Number.isInteger(it.colorIndex) && cell.colorIndex !== it.colorIndex) {
+        return reply({ error: `Colour index changed for ${productId}: ${name}` }, 400);
+      }
+      const colour = hasColours ? { name: cell.colorName, id: cell.colorId } : null;
+      const sku = invSkuCode(product, colour, cell.size, taken);
+      taken.add(sku);
+      cells.push({
+        sku,
+        productId,
+        colorId: String(cell.colorId ?? ''),
+        size: String(cell.size ?? ''),
+        available: Number(it.quantity),
+        threshold: null,
+        colorName: cell.colorName,
+      });
+    }
+  }
+  if (cells.length !== items.length) return reply({ error: 'Could not resolve all order lines' }, 500);
+
+  const payload = JSON.stringify(cells.map((c) => ({
+    sku: c.sku, productId: c.productId, colorId: c.colorId, size: c.size,
+    available: c.available, threshold: c.threshold,
+  })));
+  const stmts = colourUpdates.map((u) => db.prepare(
+    'UPDATE showcase_products SET colors_json = ?2 WHERE id = ?1 AND colors_json = ?3'
+  ).bind(u.productId, u.next, u.rawColours));
+  // order_stock_lines references inventory -> delete it first; movements have no FK.
+  stmts.push(db.prepare('DELETE FROM order_stock_lines'));
+  stmts.push(db.prepare('DELETE FROM inventory'));
+  stmts.push(db.prepare('DELETE FROM inventory_movements'));
+  stmts.push(db.prepare(`WITH n AS (
+    SELECT json_extract(value, '$.sku') AS sku, json_extract(value, '$.productId') AS product_id,
+           json_extract(value, '$.colorId') AS color_id, json_extract(value, '$.size') AS size,
+           json_extract(value, '$.available') AS available, json_extract(value, '$.threshold') AS threshold
+    FROM json_each(?1))
+  INSERT INTO inventory (sku, product_id, color_id, size, available, reserved, incoming, damaged,
+                         low_stock_threshold, created_by, created_at, updated_at)
+  SELECT sku, product_id, color_id, size, available, 0, 0, 0, threshold, ?2, ?3, ?3 FROM n`
+  ).bind(payload, actor, now));
+  stmts.push(db.prepare(`WITH n AS (SELECT json_extract(value, '$.sku') AS sku FROM json_each(?1))
+  INSERT INTO inventory_movements ${IVR_MOVEMENT_COLS}
+  SELECT i.sku, 'track', i.available, 0, 0, 0, i.available, i.reserved, i.incoming, i.damaged, ?2, ?3, ?4, ?5
+  FROM inventory i JOIN n ON n.sku = i.sku`
+  ).bind(payload, reason, orderNo, actor, now));
+
+  const results = await db.batch(stmts);
+  const base = colourUpdates.length;
+  const inserted = Number(results?.[base + 3]?.meta?.changes) || 0;
+  if (inserted !== cells.length) return reply({ error: 'Stock reset was incomplete' }, 500);
+  const units = cells.reduce((s, c) => s + c.available, 0);
+  console.log(`admin inventory: ${admin.username} reset stock from ${orderNo}: ${inserted} rows / ${units} units`);
+  return reply({
+    ok: true,
+    orderNo,
+    status: order.status,
+    deleted: {
+      inventory: Number(results?.[base + 1]?.meta?.changes) || 0,
+      movements: Number(results?.[base + 2]?.meta?.changes) || 0,
+      stockLines: Number(results?.[base]?.meta?.changes) || 0,
+    },
+    created: inserted,
+    units,
+    products: byProduct.size,
+    colorIdsAssigned: colourUpdates.length,
+    lines: cells.map((c) => ({
+      sku: c.sku, productId: c.productId, color: c.colorName, size: c.size, available: c.available,
+    })),
+  });
+}
+
+const OPS = {
+  track: opTrack, set: opSet, adjust: opAdjust, threshold: opThreshold,
+  resetFromOrder: ivrResetFromOrder,
+};
 const OP_ERRORS = {
   track: 'Could not start tracking',
   set: 'Could not update stock',
   adjust: 'Could not update stock',
   threshold: 'Could not update threshold',
+  resetFromOrder: 'Could not reset stock from order',
 };
 
 export async function onRequestPost({ request, env }) {
