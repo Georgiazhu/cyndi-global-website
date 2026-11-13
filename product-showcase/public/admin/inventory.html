@@ -110,7 +110,14 @@ const API='/api/admin/inventory';
 const MAX_QTY=1000000;
 const HEX_RE=/^#[0-9a-f]{3,8}$/i;
 const PRODUCT_COLS=8,SKU_COLS=10;
-const state={q:'',products:[],skus:[],view:'skus',productId:null,detail:null,lastFocus:null,historySku:null};
+// state.sku is the stock code of the SKU row whose detail panel is open. In the
+// SKU view one product has several rows, so it also anchors the panel to the row
+// that was actually clicked (rather than the first row of that product).
+const state={q:'',products:[],skus:[],view:'skus',productId:null,sku:null,detail:null,lastFocus:null,historySku:null};
+// In the SKU view the detail panel is a view of one stocked SKU: only colours that
+// have an inventory row (= colours from the order) are shown. The full colour x size
+// matrix stays available under "Show all products".
+function orderedOnly(){return state.view==='skus'}
 function listCols(){return state.view==='skus'?SKU_COLS:PRODUCT_COLS}
 
 function $(id){return document.getElementById(id)}
@@ -206,11 +213,13 @@ function renderSkuRows(rows){
     actions.addEventListener('click',e=>e.stopPropagation());
     actions.addEventListener('keydown',e=>e.stopPropagation());
     const open=()=>{
-      if(state.productId===s.productId&&$('detailRow')){closeProduct();return}
-      openProduct(s.productId,productRow(s.productId));
+      // Clicking the open SKU again collapses it; clicking a sibling colour of the
+      // same product switches the panel to that SKU instead of closing it.
+      if(state.productId===s.productId&&state.sku===s.sku&&$('detailRow')){closeProduct();return}
+      openProduct(s.productId,tr,s.sku);
     };
-    const tr=h('tr',{tabindex:0,'aria-label':'Open '+s.productName,class:s.productId===state.productId?'sel':null,
-      'aria-expanded':s.productId===state.productId?'true':'false',
+    const tr=h('tr',{tabindex:0,'aria-label':'Open '+s.productName,class:s.sku===state.sku?'sel':null,
+      'aria-expanded':s.sku===state.sku?'true':'false',
       onclick:open,
       onkeydown:e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}}},
       h('td',null,h('strong',{text:s.productName}),h('div',{class:'sub',text:s.deleted?'Removed from the Showcase · stock kept':(s.productSku||s.productId)})),
@@ -224,6 +233,7 @@ function renderSkuRows(rows){
       h('td',null,statusPill(s)),
       h('td',null,actions));
     tr.dataset.pid=s.productId;
+    tr.dataset.sku=s.sku;
     rows.appendChild(tr);
   }
 }
@@ -247,14 +257,21 @@ async function loadProducts(){
 // The single #panel node is moved into a detail <tr> right under the open product's row
 // (at most one such row exists). When no row matches, it is parked back below the table.
 const PANEL_HOME=$('panel').parentNode;
-function productRow(id){return [...$('rows').children].find(tr=>tr.dataset.pid===String(id))||null}
+function productRow(id,sku){
+  const rows=[...$('rows').children];
+  if(sku){
+    const exact=rows.find(tr=>tr.dataset.pid===String(id)&&tr.dataset.sku===sku);
+    if(exact)return exact;
+  }
+  return rows.find(tr=>tr.dataset.pid===String(id))||null;
+}
 function parkPanel(){
   const panel=$('panel'),dr=$('detailRow');
   if(panel.parentNode!==PANEL_HOME)PANEL_HOME.appendChild(panel);
   if(dr)dr.remove();
 }
 function placePanel(){
-  const row=state.productId!=null?productRow(state.productId):null;
+  const row=state.productId!=null?productRow(state.productId,orderedOnly()?state.sku:null):null;
   if(!row){parkPanel();return}
   let dr=$('detailRow');
   if(!dr||dr.previousElementSibling!==row){
@@ -272,20 +289,23 @@ function placePanel(){
 function syncRowState(){
   for(const tr of $('rows').children){
     if(!tr.dataset.pid)continue;
-    const on=state.productId!=null&&tr.dataset.pid===String(state.productId);
+    const on=state.productId!=null&&tr.dataset.pid===String(state.productId)
+      &&(!orderedOnly()||!state.sku||tr.dataset.sku===state.sku);
     tr.classList.toggle('sel',on);tr.setAttribute('aria-expanded',on?'true':'false');
   }
 }
 function closeProduct(){
-  state.productId=null;state.detail=null;state.historySku=null;
+  state.productId=null;state.sku=null;state.detail=null;state.historySku=null;
   hide($('panel'));parkPanel();syncRowState();
 }
 
-async function openProduct(id,focusFrom){
-  // Clicking the open product's row again collapses it (refresh calls pass no row).
-  if(focusFrom&&id===state.productId&&$('detailRow')){closeProduct();return}
-  if(id!==state.productId)state.historySku=null;   // history filter is per product
-  state.productId=id;
+async function openProduct(id,focusFrom,sku){
+  // Clicking the open row again collapses it (refresh calls pass no row).
+  const skuKey=sku||null;
+  if(focusFrom&&id===state.productId&&state.sku===skuKey&&$('detailRow')){closeProduct();return}
+  const switching=id!==state.productId||state.sku!==skuKey;
+  if(switching)state.historySku=skuKey;   // SKU view: focus history on the clicked stock code
+  state.productId=id;state.sku=skuKey;
   syncRowState();
   placePanel();
   try{
@@ -298,18 +318,26 @@ async function openProduct(id,focusFrom){
 }
 
 async function refreshProduct(){
-  await Promise.all([state.productId?openProduct(state.productId):null,loadProducts()]);
+  await Promise.all([state.productId?openProduct(state.productId,null,state.sku):null,loadProducts()]);
 }
 
 function renderPanel(d){
   const panel=$('panel'),body=$('pBody'),acts=$('pActions');
   panel.classList.remove('hidden');hide($('pMsg'));clear(body);clear(acts);
   if(d.migrationRequired){$('pTitle').textContent='Inventory';$('pSub').textContent='';migrationMessage($('pMsg'));return}
-  const p=d.product,variants=d.variants||[];
+  const p=d.product,allVariants=d.variants||[];
+  // In the SKU view the detail belongs to a stocked SKU: colours that were never
+  // ordered have no inventory row and must not be listed here. The full matrix
+  // (and the option to track a new colour) is available in "Show all products".
+  const onlyOrdered=orderedOnly();
+  const variants=onlyOrdered?allVariants.filter(v=>v.tracked):allVariants;
+  const clicked=onlyOrdered?allVariants.find(v=>v.sku===state.sku):null;
   $('pTitle').textContent=p.name;
-  $('pSub').textContent='Guangzhou warehouse · '+(p.sku||p.id);
+  $('pSub').textContent='Guangzhou warehouse · '+(p.sku||p.id)
+    +(clicked?' · '+colourLabel(clicked):'')
+    +(onlyOrdered?' · ordered colours only':'');
   const tracked=variants.filter(v=>v.tracked).length;
-  const untracked=variants.length-tracked;
+  const untracked=onlyOrdered?0:variants.length-tracked;
   if(untracked>0){
     const label=tracked?'Track '+untracked+' new variant'+(untracked===1?'':'s'):'Start tracking';
     acts.appendChild(h('button',{type:'button',text:label,onclick:()=>trackAll(untracked,!tracked)}));
@@ -327,7 +355,7 @@ function renderPanel(d){
       h('strong',{text:'This product was deleted from the Showcase.'}),
       ' Its stock rows are kept below. Re-creating the product with the same id and colours links them again.'));
   }
-  if(p.colorsMissingIds){
+  if(p.colorsMissingIds&&!onlyOrdered){
     body.appendChild(h('p',{class:'sub',text:'Some colours have no stable id yet. "'+(tracked?'Track new variants':'Start tracking')+'" assigns ids; per-variant tracking is available afterwards.'}));
   }
 
@@ -377,7 +405,9 @@ function renderPanel(d){
       h('th',{scope:'col',text:'Status'}),
       h('th',{scope:'col',class:'hide-sm',text:'Updated'}),h('th',{scope:'col',text:'Actions'}))),
     tbody));
-  if(!p.deleted)body.appendChild(h('p',{class:'sub',text:'Reserved changes only with orders. Incoming and Damaged are read-only for now. Click a tracked variant to see only its stock history.'}));
+  if(!p.deleted)body.appendChild(h('p',{class:'sub',text:onlyOrdered
+    ?'Only colours from the order are listed. Reserved changes only with orders; Incoming and Damaged are read-only for now. Click a stocked variant to see only its history. To track a new colour, switch to "Show all products".'
+    :'Reserved changes only with orders. Incoming and Damaged are read-only for now. Click a tracked variant to see only its stock history.'}));
 
   if((d.unlinked||[]).length){
     body.appendChild(h('h3',{text:p.deleted?'Stock rows':'No longer matches the product'}));
