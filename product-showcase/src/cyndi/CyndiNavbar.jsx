@@ -15,6 +15,8 @@ function Icon({ d, className = 'w-[22px] h-[22px]' }) {
 export default function CyndiNavbar() {
   const [scrolled, setScrolled] = useState(false)
   const [openMenu, setOpenMenu] = useState(null)   // 'service' | 'solution' | 'brand' | null
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [mobileSection, setMobileSection] = useState(null)  // expanded accordion section
   const closeTimer = useRef(null)
 
   useEffect(() => {
@@ -22,6 +24,33 @@ export default function CyndiNavbar() {
     window.addEventListener('scroll', onScroll)
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') { setMobileOpen(false); setOpenMenu(null) }
+    }
+    const onResize = () => { if (window.innerWidth >= 768) setMobileOpen(false) }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('resize', onResize)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [])
+
+  // The mobile panel scrolls internally; freeze the page behind it while open.
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [mobileOpen])
+
+  function closeMobile() {
+    setMobileOpen(false)
+    setMobileSection(null)
+  }
+  function toggleMobileSection(key) {
+    setMobileSection(cur => cur === key ? null : key)
+  }
 
   // Delayed close so the mouse can travel from the trigger to the fixed/absolute panel
   // without the menu snapping shut (fixes the hover "dead zone").
@@ -44,7 +73,7 @@ export default function CyndiNavbar() {
         scrolled ? 'bg-white/90 backdrop-blur shadow-[0_1px_0_rgba(0,0,0,0.06)]' : 'bg-white'
       }`}
     >
-      <nav className="max-w-7xl mx-auto px-6 lg:px-12 h-20 flex items-center justify-between">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 h-20 flex items-center justify-between gap-3">
         {/* Logo */}
         <a href="/#top" className="flex items-center gap-3 shrink-0">
           <span className="w-9 h-9 rounded-full bg-stone-900 text-white grid place-items-center text-sm font-bold">C</span>
@@ -73,12 +102,152 @@ export default function CyndiNavbar() {
           </li>
         </ul>
 
-        {/* Lang */}
-        <button className="border border-stone-300 rounded-lg px-3.5 py-1.5 text-[13px] font-medium text-stone-900 hover:bg-stone-100 transition-colors flex items-center gap-1.5 shrink-0">
-          <span>🌐</span> English <span className="text-[10px]">▼</span>
-        </button>
+        {/* Language + mobile menu toggle */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <button className="border border-stone-300 rounded-lg px-2.5 sm:px-3.5 py-1.5 text-[12px] sm:text-[13px] font-medium text-stone-900 hover:bg-stone-100 transition-colors flex items-center gap-1.5 shrink-0">
+            <span>🌐</span> English <span className="text-[10px]">▼</span>
+          </button>
+          <button
+            type="button"
+            className="md:hidden grid place-items-center w-10 h-10 rounded-lg border border-stone-300 text-stone-900 hover:bg-stone-100 transition-colors"
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileOpen}
+            aria-controls="cyndi-mobile-menu"
+            onClick={() => setMobileOpen(v => !v)}
+          >
+            {mobileOpen
+              ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="w-5 h-5"><path d="M6 6l12 12M18 6L6 18" /></svg>
+              : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="w-5 h-5"><path d="M4 7h16M4 12h16M4 17h16" /></svg>}
+          </button>
+        </div>
       </nav>
+
+      {/* Mobile menu: the desktop <ul> above is hidden below md, so without this
+          panel phones have no way to reach the shop, Showcase or the admin console. */}
+      {mobileOpen && (
+        <>
+          <div
+            className="md:hidden fixed inset-0 top-20 bg-stone-900/25 z-40"
+            onClick={closeMobile}
+            aria-hidden="true"
+          />
+          <div
+            id="cyndi-mobile-menu"
+            className="md:hidden absolute top-full left-0 right-0 z-50 bg-white border-t border-stone-200 shadow-[0_20px_40px_rgba(0,0,0,0.12)] max-h-[calc(100dvh-80px)] overflow-y-auto overscroll-contain"
+          >
+            <MobileMenu section={mobileSection} onToggle={toggleMobileSection} onNavigate={closeMobile} />
+          </div>
+        </>
+      )}
     </header>
+  )
+}
+
+// ── Mobile menu (shown below md) ──
+// The desktop <ul> is hidden on phones. This accordion keeps every desktop
+// section reachable and puts the two working destinations (Showcase and the
+// admin console) at the top as tappable cards.
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" className="w-4 h-4 text-stone-400 shrink-0">
+      <path d="M5 12h14M12 5l7 7-7 7" />
+    </svg>
+  )
+}
+function ChevronIcon({ open }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round"
+      className={`w-4 h-4 text-stone-400 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`}>
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  )
+}
+function MobileMenu({ section, onToggle, onNavigate }) {
+  const row = 'flex items-center justify-between min-h-[48px] px-1 text-[15px] font-medium text-stone-900 border-b border-stone-100'
+  const sub = 'flex items-center justify-between min-h-[42px] py-2 pl-3 pr-1 text-[14px] text-stone-600 border-b border-stone-100'
+
+  return (
+    <nav aria-label="Mobile menu" className="px-5 py-5">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-400 mb-3">Platform</p>
+      <div className="grid grid-cols-2 gap-2.5">
+        <a href="/showcase/" onClick={onNavigate}
+          className="rounded-xl border border-stone-200 bg-[#faf9f6] p-3.5 active:bg-stone-100 transition-colors">
+          <span className="flex items-center justify-between gap-1">
+            <strong className="text-[15px] font-semibold text-stone-900">Showcase</strong>
+            <span className="text-[#e07a3a] text-[15px] leading-none">↗</span>
+          </span>
+          <span className="block mt-1 text-[12px] leading-snug text-stone-500">Product proposals</span>
+        </a>
+        <a href="/admin/" onClick={onNavigate}
+          className="rounded-xl border border-stone-200 bg-[#faf9f6] p-3.5 active:bg-stone-100 transition-colors">
+          <span className="flex items-center justify-between gap-1">
+            <strong className="text-[15px] font-semibold text-stone-900">Admin</strong>
+            <span className="text-[#e07a3a] text-[15px] leading-none">↗</span>
+          </span>
+          <span className="block mt-1 text-[12px] leading-snug text-stone-500">Admin console</span>
+        </a>
+      </div>
+
+      <div className="mt-5">
+        <a href="/shop.html" onClick={onNavigate} className={row}>Swag <ArrowIcon /></a>
+
+        <button type="button" onClick={() => onToggle('service')} aria-expanded={section === 'service'}
+          className={`w-full ${row}`}>
+          Service <ChevronIcon open={section === 'service'} />
+        </button>
+        {section === 'service' && (
+          <div className="pb-2">
+            {serviceItems.map(it => (
+              <div key={it.title}>
+                {it.href
+                  ? <a href={it.href} onClick={onNavigate} className={sub}>{it.title}<ArrowIcon /></a>
+                  : <div className={`${sub} text-stone-500`}>{it.title}</div>}
+                {(it.children || []).map(ch => (
+                  <a key={ch.title} href={ch.href || '#'} onClick={onNavigate}
+                    className={`${sub} pl-6 text-[13px] text-[#b7410e]`}>
+                    {ch.title}<span className="text-[11px] text-stone-400">{ch.blurb}</span>
+                  </a>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button type="button" onClick={() => onToggle('solution')} aria-expanded={section === 'solution'}
+          className={`w-full ${row}`}>
+          Solution <ChevronIcon open={section === 'solution'} />
+        </button>
+        {section === 'solution' && (
+          <div className="pb-2">
+            {solutionItems.map(it => (
+              <div key={it.title} className="flex items-start gap-2 py-2.5 pl-3 pr-1 border-b border-stone-100">
+                <span className="text-[14px] text-stone-700">{it.title}</span>
+                <span className="text-[11px] leading-snug text-stone-400 ml-auto text-right max-w-[55%]">{it.blurb}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button type="button" onClick={() => onToggle('brand')} aria-expanded={section === 'brand'}
+          className={`w-full ${row}`}>
+          Brand <ChevronIcon open={section === 'brand'} />
+        </button>
+        {section === 'brand' && (
+          <div className="grid grid-cols-2 gap-2 py-3">
+            {brandLogos.map(b => (
+              <span key={b.alt} className="rounded-lg bg-stone-100 px-3 py-2.5 text-[13px] text-stone-600 text-center">
+                {b.alt}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <a href="#contact" onClick={onNavigate} className={`${row} border-b-0`}>Contact <ArrowIcon /></a>
+      </div>
+      <p className="mt-3 text-[11px] text-stone-400">Cyndi Global · Global Swag &amp; Brand Management</p>
+    </nav>
   )
 }
 
