@@ -44,6 +44,8 @@ tr.pick{cursor:pointer}tr.pick:hover{background:#f7fafc}tr.pick.sel{background:#
 .hist-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:22px 0 8px}.hist-head h3{margin:0}
 .swatch{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#fff}
 .empty{padding:28px;text-align:center;color:var(--muted)}
+.view-toggle{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap}.view-toggle input{width:auto;flex:none;margin:0;padding:0}
+td.clamp{max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .actions{display:flex;gap:6px;flex-wrap:wrap}
 .overlay{position:fixed;inset:0;background:#0f1f3a55;z-index:20}
 .modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(440px,94%);max-height:92vh;overflow:auto;background:#fff;z-index:21;border-radius:12px;box-shadow:0 12px 32px #0f1f3a30;padding:22px}
@@ -72,16 +74,12 @@ tr.pick{cursor:pointer}tr.pick:hover{background:#f7fafc}tr.pick.sel{background:#
       <div class="toolbar">
         <input id="search" type="search" placeholder="Search product name / SKU / stock code…" aria-label="Search products" maxlength="100">
         <button class="secondary small" id="reload" type="button">Refresh</button>
+        <label class="view-toggle"><input type="checkbox" id="showAll"> Show all products</label>
         <span id="count" style="color:var(--muted);font-size:12px" aria-live="polite"></span>
       </div>
       <div id="msg" class="msg hidden" role="status"></div>
       <table>
-        <thead><tr>
-          <th scope="col">Product</th><th scope="col">Tracked</th>
-          <th scope="col" class="num">Available</th><th scope="col" class="num">Reserved</th>
-          <th scope="col" class="num hide-sm">Incoming</th><th scope="col" class="num hide-sm">Damaged</th>
-          <th scope="col" class="num" title="Variants at or below their low-stock threshold">Low stock</th><th scope="col" class="num" title="Variants with 0 available">Out of stock</th>
-        </tr></thead>
+        <thead id="head"></thead>
         <tbody id="rows"></tbody>
       </table>
     </div>
@@ -111,7 +109,9 @@ tr.pick{cursor:pointer}tr.pick:hover{background:#f7fafc}tr.pick.sel{background:#
 const API='/api/admin/inventory';
 const MAX_QTY=1000000;
 const HEX_RE=/^#[0-9a-f]{3,8}$/i;
-const state={q:'',products:[],productId:null,detail:null,lastFocus:null,historySku:null};
+const PRODUCT_COLS=8,SKU_COLS=10;
+const state={q:'',products:[],skus:[],view:'skus',productId:null,detail:null,lastFocus:null,historySku:null};
+function listCols(){return state.view==='skus'?SKU_COLS:PRODUCT_COLS}
 
 function $(id){return document.getElementById(id)}
 function show(el,text,err){el.textContent=text;el.className='msg'+(err?' err':'');el.classList.remove('hidden')}
@@ -156,34 +156,89 @@ function colourLabel(v){return v.colorName||(v.colorId===''?'—':'(unnamed colo
 function sizeLabel(s){return s||'—'}
 function migrationMessage(el){show(el,'Run migration 0013_inventory.sql first',true)}
 
-// ---------- Product list ----------
+// ---------- List views ----------
+const PRODUCT_HEAD=[['Product',''],['Tracked',''],['Available','num'],['Reserved','num'],
+  ['Incoming','num hide-sm'],['Damaged','num hide-sm'],['Low stock','num'],['Out of stock','num']];
+const SKU_HEAD=[['Product',''],['Colour',''],['Size',''],['Stock code',''],['Available','num'],
+  ['Reserved','num'],['Incoming','num hide-sm'],['Damaged','num hide-sm'],['Status',''],['Actions','']];
+function renderHead(){
+  const head=$('head');clear(head);
+  const cols=state.view==='skus'?SKU_HEAD:PRODUCT_HEAD;
+  head.appendChild(h('tr',null,...cols.map(([t,c])=>h('th',{scope:'col',class:c||null,text:t}))));
+}
+function renderProductRows(rows){
+  const list=state.products;
+  $('count').textContent=list.length+' product'+(list.length===1?'':'s');
+  if(!list.length){rows.appendChild(h('tr',null,h('td',{colspan:PRODUCT_COLS,class:'empty',text:'No products found.'})));return}
+  for(const p of list){
+    const tr=h('tr',{tabindex:0,'aria-label':'Open '+p.name,class:p.id===state.productId?'sel':null,
+      'aria-expanded':p.id===state.productId?'true':'false',
+      onclick:()=>openProduct(p.id,tr),
+      onkeydown:e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openProduct(p.id,tr)}}},
+      h('td',null,h('strong',{text:p.name}),h('div',{class:'sub',text:p.deleted?'Removed from the Showcase · stock kept':(p.sku||p.id)})),
+      h('td',{text:p.deleted?p.trackedCount+' stock row'+(p.trackedCount===1?'':'s'):p.trackedCount+' of '+p.variantCount}),
+      h('td',{class:'num',text:p.trackedCount?String(p.available):'—'}),
+      h('td',{class:'num',text:p.trackedCount?String(p.reserved):'—'}),
+      h('td',{class:'num hide-sm',text:p.trackedCount?String(p.incoming):'—'}),
+      h('td',{class:'num hide-sm',text:p.trackedCount?String(p.damaged):'—'}),
+      h('td',{class:'num'},p.lowCount?h('span',{class:'pill low',text:p.lowCount+' of '+p.variantCount}):('0 of '+p.variantCount)),
+      h('td',{class:'num'},p.outCount?h('span',{class:'pill out',text:p.outCount+' of '+p.variantCount}):('0 of '+p.variantCount)));
+    tr.dataset.pid=p.id;
+    rows.appendChild(tr);
+  }
+}
+// Default view: one row per stocked SKU (one product colour). Products without an
+// inventory row are absent, so nothing that was never ordered shows up here.
+function renderSkuRows(rows){
+  const list=state.skus;
+  const nProd=new Set(list.map(s=>s.productId)).size;
+  $('count').textContent=list.length+' SKU'+(list.length===1?'':'s')+' · '+nProd+' product'+(nProd===1?'':'s');
+  if(!list.length){rows.appendChild(h('tr',null,h('td',{colspan:SKU_COLS,class:'empty',text:'No stocked SKUs found.'})));return}
+  for(const s of list){
+    const v={sku:s.sku,colorName:s.colorName,colorHex:s.colorHex,size:s.size,available:s.available,
+      threshold:s.threshold,tracked:true,low:s.low,out:s.out};
+    const label=colourLabel(v)+' / '+sizeLabel(v.size);
+    const actions=h('div',{class:'actions'});
+    actions.append(
+      h('button',{type:'button',class:'secondary small',text:'Set','aria-label':'Set available for '+label,onclick:e=>formSet(v,e.currentTarget)}),
+      h('button',{type:'button',class:'secondary small',text:'Adjust','aria-label':'Adjust available for '+label,onclick:e=>formAdjust(v,e.currentTarget)}),
+      h('button',{type:'button',class:'secondary small',text:'Threshold','aria-label':'Low-stock threshold for '+label,onclick:e=>formThreshold(v,e.currentTarget)}));
+    actions.addEventListener('click',e=>e.stopPropagation());
+    actions.addEventListener('keydown',e=>e.stopPropagation());
+    const open=()=>{
+      if(state.productId===s.productId&&$('detailRow')){closeProduct();return}
+      openProduct(s.productId,productRow(s.productId));
+    };
+    const tr=h('tr',{tabindex:0,'aria-label':'Open '+s.productName,class:s.productId===state.productId?'sel':null,
+      'aria-expanded':s.productId===state.productId?'true':'false',
+      onclick:open,
+      onkeydown:e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}}},
+      h('td',null,h('strong',{text:s.productName}),h('div',{class:'sub',text:s.deleted?'Removed from the Showcase · stock kept':(s.productSku||s.productId)})),
+      h('td',null,s.colorId===''?null:swatch(s.colorHex),colourLabel(s)),
+      h('td',{class:'clamp',title:sizeLabel(s.size),text:sizeLabel(s.size)}),
+      h('td',{class:'clamp',title:s.sku},h('code',{text:s.sku})),
+      h('td',{class:'num',text:String(s.available)}),
+      h('td',{class:'num',text:String(s.reserved)}),
+      h('td',{class:'num hide-sm',text:String(s.incoming)}),
+      h('td',{class:'num hide-sm',text:String(s.damaged)}),
+      h('td',null,statusPill(s)),
+      h('td',null,actions));
+    tr.dataset.pid=s.productId;
+    rows.appendChild(tr);
+  }
+}
 async function loadProducts(){
   const rows=$('rows');
   try{
     const b=await api(API+(state.q?'?q='+encodeURIComponent(state.q):''));
     parkPanel();   // move #panel out before clearing so the node (and its ids) survives
     clear(rows);
+    renderHead();
     if(b.migrationRequired){migrationMessage($('msg'));$('count').textContent='';return}
     hide($('msg'));
     state.products=b.products||[];
-    $('count').textContent=state.products.length+' product'+(state.products.length===1?'':'s');
-    if(!state.products.length){rows.appendChild(h('tr',null,h('td',{colspan:8,class:'empty',text:'No products found.'})));return}
-    for(const p of state.products){
-      const tr=h('tr',{tabindex:0,'aria-label':'Open '+p.name,class:p.id===state.productId?'sel':null,
-        'aria-expanded':p.id===state.productId?'true':'false',
-        onclick:()=>openProduct(p.id,tr),
-        onkeydown:e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openProduct(p.id,tr)}}},
-        h('td',null,h('strong',{text:p.name}),h('div',{class:'sub',text:p.deleted?'Removed from the Showcase · stock kept':(p.sku||p.id)})),
-        h('td',{text:p.deleted?p.trackedCount+' stock row'+(p.trackedCount===1?'':'s'):p.trackedCount+' of '+p.variantCount}),
-        h('td',{class:'num',text:p.trackedCount?String(p.available):'—'}),
-        h('td',{class:'num',text:p.trackedCount?String(p.reserved):'—'}),
-        h('td',{class:'num hide-sm',text:p.trackedCount?String(p.incoming):'—'}),
-        h('td',{class:'num hide-sm',text:p.trackedCount?String(p.damaged):'—'}),
-        h('td',{class:'num'},p.lowCount?h('span',{class:'pill low',text:p.lowCount+' of '+p.variantCount}):('0 of '+p.variantCount)),
-        h('td',{class:'num'},p.outCount?h('span',{class:'pill out',text:p.outCount+' of '+p.variantCount}):('0 of '+p.variantCount)));
-      tr.dataset.pid=p.id;
-      rows.appendChild(tr);
-    }
+    state.skus=b.skus||[];
+    if(state.view==='skus')renderSkuRows(rows);else renderProductRows(rows);
     placePanel();
   }catch(e){if(!(e instanceof AuthError))show($('msg'),'Could not load products: '+e.message,true)}
 }
@@ -208,7 +263,7 @@ function placePanel(){
     const panel=$('panel');
     if(panel.parentNode!==PANEL_HOME)PANEL_HOME.appendChild(panel);
     if(dr)dr.remove();
-    dr=h('tr',{id:'detailRow',class:'detail'},h('td',{colspan:8}));
+    dr=h('tr',{id:'detailRow',class:'detail'},h('td',{colspan:listCols()}));
     row.after(dr);
   }
   const td=dr.firstElementChild;
@@ -492,7 +547,7 @@ function openForm({title,sub,fields,submitLabel,onSubmit,onInput},from){
       if(res&&res.error){show(err,res.error,true);return}
       closeForm();
       await refreshProduct();
-      if(res&&res.done)show($('pMsg'),res.done,false);
+      if(res&&res.done)show(state.view==='skus'&&$('panel').classList.contains('hidden')?$('msg'):$('pMsg'),res.done,false);
     }catch(ex){if(!(ex instanceof AuthError))show(err,ex.message,true)}
     finally{submit.disabled=false}
   });
@@ -579,6 +634,7 @@ function formTrackOne(v,from){
 let searchTimer=null;
 $('search').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{state.q=$('search').value.trim().slice(0,100);loadProducts()},250)});
 $('reload').addEventListener('click',()=>{hide($('msg'));refreshProduct()});
+$('showAll').addEventListener('change',()=>{state.view=$('showAll').checked?'products':'skus';closeProduct();loadProducts()});
 $('overlay').addEventListener('click',closeForm);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('modal').classList.contains('hidden'))closeForm()});
 AdminAuth.require({onReady(){showEditor();loadProducts();}});

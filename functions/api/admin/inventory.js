@@ -20,7 +20,7 @@ import { SHOWCASE_ORDERS_WHERE } from '../../_lib/orders.js';
 /**
  * /api/admin/inventory — Guangzhou warehouse stock for Showcase variants (Phase 1).
  *
- *  GET  /api/admin/inventory?q=            -> showcase products with stock totals
+ *  GET  /api/admin/inventory?q=            -> { products: product totals, skus: flat per-colour stock rows }
  *  GET  /api/admin/inventory?productId=    -> one product: colour × size matrix, unlinked rows, movements
  *  POST {op:'track', productId, variants?, reason?}             -> start tracking variants
  *  POST {op:'set', sku, available, expected, reason}            -> set available (optimistic lock)
@@ -194,10 +194,72 @@ async function listProducts(db, q) {
       updatedAt: a?.upd || null,
     });
   }
-  return reply({ products });
+  return reply({ products, skus: await ivwListStockSkus(db, q) });
 }
 
 const deletedProductName = (id) => `Deleted product (${id})`;
+
+// Flat list for the SKU view: one row = one inventory stock code = one product
+// colour (+ size). Products with no stock row are absent by construction, so the
+// list only shows items that were actually ordered / stocked. Colour names come
+// from the live showcase_products.colors_json, matched by the stable colour id.
+async function ivwListStockSkus(db, q) {
+  const res = await db.prepare(
+    `SELECT i.sku, i.product_id, i.color_id, i.size, i.available, i.reserved,
+            i.incoming, i.damaged, i.low_stock_threshold, i.updated_at,
+            p.sku AS p_sku, p.name AS p_name, p.colors_json, p.sizes_json, p.sort AS p_sort
+     FROM inventory i
+     LEFT JOIN showcase_products p ON p.id = i.product_id`
+  ).all();
+  const needle = q ? q.toLowerCase() : '';
+  const out = [];
+  for (const r of res.results || []) {
+    const live = !!(r.p_sku || r.p_name);
+    const matrix = live
+      ? invProductMatrix({ id: r.product_id, sku: r.p_sku, colors_json: r.colors_json, sizes_json: r.sizes_json })
+      : [];
+    const cell = matrix.find((c) => c.colorId === r.color_id && c.size === r.size)
+      || matrix.find((c) => c.colorId === r.color_id) || null;
+    const colorName = cell ? cell.colorName : '';
+    const colorHex = cell ? cell.colorHex : '';
+    const colorIndex = cell && cell.colorIndex != null ? cell.colorIndex : 9999;
+    const threshold = r.low_stock_threshold ?? null;
+    const available = Number(r.available) || 0;
+    const productName = r.p_name || deletedProductName(r.product_id);
+    const row = {
+      sku: r.sku,
+      productId: r.product_id,
+      productSku: r.p_sku || null,
+      productName,
+      deleted: !r.p_name,
+      colorId: r.color_id,
+      colorName,
+      colorHex,
+      size: r.size,
+      available,
+      reserved: Number(r.reserved) || 0,
+      incoming: Number(r.incoming) || 0,
+      damaged: Number(r.damaged) || 0,
+      threshold,
+      low: threshold !== null && available <= threshold,
+      out: available === 0,
+      tracked: true,
+      updatedAt: r.updated_at || null,
+    };
+    if (needle && ![row.sku, row.productSku, row.productName, row.colorName, row.size]
+      .some((v) => String(v || '').toLowerCase().includes(needle))) continue;
+    out.push({ row, key: [Number(r.p_sort) || 0, productName.toLowerCase(), colorIndex,
+      String(r.size || ''), row.sku] });
+  }
+  out.sort((a, b) => {
+    for (let i = 0; i < a.key.length; i++) {
+      if (a.key[i] < b.key[i]) return -1;
+      if (a.key[i] > b.key[i]) return 1;
+    }
+    return 0;
+  });
+  return out.map((x) => x.row);
+}
 
 async function productDetail(db, productId) {
   const live = await loadProduct(db, productId);
@@ -286,7 +348,8 @@ export async function onRequestGet({ request, env }) {
     return productId ? await productDetail(env.DB, productId) : await listProducts(env.DB, q);
   } catch (e) {
     if (invClassifyError(e) === 'missing_table') {
-      return reply(productId ? { migrationRequired: true } : { migrationRequired: true, products: [] });
+      return reply(productId ? { migrationRequired: true }
+        : { migrationRequired: true, products: [], skus: [] });
     }
     console.error('admin inventory: read', e?.message);
     return reply({ error: 'Could not load inventory' }, 500);
