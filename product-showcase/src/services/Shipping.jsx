@@ -260,7 +260,7 @@ function MiniGlobe() {
   }
 
   return (
-    <div ref={wrapRef} className="relative h-[340px] lg:h-[420px] w-full cursor-grab active:cursor-grabbing">
+    <div ref={wrapRef} className="relative h-[220px] sm:h-[280px] lg:h-[300px] xl:h-[340px] w-full cursor-grab active:cursor-grabbing">
       {!inView && (
         <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
           <div className="w-10 h-10 rounded-full border-2 border-stone-200 border-t-[#e2571a] animate-spin" />
@@ -313,7 +313,7 @@ export default function Shipping() {
       <CyndiNavbar />
 
       {/* ── Header ── */}
-      <div id="top" className="max-w-[1280px] mx-auto px-6 pt-28 pb-4">
+      <div id="top" className="max-w-[1280px] mx-auto px-6 pt-24 pb-2">
         <a href="/#top"
           className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:border-stone-400 hover:bg-stone-50 hover:text-stone-900">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -322,23 +322,19 @@ export default function Shipping() {
           Back to Home
         </a>
         <h1 className="mt-4 text-4xl md:text-5xl font-bold tracking-tight">Shipping</h1>
-        <p className="mt-3.5 max-w-2xl text-stone-500 leading-relaxed text-[15px]">
-          Lower costs, better deliverability, fewer problems. Our route network radiates from our
-          Shenzhen warehouse to Asia, Europe, North America and Oceania &mdash; by sea and by air.
-        </p>
       </div>
 
       {/* ── 主体：左查询 + 右小地球 ── */}
-      <section className="max-w-[1280px] mx-auto px-6 pt-4 pb-10">
+      <section className="max-w-[1280px] mx-auto px-6 pt-3 pb-10">
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,1fr)] gap-8 items-start">
           <TrackingPanel />
 
-          <aside className="rounded-2xl bg-white ring-1 ring-stone-200/70 px-3 pt-6 pb-2 self-start lg:sticky lg:top-28">
+          <aside className="rounded-2xl bg-white ring-1 ring-stone-200/70 px-3 pt-5 pb-2 self-start lg:sticky lg:top-24">
             <div className="px-3">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#e07a3a]">OUR NETWORK</p>
               <h3 className="mt-2 text-lg font-semibold text-stone-900">Your SWAG, Delivered Worldwide</h3>
               <p className="mt-1.5 text-[13px] leading-relaxed text-stone-500">
-                SWAG stored in one global warehouse and delivered door-to-door to 30+ cities across Asia, Europe, North America and Oceania.
+                Lower costs, better deliverability, fewer problems. Our route network radiates from our Shenzhen warehouse to Asia, Europe, North America and Oceania &mdash; by sea and by air. SWAG stored in one global warehouse and delivered door-to-door to 30+ cities.
               </p>
             </div>
             <MiniGlobe />
