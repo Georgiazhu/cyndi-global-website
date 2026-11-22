@@ -108,10 +108,8 @@ export const serviceItems = [
 export const solutionItems = [
   { icon: 'M9 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M3 20v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1', title: 'Human Resources', blurb: 'Onboarding kits and wellness swag for your team' },
   { icon: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z', title: 'Sales & Marketing', blurb: 'Pre and post-show gifts that spark connections' },
-  { icon: 'M12 20.5S4 15 4 9.5A3.5 3.5 0 0 1 12 7a3.5 3.5 0 0 1 8 2.5c0 5.5-8 11-8 11z', title: 'Customer Success', blurb: 'Milestone rewards that delight customers' },
   { icon: 'M3 20h18 M4 20l8-14 8 14 M12 6v14', title: 'Events & Trade Shows', blurb: 'Coordinate swag logistics for any event' },
   { icon: 'M3 8h18v3H3z M5 11v9h14v-9 M12 8v12', title: 'Kitting', blurb: 'Custom kits packed and shipped from our warehouse' },
-  { icon: 'M8 4l4 3 4-3 5 3-2 4-3-1v10H8V10L5 11 3 7z', title: 'Custom Uniforms', blurb: 'Outfit every location with consistent uniforms' },
   // Moved from Service: workspace sourcing & custom exhibit builds
   { icon: 'M6 10V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4 M5 10h14a1 1 0 0 1 1 1v3H4v-3a1 1 0 0 1 1-1z M6 14v6 M18 14v6', title: 'Office Furniture Procurement', blurb: 'Source and outfit your workspace end to end', href: '/services/office-furniture.html' },
   { icon: 'M3 21h18 M5 21V8l7-4 7 4v13 M9 21v-6h6v6', title: 'Booth Construction & Exhibit Fabrication', blurb: 'Custom builds that make your brand stand out', href: '/services/exhibit-fabrication.html' },
