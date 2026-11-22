@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { serviceItems, solutionItems, brandLogos } from './menuData'
+import { serviceItems, solutionItems, brandLogos, swagCategories, swagItemLinks } from './menuData'
 
 // Stroke-icon helper. Multi-subpath strings are split on each "M" (moveto) command.
 function Icon({ d, className = 'w-[22px] h-[22px]' }) {
@@ -25,11 +25,12 @@ function NavChevron({ open }) {
 
 // Shared animated dropdown shell. Kept mounted so enter/exit can transition
 // (opacity + slight slide) instead of snapping in and out via conditional render.
-function MegaShell({ open, children, width }) {
+function MegaShell({ open, children, width, align = 'right' }) {
+  const edge = align === 'left' ? 'left-0 origin-top-left' : 'right-0 origin-top-right'
   return (
     <div
       aria-hidden={!open}
-      className={`absolute right-0 top-full -mt-4 z-50 pt-1.5 origin-top-right transition-all duration-200 ease-out ${width} ${
+      className={`absolute top-full -mt-4 z-50 pt-1.5 transition-all duration-200 ease-out ${edge} ${width} ${
         open
           ? 'opacity-100 translate-y-0 visible pointer-events-auto'
           : 'opacity-0 -translate-y-2 invisible pointer-events-none'
@@ -44,7 +45,7 @@ function MegaShell({ open, children, width }) {
 
 export default function CyndiNavbar() {
   const [scrolled, setScrolled] = useState(false)
-  const [openMenu, setOpenMenu] = useState(null)   // 'service' | 'solution' | 'brand' | null
+  const [openMenu, setOpenMenu] = useState(null)   // 'swag' | 'service' | 'solution' | 'brand' | null
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mobileSection, setMobileSection] = useState(null)  // expanded accordion section
   const closeTimer = useRef(null)
@@ -100,7 +101,6 @@ export default function CyndiNavbar() {
     `relative flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
       active ? 'text-stone-900 bg-stone-100' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50'
     }`
-  const navLink = 'text-sm font-medium text-stone-600 hover:text-stone-900 transition-colors cursor-pointer'
 
   return (
     <header
@@ -116,12 +116,18 @@ export default function CyndiNavbar() {
         </a>
 
         {/* Nav links */}
-        <ul className="hidden md:flex items-center gap-0.5" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
-          <li className="relative h-20 flex items-center px-2" onMouseEnter={() => openWith(null)}>
-            <a href="/shop.html" className={navLink + ' px-2'}>Swag</a>
+        <ul className="hidden md:flex items-center gap-1" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
+          <li className="relative h-20 flex items-center" onMouseEnter={() => openWith('swag')}>
+            <button type="button" className={triggerCls(openMenu === 'swag')} aria-expanded={openMenu === 'swag'}>
+              Swag <NavChevron open={openMenu === 'swag'} />
+            </button>
+            <span className={`pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3 h-0.5 rounded-full bg-[#e07a3a] transition-all duration-200 ${openMenu === 'swag' ? 'w-6 opacity-100' : 'w-0 opacity-0'}`} />
+            <MegaShell open={openMenu === 'swag'} width="w-[560px]" align="left">
+              <SwagMega />
+            </MegaShell>
           </li>
 
-          <li className="relative h-20 flex items-center px-2" onMouseEnter={() => openWith('service')}>
+          <li className="relative h-20 flex items-center" onMouseEnter={() => openWith('service')}>
             <button type="button" className={triggerCls(openMenu === 'service')} aria-expanded={openMenu === 'service'}>
               Service <NavChevron open={openMenu === 'service'} />
             </button>
@@ -131,7 +137,7 @@ export default function CyndiNavbar() {
             </MegaShell>
           </li>
 
-          <li className="relative h-20 flex items-center px-2" onMouseEnter={() => openWith('solution')}>
+          <li className="relative h-20 flex items-center" onMouseEnter={() => openWith('solution')}>
             <button type="button" className={triggerCls(openMenu === 'solution')} aria-expanded={openMenu === 'solution'}>
               Solution <NavChevron open={openMenu === 'solution'} />
             </button>
@@ -141,10 +147,10 @@ export default function CyndiNavbar() {
             </MegaShell>
           </li>
 
-          <li className="relative h-20 flex items-center px-2" onMouseEnter={() => openWith('brand')}>
-            <a href="#brand" className={triggerCls(openMenu === 'brand')}>
+          <li className="relative h-20 flex items-center" onMouseEnter={() => openWith('brand')}>
+            <button type="button" className={triggerCls(openMenu === 'brand')} aria-expanded={openMenu === 'brand'}>
               Brand <NavChevron open={openMenu === 'brand'} />
-            </a>
+            </button>
             <span className={`pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3 h-0.5 rounded-full bg-[#e07a3a] transition-all duration-200 ${openMenu === 'brand' ? 'w-6 opacity-100' : 'w-0 opacity-0'}`} />
             <MegaShell open={openMenu === 'brand'} width="w-[420px]">
               <div className="-mt-1">
@@ -376,6 +382,50 @@ function SimpleMega({ items }) {
             </div>
           )
         })}
+      </div>
+    </div>
+  )
+}
+
+// ── Swag mega: category grid ──
+// Groups swagCategories into a compact multi-column grid; every item that has a
+// matching anchor in swagItemLinks links straight to that shop section.
+function SwagMega() {
+  const columns = [swagCategories.slice(0, 3), swagCategories.slice(3, 6), swagCategories.slice(6)]
+  return (
+    <div className="bg-white border border-stone-200 rounded-2xl shadow-[0_24px_60px_-12px_rgba(0,0,0,0.18)] p-4">
+      <a href="/shop.html"
+        className="group mb-3 flex items-center justify-between rounded-xl bg-stone-900 px-4 py-3 transition-colors hover:bg-stone-800">
+        <span className="flex items-center gap-2.5">
+          <Icon d="M4 7h16l-1 13H5z M9 7V5a3 3 0 0 1 6 0v2" className="w-5 h-5 text-white" />
+          <strong className="text-[14px] font-semibold text-white">Shop all swag</strong>
+        </span>
+        <span className="text-white/80 text-lg leading-none transition-transform duration-200 group-hover:translate-x-1">›</span>
+      </a>
+      <div className="grid grid-cols-3 gap-x-4 gap-y-1">
+        {columns.map((col, ci) => (
+          <div key={ci} className="flex flex-col gap-0.5">
+            {col.map(cat => (
+              <div key={cat.name} className="rounded-lg px-2 py-1.5 hover:bg-[#fdf5ef] transition-colors">
+                <p className="flex items-center gap-2 text-[13px] font-semibold text-stone-900">
+                  <Icon d={cat.icon} className="w-4 h-4 text-[#e07a3a]" />
+                  {cat.name}
+                </p>
+                <p className="mt-1 flex flex-wrap items-center gap-y-0.5 pl-6">
+                  {cat.items.map((item, ii) => {
+                    const href = swagItemLinks[item]
+                    const node = href
+                      ? <a key={item} href={href} className="text-[11px] leading-snug text-stone-500 hover:text-[#b7410e]">{item}</a>
+                      : <span key={item} className="text-[11px] leading-snug text-stone-400">{item}</span>
+                    return ii < cat.items.length - 1
+                      ? <span key={item + '-w'} className="inline-flex items-center">{node}<span className="mx-1 text-stone-300">·</span></span>
+                      : node
+                    })}
+                </p>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   )
