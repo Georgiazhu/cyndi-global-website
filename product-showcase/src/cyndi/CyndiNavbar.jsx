@@ -29,14 +29,14 @@ function MegaShell({ open, children, width }) {
   return (
     <div
       aria-hidden={!open}
-      className={`absolute right-0 top-full z-50 pt-2.5 origin-top-right transition-all duration-200 ease-out ${width} ${
+      className={`absolute right-0 top-full -mt-4 z-50 pt-1.5 origin-top-right transition-all duration-200 ease-out ${width} ${
         open
           ? 'opacity-100 translate-y-0 visible pointer-events-auto'
           : 'opacity-0 -translate-y-2 invisible pointer-events-none'
       }`}
     >
       {/* invisible bridge over the gap so the pointer can travel trigger -> panel */}
-      <span className="absolute left-0 right-0 top-0 h-2.5 block" />
+      <span className="absolute left-0 right-0 top-0 h-1.5 block" />
       {children}
     </div>
   )
@@ -311,7 +311,7 @@ function SimpleMega({ items }) {
 
   return (
     <div className="bg-white border border-stone-200 rounded-2xl shadow-[0_24px_60px_-12px_rgba(0,0,0,0.18)] p-2.5 overflow-hidden">
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-0.5" onMouseLeave={() => setExpanded(null)}>
         {items.map(it => {
           const hasChildren = Array.isArray(it.children) && it.children.length > 0
           const isOpen = expanded === it.title
@@ -323,6 +323,7 @@ function SimpleMega({ items }) {
           if (!hasChildren) {
             return (
               <a key={it.title} href={it.href || '#'}
+                onMouseEnter={() => setExpanded(null)}
                 className="group relative flex items-center gap-3 p-2.5 rounded-xl transition-all duration-200 hover:bg-[#fdf5ef] active:scale-[0.98] active:bg-[#fbe7d7]">
                 <span className={iconChip(false)}>
                   <Icon d={it.icon} className="w-5 h-5" />
