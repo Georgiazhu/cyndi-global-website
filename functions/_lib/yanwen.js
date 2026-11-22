@@ -4,6 +4,20 @@
 
 export const YANWEN_TRACK_URL = 'http://api.track.yw56.com.cn/api/tracking';
 
+// 面向客户的所有文本统一用自有品牌，抹去上游承运商名称。
+// 轨迹 message、承运商名等来自上游 API，可能夹杂第三方公司名，统一清洗后再下发。
+export function scrubCarrierName(text) {
+  if (!text || typeof text !== 'string') return text;
+  return text
+    .replace(/Yanwen\s*Logistics/gi, 'Cyndi Global')
+    .replace(/Yanwen\s*Express/gi, 'Cyndi Global')
+    .replace(/Yanwen/gi, 'Cyndi Global')
+    .replace(/YW56/gi, 'Cyndi Global')
+    .replace(/燕文物流/g, 'Cyndi Global')
+    .replace(/燕文快递/g, 'Cyndi Global')
+    .replace(/燕文/g, 'Cyndi Global');
+}
+
 // ── 一级状态（tracking_status_waybill.level1）→ 前端统一状态 ──
 // 统一状态取值：delivered / in_transit / out_for_delivery / available_for_pickup /
 //               exception / delivery_failed / returned / pending / not_found / closed / unknown
@@ -33,10 +47,10 @@ const LEVEL2 = {
 const OP_CODES = {
   OR10: '订单已生成', OR14: '尾程派送订单确认', OR16: '尾程创建订单成功',
   OR30: '订单已取消', OR35: '发货截留成功',
-  PU10: '燕文已揽收', PU30: '揽收失败',
-  SC00: '进入燕文揽收仓', SC10: '录入成功', SC11: '组直封包', SC12: '组正式包',
+  PU10: '包裹已揽收', PU30: '揽收失败',
+  SC00: '进入揽收仓', SC10: '录入成功', SC11: '组直封包', SC12: '组正式包',
   SC13: '大包接收', SC15: '交付成品库', SC16: '成品库接收', SC17: '大包装车',
-  SC18: '大包发运', SC19: '口岸仓接收', SC20: '离开燕文处理中心', SC21: '异常件录入',
+  SC18: '大包发运', SC19: '口岸仓接收', SC20: '离开处理中心', SC21: '异常件录入',
   SC26: '揽收仓装车', SC27: '出库安检', SC34: '退件已领取', SC36: '异常件完结',
   SC37: '退件签收失败', SC38: '退件签收成功', SC40: '目的国承运商信息',
   SC45: '预上网', SC63: '成品大包出库', SC80: '退件发运', SC85: '司机退件送达',
@@ -114,8 +128,8 @@ function parseTrackTime(timeStamp, timeZone) {
  */
 export function normalizeYanwen(payload, queriedNo) {
   if (!payload || payload.code !== 0 || !Array.isArray(payload.result) || payload.result.length === 0) {
-    const msg = payload && payload.message ? payload.message : 'No tracking record found';
-    return { found: false, source: 'yanwen', query: queriedNo, error: msg };
+    const msg = payload && payload.message ? scrubCarrierName(payload.message) : 'No tracking record found';
+    return { found: false, source: 'live', query: queriedNo, error: msg };
   }
 
   const r = payload.result[0] || {};
@@ -140,12 +154,12 @@ export function normalizeYanwen(payload, queriedNo) {
       timeZone: cp.time_zone || '',
       status: isLast ? 'current' : 'done',
       rawStatus: code,
-      title: cp.message || zh || code || 'Tracking update',
-      titleZh: zh || cp.message || '轨迹更新',
+      title: scrubCarrierName(cp.message) || zh || code || 'Tracking update',
+      titleZh: zh || scrubCarrierName(cp.message) || '轨迹更新',
       description: isLast ? (l1.zh || '') : '',
       descriptionZh: isLast ? (l1.zh || '') : '',
-      location: cp.location || '',
-      locationZh: cp.location || '',
+      location: scrubCarrierName(cp.location) || '',
+      locationZh: scrubCarrierName(cp.location) || '',
       lastMile: Number(cp.is_last_mile_checkpoint) === 1,
       extra: cp.extraProperties || null,
     };
@@ -157,14 +171,15 @@ export function normalizeYanwen(payload, queriedNo) {
 
   return {
     found: true,
-    source: 'yanwen',
+    source: 'live',
     query: queriedNo,
     trackingNo: r.tracking_number || queriedNo,
     waybillNo: r.waybill_number || '',
     exchangeNo: r.exchange_number || '', // 尾程单号
-    carrier: r.last_mile_carrier || 'Yanwen Logistics',
-    carrierWebsite: r.last_mile_carrier_website || '',
-    carrierPhone: r.last_mile_carrier_contact_number || '',
+    carrier: scrubCarrierName(r.last_mile_carrier) || 'Cyndi Global',
+    // 上游承运商的官网/电话属于第三方信息，不下发给客户。
+    carrierWebsite: '',
+    carrierPhone: '',
     status: l1.state,
     statusLabel: l1.en,
     statusLabelZh: l1.zh + (LEVEL2[level2Code] ? ` · ${LEVEL2[level2Code]}` : ''),

@@ -30,8 +30,8 @@ export async function onRequestGet({ request, env }) {
     const auth = (env.YANWEN_AUTH_CODE || '').trim();
     if (!auth) {
       return json({
-        error: 'Yanwen tracking is not configured yet. Please contact us.',
-        code: 'YANWEN_NOT_CONFIGURED',
+        error: 'Live tracking is not configured yet. Please contact us.',
+        code: 'LIVE_TRACKING_NOT_CONFIGURED',
       }, 503, headers);
     }
     return queryYanwen(q, auth, headers);
@@ -56,10 +56,10 @@ async function queryYanwen(trackingNo, auth, headers) {
     if (!upstream.ok) {
       return json({
         found: false,
-        source: 'yanwen',
+        source: 'live',
         query: trackingNo,
-        error: `Yanwen service returned ${upstream.status}`,
-        code: 'YANWEN_UPSTREAM_ERROR',
+        error: `Tracking service returned ${upstream.status}`,
+        code: 'TRACKING_UPSTREAM_ERROR',
       }, 502, headers);
     }
 
@@ -73,10 +73,10 @@ async function queryYanwen(trackingNo, auth, headers) {
     const timedOut = err && err.name === 'AbortError';
     return json({
       found: false,
-      source: 'yanwen',
+      source: 'live',
       query: trackingNo,
-      error: timedOut ? 'Yanwen service timed out. Please try again.' : 'Unable to reach Yanwen service.',
-      code: timedOut ? 'YANWEN_TIMEOUT' : 'YANWEN_NETWORK_ERROR',
+      error: timedOut ? 'Tracking service timed out. Please try again.' : 'Unable to reach tracking service.',
+      code: timedOut ? 'TRACKING_TIMEOUT' : 'TRACKING_NETWORK_ERROR',
     }, 504, headers);
   } finally {
     clearTimeout(timer);

@@ -36,3 +36,7 @@ __pycache__/
 
 # Temporary clone of the showcase repo used by scripts/build_showcase.mjs
 .tmp-showcase-build/
+
+# Local preview / verification scratch scripts (not for VCS)
+_preview-server*.mjs
+_verify-*.mjs

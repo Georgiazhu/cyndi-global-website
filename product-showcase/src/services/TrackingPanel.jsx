@@ -1,26 +1,27 @@
 import { useState } from 'react'
 
 // 客户物流查询面板（中英双语）
-// 数据源统一走 /api/tracking：燕文运单号实时查轨迹，自有产品编号查仓储记录。
+// 数据源统一走 /api/tracking：运单号实时查轨迹，自有产品编号查仓储记录。
+// 面向客户的所有文案统一使用 Cyndi Global 品牌，不暴露背后的承运商名称。
 // 与站点其余部分一致：米白底、深墨色字、橙色点缀、细边框。
 
 const I18N = {
   en: {
     badge: 'SHIPMENT TRACKING',
     title: 'Where is my shipment?',
-    intro: 'Enter a Yanwen waybill number or a Cyndi product number to see live tracking, milestones and warehouse records.',
+    intro: 'Enter your tracking number or a Cyndi product number to see live tracking, milestones and warehouse records.',
     placeholder: 'e.g. UH183870291YP or CY-THERMOS-001',
     button: 'Track',
     searching: 'Searching…',
     hint: 'Try a sample:',
-    hintYanwen: 'Yanwen waybill',
+    hintYanwen: 'Shipment tracking no.',
     hintProduct: 'Product number',
     required: 'Please enter a tracking or product number.',
     notFound: 'No record found for this number. Please check and try again.',
-    notConfigured: 'Live Yanwen tracking is being set up. Please contact us for this shipment.',
+    notConfigured: 'Live tracking is being set up. Please contact us for this shipment.',
     genericError: 'Tracking is temporarily unavailable. Please try again later.',
-    sourceYanwen: 'Yanwen live tracking',
-    sourceCyndi: 'Cyndi warehouse record',
+    sourceYanwen: 'Cyndi Global live tracking',
+    sourceCyndi: 'Cyndi Global warehouse record',
     lastUpdate: 'Last update',
     route: 'Route',
     origin: 'Origin',
@@ -52,26 +53,26 @@ const I18N = {
   zh: {
     badge: '物流追踪',
     title: '查询我的货物',
-    intro: '输入燕文运单号或 Cyndi 产品编号，查看实时轨迹、运输节点与仓储记录。',
+    intro: '输入您的物流单号或 Cyndi 产品编号，查看实时轨迹、运输节点与仓储记录。',
     placeholder: '例如 UH183870291YP 或 CY-THERMOS-001',
     button: '查询',
     searching: '查询中…',
     hint: '可试示例：',
-    hintYanwen: '燕文运单号',
+    hintYanwen: '物流单号',
     hintProduct: '产品编号',
     required: '请输入运单号或产品编号。',
     notFound: '未查询到该单号的记录，请核对后重试。',
-    notConfigured: '燕文实时查询正在配置中，请联系我们获取该票货状态。',
+    notConfigured: '实时查询正在开通中，请联系我们获取该票货状态。',
     genericError: '物流服务暂时不可用，请稍后再试。',
-    sourceYanwen: '燕文实时轨迹',
-    sourceCyndi: 'Cyndi 仓储记录',
+    sourceYanwen: 'Cyndi Global 实时轨迹',
+    sourceCyndi: 'Cyndi Global 仓储记录',
     lastUpdate: '最后更新',
     route: '运输路线',
     origin: '始发地',
     destination: '目的地',
     details: '运输详情',
     trackingNo: '物流单号',
-    waybillNo: '燕文单号',
+    waybillNo: '运单号',
     lastMileNo: '尾程单号',
     carrier: '承运商',
     milestones: '物流轨迹',
@@ -146,7 +147,7 @@ export default function TrackingPanel() {
       const res = await fetch(`/api/tracking?q=${encodeURIComponent(q)}`, { headers: { Accept: 'application/json' } })
       const body = await res.json().catch(() => ({}))
       if (!res.ok || body.found === false || body.error) {
-        if (body.code === 'YANWEN_NOT_CONFIGURED') setError(t.notConfigured)
+        if (body.code === 'LIVE_TRACKING_NOT_CONFIGURED') setError(t.notConfigured)
         else if (res.status === 404 || body.found === false) setError(t.notFound)
         else setError(body.error || t.genericError)
         return
@@ -232,7 +233,7 @@ export default function TrackingPanel() {
                 </span>
               </div>
               <p className="mt-1.5 text-[12px] text-stone-500">
-                {result.source === 'yanwen' ? t.sourceYanwen : t.sourceCyndi}
+                {result.source === 'live' ? t.sourceYanwen : t.sourceCyndi}
                 <span className="mx-2 text-stone-300">·</span>
                 {t.lastUpdate} {fmtDate(result.lastUpdated, lang)}
               </p>
