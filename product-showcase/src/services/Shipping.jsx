@@ -209,7 +209,7 @@ export default function Shipping() {
           <aside className="rounded-2xl bg-white ring-1 ring-stone-200/70 px-3 pt-6 pb-2 self-start lg:sticky lg:top-28">
             <div className="px-3">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#e07a3a]">OUR NETWORK</p>
-              <h3 className="mt-2 text-lg font-semibold text-stone-900">From China to the world</h3>
+              <h3 className="mt-2 text-lg font-semibold text-stone-900">From Cyndi to the world</h3>
               <p className="mt-1.5 text-[13px] leading-relaxed text-stone-500">
                 One global warehouse, door-to-door delivery across Asia, Europe, North America and Oceania.
               </p>
