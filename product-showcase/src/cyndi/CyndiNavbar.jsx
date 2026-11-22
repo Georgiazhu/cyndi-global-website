@@ -12,6 +12,36 @@ function Icon({ d, className = 'w-[22px] h-[22px]' }) {
   )
 }
 
+// Small chevron on the top-level triggers; rotates when its panel is open.
+function NavChevron({ open }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round"
+      className={`w-3 h-3 shrink-0 transition-all duration-200 ${open ? 'rotate-180 text-[#e07a3a]' : 'text-stone-400'}`}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
+
+// Shared animated dropdown shell. Kept mounted so enter/exit can transition
+// (opacity + slight slide) instead of snapping in and out via conditional render.
+function MegaShell({ open, children, width }) {
+  return (
+    <div
+      aria-hidden={!open}
+      className={`absolute right-0 top-full z-50 pt-2.5 origin-top-right transition-all duration-200 ease-out ${width} ${
+        open
+          ? 'opacity-100 translate-y-0 visible pointer-events-auto'
+          : 'opacity-0 -translate-y-2 invisible pointer-events-none'
+      }`}
+    >
+      {/* invisible bridge over the gap so the pointer can travel trigger -> panel */}
+      <span className="absolute left-0 right-0 top-0 h-2.5 block" />
+      {children}
+    </div>
+  )
+}
+
 export default function CyndiNavbar() {
   const [scrolled, setScrolled] = useState(false)
   const [openMenu, setOpenMenu] = useState(null)   // 'service' | 'solution' | 'brand' | null
@@ -65,6 +95,11 @@ export default function CyndiNavbar() {
     if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null }
   }
 
+  // Top-level trigger: active state = tinted pill + orange underline + chevron flip.
+  const triggerCls = (active) =>
+    `relative flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+      active ? 'text-stone-900 bg-stone-100' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50'
+    }`
   const navLink = 'text-sm font-medium text-stone-600 hover:text-stone-900 transition-colors cursor-pointer'
 
   return (
@@ -81,24 +116,41 @@ export default function CyndiNavbar() {
         </a>
 
         {/* Nav links */}
-        <ul className="hidden md:flex items-center" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
-          <li className="relative h-20 flex items-center px-4" onMouseEnter={() => openWith(null)}>
-            <a href="/shop.html" className={navLink}>Swag</a>
+        <ul className="hidden md:flex items-center gap-0.5" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
+          <li className="relative h-20 flex items-center px-2" onMouseEnter={() => openWith(null)}>
+            <a href="/shop.html" className={navLink + ' px-2'}>Swag</a>
           </li>
 
-          <li className="relative h-20 flex items-center px-4" onMouseEnter={() => openWith('service')}>
-            <span className={navLink}>Service</span>
-            {openMenu === 'service' && <SimpleMega items={serviceItems} onEnter={cancelClose} onLeave={scheduleClose} />}
+          <li className="relative h-20 flex items-center px-2" onMouseEnter={() => openWith('service')}>
+            <button type="button" className={triggerCls(openMenu === 'service')} aria-expanded={openMenu === 'service'}>
+              Service <NavChevron open={openMenu === 'service'} />
+            </button>
+            <span className={`pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3 h-0.5 rounded-full bg-[#e07a3a] transition-all duration-200 ${openMenu === 'service' ? 'w-6 opacity-100' : 'w-0 opacity-0'}`} />
+            <MegaShell open={openMenu === 'service'} width="w-[392px]">
+              <SimpleMega items={serviceItems} />
+            </MegaShell>
           </li>
 
-          <li className="relative h-20 flex items-center px-4" onMouseEnter={() => openWith('solution')}>
-            <span className={navLink}>Solution</span>
-            {openMenu === 'solution' && <SimpleMega items={solutionItems} onEnter={cancelClose} onLeave={scheduleClose} />}
+          <li className="relative h-20 flex items-center px-2" onMouseEnter={() => openWith('solution')}>
+            <button type="button" className={triggerCls(openMenu === 'solution')} aria-expanded={openMenu === 'solution'}>
+              Solution <NavChevron open={openMenu === 'solution'} />
+            </button>
+            <span className={`pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3 h-0.5 rounded-full bg-[#e07a3a] transition-all duration-200 ${openMenu === 'solution' ? 'w-6 opacity-100' : 'w-0 opacity-0'}`} />
+            <MegaShell open={openMenu === 'solution'} width="w-[392px]">
+              <SimpleMega items={solutionItems} />
+            </MegaShell>
           </li>
 
-          <li className="relative h-20 flex items-center px-4" onMouseEnter={() => openWith('brand')}>
-            <a href="#brand" className={navLink}>Brand</a>
-            {openMenu === 'brand' && <BrandMega onEnter={cancelClose} onLeave={scheduleClose} />}
+          <li className="relative h-20 flex items-center px-2" onMouseEnter={() => openWith('brand')}>
+            <a href="#brand" className={triggerCls(openMenu === 'brand')}>
+              Brand <NavChevron open={openMenu === 'brand'} />
+            </a>
+            <span className={`pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3 h-0.5 rounded-full bg-[#e07a3a] transition-all duration-200 ${openMenu === 'brand' ? 'w-6 opacity-100' : 'w-0 opacity-0'}`} />
+            <MegaShell open={openMenu === 'brand'} width="w-[420px]">
+              <div className="-mt-1">
+                <BrandMega />
+              </div>
+            </MegaShell>
           </li>
         </ul>
 
@@ -252,81 +304,73 @@ function MobileMenu({ section, onToggle, onNavigate }) {
 }
 
 // ── Service / Solution mega ──
-// 支持二级：items 中带 children 的项，hover 展开子菜单（如 Swag Platform > Showcase）
-function SimpleMega({ items, onEnter, onLeave }) {
+// Rich rows: icon chip, title + blurb, slide-in arrow, press feedback.
+// Items with children expand their sub-list inline with a smooth max-height transition.
+function SimpleMega({ items }) {
   const [expanded, setExpanded] = useState(null)
 
   return (
-    <div
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
-      className="absolute right-0 top-full mt-2.5 bg-white border border-stone-200 shadow-[0_20px_50px_rgba(0,0,0,0.12)] p-5 w-[380px]"
-    >
-      <span className="absolute left-0 right-0 -top-2.5 h-2.5 block" />
-      <div className="flex flex-col gap-1">
+    <div className="bg-white border border-stone-200 rounded-2xl shadow-[0_24px_60px_-12px_rgba(0,0,0,0.18)] p-2.5 overflow-hidden">
+      <div className="flex flex-col gap-0.5">
         {items.map(it => {
           const hasChildren = Array.isArray(it.children) && it.children.length > 0
           const isOpen = expanded === it.title
+          const iconChip = (hover) =>
+            `w-11 h-11 rounded-xl grid place-items-center shrink-0 transition-all duration-200 ${hover
+              ? 'bg-white text-[#e07a3a] shadow-sm'
+              : 'bg-stone-100 text-stone-500'}`
 
           if (!hasChildren) {
             return (
-              <a key={it.title} href={it.href || '#'} className="group flex items-start gap-3.5 p-3 rounded-xl hover:bg-stone-100 transition-colors">
-                <span className="text-stone-500 group-hover:text-[#e07a3a] shrink-0 mt-0.5 transition-colors">
-                  <Icon d={it.icon} className="w-6 h-6" />
+              <a key={it.title} href={it.href || '#'}
+                className="group relative flex items-center gap-3 p-2.5 rounded-xl transition-all duration-200 hover:bg-[#fdf5ef] active:scale-[0.98] active:bg-[#fbe7d7]">
+                <span className={iconChip(false)}>
+                  <Icon d={it.icon} className="w-5 h-5" />
                 </span>
-                <span className="flex flex-col gap-0.5">
-                  <strong className="text-[15px] font-semibold text-stone-900">{it.title}</strong>
-                  <em className="not-italic text-[13px] text-stone-500 leading-snug">{it.blurb}</em>
+                <span className="flex flex-col gap-0.5 min-w-0 flex-1">
+                  <strong className="text-[15px] font-semibold text-stone-900 transition-colors duration-200 group-hover:text-[#b7410e]">{it.title}</strong>
+                  <em className="not-italic text-[12.5px] text-stone-500 leading-snug">{it.blurb}</em>
                 </span>
+                <span className="text-[#e07a3a] text-lg leading-none opacity-0 -translate-x-2 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0">›</span>
               </a>
             )
           }
 
-          // 带子项：标题本身作为分组头，子项缩进展示
+          // Group header with children (e.g. Swag Platform > Showcase)
           return (
-            <div
-              key={it.title}
-              className="rounded-xl transition-colors hover:bg-stone-100"
-              onMouseEnter={() => setExpanded(it.title)}
-            >
-              <div className="flex items-start gap-3.5 p-3">
-                <span className="text-stone-500 group-hover:text-[#e07a3a] shrink-0 mt-0.5 transition-colors">
-                  <Icon d={it.icon} className="w-6 h-6" />
+            <div key={it.title}
+              className={`rounded-xl transition-all duration-200 ${isOpen ? 'bg-[#fdf5ef]' : ''}`}
+              onMouseEnter={() => setExpanded(it.title)}>
+              <button type="button" onClick={() => setExpanded(isOpen ? null : it.title)}
+                className="w-full flex items-center gap-3 p-2.5 text-left">
+                <span className={iconChip(isOpen)}>
+                  <Icon d={it.icon} className="w-5 h-5" />
                 </span>
-                <span className="flex flex-col gap-0.5 flex-1">
-                  <strong className="text-[15px] font-semibold text-stone-900 flex items-center gap-1.5">
+                <span className="flex flex-col gap-0.5 min-w-0 flex-1">
+                  <strong className={`text-[15px] font-semibold flex items-center gap-1.5 transition-colors ${isOpen ? 'text-[#b7410e]' : 'text-stone-900'}`}>
                     {it.title}
-                    <svg
-                      width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                      className={`text-stone-400 transition-transform ${isOpen ? 'rotate-90' : ''}`}
-                    >
+                      className={`text-stone-400 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}>
                       <path d="m9 18 6-6-6-6" />
                     </svg>
                   </strong>
-                  <em className="not-italic text-[13px] text-stone-500 leading-snug">{it.blurb}</em>
+                  <em className="not-italic text-[12.5px] text-stone-500 leading-snug">{it.blurb}</em>
                 </span>
-              </div>
+              </button>
 
-              {/* 子项 */}
-              <div className="pb-2 pl-12 pr-3 flex flex-col gap-0.5">
-                {it.children.map((child) => (
-                  <a
-                    key={child.title}
-                    href={child.href || '#'}
-                    className="group flex items-center gap-2 py-2 px-3 rounded-lg text-[14px] text-stone-600 hover:text-[#e07a3a] hover:bg-white transition-colors border-l-2 border-stone-200 hover:border-[#e07a3a]"
-                  >
-                    {child.icon && (
-                      <span className="shrink-0 text-stone-400 group-hover:text-[#e07a3a] transition-colors">
-                        <Icon d={child.icon} className="w-4 h-4" />
-                      </span>
-                    )}
-                    <span className="font-medium">{child.title}</span>
-                    {child.blurb && (
-                      <em className="not-italic text-[12px] text-stone-400 ml-auto">{child.blurb}</em>
-                    )}
-                  </a>
-                ))}
+              {/* children list, animated open/close */}
+              <div className={`overflow-hidden transition-all duration-200 ${isOpen ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className="pb-2 pl-[68px] pr-3 flex flex-col gap-0.5">
+                  {it.children.map((child) => (
+                    <a key={child.title} href={child.href || '#'}
+                      className="group flex items-center gap-2 py-2 px-3 rounded-lg text-[13px] text-stone-600 transition-all duration-200 hover:text-[#b7410e] hover:bg-white hover:shadow-sm active:scale-[0.98]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-stone-300 group-hover:bg-[#e07a3a] transition-colors shrink-0" />
+                      <span className="font-medium">{child.title}</span>
+                      {child.blurb && <em className="not-italic text-[11px] text-stone-400 ml-auto">{child.blurb}</em>}
+                    </a>
+                  ))}
+                </div>
               </div>
             </div>
           )
@@ -337,20 +381,17 @@ function SimpleMega({ items, onEnter, onLeave }) {
 }
 
 // ── Brand mega: logo grid ──
-function BrandMega({ onEnter, onLeave }) {
+function BrandMega() {
   return (
-    <div
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
-      className="absolute right-0 top-full mt-2.5 bg-white border border-stone-200 shadow-[0_20px_50px_rgba(0,0,0,0.12)] p-5 w-[420px]"
-    >
-      <span className="absolute left-0 right-0 -top-2.5 h-2.5 block" />
-      <div className="grid grid-cols-2 gap-3.5">
+    <div className="bg-white border border-stone-200 rounded-2xl shadow-[0_24px_60px_-12px_rgba(0,0,0,0.18)] p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-400 mb-3 px-1">Featured brands</p>
+      <div className="grid grid-cols-2 gap-2.5">
         {brandLogos.map(b => (
           <a key={b.alt} href="#brand"
-            className="group flex items-center justify-center bg-stone-100 border border-stone-200 rounded-xl px-6 py-5 transition-transform hover:-translate-y-0.5">
+            className="group relative flex items-center justify-center bg-[#faf9f6] border border-stone-200 rounded-xl px-6 py-5 transition-all duration-200 hover:border-[#eaa177] hover:bg-white hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97] active:shadow-sm">
             <img src={b.src} alt={b.alt} loading="lazy"
-              className="max-h-10 w-auto object-contain grayscale opacity-75 group-hover:grayscale-0 group-hover:opacity-100 transition" />
+              className="max-h-10 w-auto object-contain grayscale opacity-75 group-hover:grayscale-0 group-hover:opacity-100 transition duration-200" />
+            <span className="absolute top-2 right-2 text-[#e07a3a] text-sm leading-none opacity-0 -translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0">↗</span>
           </a>
         ))}
       </div>
