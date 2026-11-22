@@ -334,7 +334,7 @@ export default function Shipping() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#e07a3a]">OUR NETWORK</p>
               <h3 className="mt-2 text-lg font-semibold text-stone-900">Your SWAG, Delivered Worldwide</h3>
               <p className="mt-1.5 text-[13px] leading-relaxed text-stone-500">
-                Fast, tax-optimized and reliable delivery. From our Shenzhen hub, sea & air routes reach Asia, Europe, North America and Oceania &mdash; SWAG stored centrally, D2D to 30+ cities.
+                Fast, tax-optimized and reliable D2D delivery. From Cyndi&rsquo;s hub, sea & air routes cover 30+ cities across Asia, Europe, North America and Oceania.
               </p>
             </div>
             <MiniGlobe />
