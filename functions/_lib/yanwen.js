@@ -176,7 +176,8 @@ export function normalizeYanwen(payload, queriedNo) {
     trackingNo: r.tracking_number || queriedNo,
     waybillNo: r.waybill_number || '',
     exchangeNo: r.exchange_number || '', // 尾程单号
-    carrier: scrubCarrierName(r.last_mile_carrier) || 'Cyndi Global',
+    // 面向客户一律显示为自有品牌，不使用上游尾程承运商名称。
+    carrier: 'Cyndi Global',
     // 上游承运商的官网/电话属于第三方信息，不下发给客户。
     carrierWebsite: '',
     carrierPhone: '',

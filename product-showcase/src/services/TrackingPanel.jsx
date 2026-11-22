@@ -9,14 +9,13 @@ const I18N = {
   en: {
     badge: 'SHIPMENT TRACKING',
     title: 'Where is my shipment?',
-    intro: 'Enter your tracking number or a Cyndi product number to see live tracking, milestones and warehouse records.',
-    placeholder: 'e.g. UH183870291YP or CY-THERMOS-001',
+    intro: 'Enter your tracking number to see live tracking and milestones.',
+    placeholder: 'e.g. UH183870291YP',
     button: 'Track',
     searching: 'Searching…',
     hint: 'Try a sample:',
     hintYanwen: 'Shipment tracking no.',
-    hintProduct: 'Product number',
-    required: 'Please enter a tracking or product number.',
+    required: 'Please enter a tracking number.',
     notFound: 'No record found for this number. Please check and try again.',
     notConfigured: 'Live tracking is being set up. Please contact us for this shipment.',
     genericError: 'Tracking is temporarily unavailable. Please try again later.',
@@ -53,14 +52,13 @@ const I18N = {
   zh: {
     badge: '物流追踪',
     title: '查询我的货物',
-    intro: '输入您的物流单号或 Cyndi 产品编号，查看实时轨迹、运输节点与仓储记录。',
-    placeholder: '例如 UH183870291YP 或 CY-THERMOS-001',
+    intro: '输入您的物流单号，查看实时轨迹与运输节点。',
+    placeholder: '例如 UH183870291YP',
     button: '查询',
     searching: '查询中…',
     hint: '可试示例：',
     hintYanwen: '物流单号',
-    hintProduct: '产品编号',
-    required: '请输入运单号或产品编号。',
+    required: '请输入物流单号。',
     notFound: '未查询到该单号的记录，请核对后重试。',
     notConfigured: '实时查询正在开通中，请联系我们获取该票货状态。',
     genericError: '物流服务暂时不可用，请稍后再试。',
@@ -208,9 +206,6 @@ export default function TrackingPanel() {
           <span>{t.hint}</span>
           <button type="button" onClick={() => sample('UH183870291YP')} className="text-[#1e5a8a] hover:underline">
             {t.hintYanwen} <code className="font-mono">UH183870291YP</code>
-          </button>
-          <button type="button" onClick={() => sample('CY-THERMOS-001')} className="text-[#1e5a8a] hover:underline">
-            {t.hintProduct} <code className="font-mono">CY-THERMOS-001</code>
           </button>
         </div>
 

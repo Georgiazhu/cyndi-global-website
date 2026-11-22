@@ -104,6 +104,8 @@ async function queryLocal(productNo, env, headers) {
       ...record,
       found: true,
       source: 'cyndi',
+      // 面向客户一律显示为自有品牌，覆盖自有库中可能存在的承运商字段。
+      carrier: 'Cyndi Global',
       query: productNo,
       statusLabel: record.statusLabel || '',
       statusLabelZh: record.statusLabelZh || '',
