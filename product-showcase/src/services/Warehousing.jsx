@@ -13,7 +13,7 @@ const IMAGES = [
 ]
 
 const STATS = [
-  { place: 'Guangzhou', desc: '2 owned warehouses' },
+  { place: 'Shenzhen & Guangzhou', desc: '2 owned warehouses' },
   { place: 'HK, London & beyond', desc: 'partner warehouses' },
   { place: '20+ countries', desc: 'served worldwide' },
 ]
