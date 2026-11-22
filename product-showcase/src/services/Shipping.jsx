@@ -62,22 +62,57 @@ const ARCS = ARC_CITIES.map(d => ({
   alt: Math.min(0.42, 0.05 + haversine(SZ, d) / 26000),
 }))
 
+const RINGS = [{ lat: SZ.lat, lng: SZ.lng }]
+
+// 全球城市标注池。rank 越小优先级越高：0=仓库中心，1=一线/枢纽，2=大国二三线。
+// 渲染时会做屏幕空间碰撞检测，密集区域只保留高优先级，杜绝名字重叠。
+const CITY_LABELS = [
+  // 仓库中心（深圳与香港地理位置紧邻，合并标注，避免两标签在球面上重叠）
+  { lat: SZ.lat, lng: SZ.lng, text: 'Shenzhen · HK', origin: true, rank: 0 },
+  // 一线 / 用户点名枢纽
+  { lat: 39.9042, lng: 116.4074, text: 'Beijing', rank: 1 },
+  { lat: 31.2304, lng: 121.4737, text: 'Shanghai', rank: 1 },
+  { lat: 41.8781, lng: -87.6298, text: 'Chicago', rank: 1 },
+  { lat: 34.0522, lng: -118.2437, text: 'Los Angeles', rank: 1 },
+  { lat: 37.7749, lng: -122.4194, text: 'San Francisco', rank: 1 },
+  { lat: -37.8136, lng: 144.9631, text: 'Melbourne', rank: 1 },
+  { lat: 1.3521, lng: 103.8198, text: 'Singapore', rank: 1 },
+  { lat: 35.6762, lng: 139.6503, text: 'Tokyo', rank: 1 },
+  { lat: 51.5074, lng: -0.1278, text: 'London', rank: 1 },
+  { lat: 40.7128, lng: -74.0060, text: 'New York', rank: 1 },
+  { lat: -33.8688, lng: 151.2093, text: 'Sydney', rank: 1 },
+  { lat: 48.8566, lng: 2.3522, text: 'Paris', rank: 1 },
+  { lat: 52.5200, lng: 13.4050, text: 'Berlin', rank: 1 },
+  // 大国第二 / 第三线城市
+  { lat: 30.5728, lng: 104.0668, text: 'Chengdu', rank: 2 },
+  { lat: 23.1291, lng: 113.2644, text: 'Guangzhou', rank: 2 },
+  { lat: 34.6937, lng: 135.5023, text: 'Osaka', rank: 2 },
+  { lat: 37.5665, lng: 126.9780, text: 'Seoul', rank: 2 },
+  { lat: 19.0760, lng: 72.8777, text: 'Mumbai', rank: 2 },
+  { lat: 28.6139, lng: 77.2090, text: 'New Delhi', rank: 2 },
+  { lat: 55.7558, lng: 37.6173, text: 'Moscow', rank: 2 },
+  { lat: 48.1351, lng: 11.5820, text: 'Munich', rank: 2 },
+  { lat: 53.4808, lng: -2.2426, text: 'Manchester', rank: 2 },
+  { lat: 41.9028, lng: 12.4964, text: 'Rome', rank: 2 },
+  { lat: 43.6532, lng: -79.3832, text: 'Toronto', rank: 2 },
+  { lat: 49.2827, lng: -123.1207, text: 'Vancouver', rank: 2 },
+  { lat: 29.7604, lng: -95.3698, text: 'Houston', rank: 2 },
+  { lat: 42.3601, lng: -71.0589, text: 'Boston', rank: 2 },
+  { lat: -27.4698, lng: 153.0251, text: 'Brisbane', rank: 2 },
+  { lat: -31.9523, lng: 115.8613, text: 'Perth', rank: 2 },
+  { lat: -36.8485, lng: 174.7633, text: 'Auckland', rank: 2 },
+  { lat: 25.2048, lng: 55.2708, text: 'Dubai', rank: 2 },
+  { lat: 14.5995, lng: 120.9842, text: 'Manila', rank: 2 },
+  { lat: 13.7563, lng: 100.5018, text: 'Bangkok', rank: 2 },
+]
+
+// 发光点 = 原有目的地 + 标注池城市（去重），中心单独放大
 const POINTS = [
   { lat: SZ.lat, lng: SZ.lng, color: '#c2410c', size: 0.55 },
   ...DESTINATIONS.map(d => ({ lat: d.lat, lng: d.lng, color: d.color, size: 0.22 })),
-]
-
-const RINGS = [{ lat: SZ.lat, lng: SZ.lng }]
-
-// 只给地理上分散的跨洲枢纽打标签；其余城市保留发光点与弧线。
-// 中心 Shenzhen 单独作为起点标签。
-const HUBS = [
-  { lat: SZ.lat, lng: SZ.lng, text: 'Shenzhen', origin: true },
-  { lat: 1.3521, lng: 103.8198, text: 'Singapore', origin: false },
-  { lat: 35.6762, lng: 139.6503, text: 'Tokyo', origin: false },
-  { lat: 51.5074, lng: -0.1278, text: 'London', origin: false },
-  { lat: 40.7128, lng: -74.0060, text: 'New York', origin: false },
-  { lat: -33.8688, lng: 151.2093, text: 'Sydney', origin: false },
+  ...CITY_LABELS.filter(c => !c.origin &&
+      !DESTINATIONS.some(d => Math.abs(d.lat - c.lat) < 0.01 && Math.abs(d.lng - c.lng) < 0.01)
+    ).map(c => ({ lat: c.lat, lng: c.lng, color: c.rank === 1 ? '#e2571a' : '#e7a23c', size: c.rank === 1 ? 0.24 : 0.16 })),
 ]
 
 const INITIAL_POV = { lat: 20, lng: 100, altitude: 2.45 }
@@ -97,6 +132,33 @@ function angularDistance(a, b) {
   const la2 = b.lat * Math.PI / 180, lo2 = b.lng * Math.PI / 180
   const d = Math.sin(la1) * Math.sin(la2) + Math.cos(la1) * Math.cos(la2) * Math.cos(lo2 - lo1)
   return Math.acos(Math.max(-1, Math.min(1, d))) * 180 / Math.PI
+}
+
+// 计算当前视角下应该显示哪些城市标签：
+// 1) 只取落在可见半球的；2) 按优先级排序后用屏幕坐标做碰撞检测，
+// 两个标签像素距离过近则舍弃低优先级者 —— 保证再多城市也不会叠字。
+const LABEL_MIN_GAP = 62   // 两个标签中心的最小像素间距
+function selectVisibleLabels(g, center) {
+  const candidates = []
+  for (const c of CITY_LABELS) {
+    if (angularDistance(c, center) >= 78) continue
+    try {
+      const p = g.getScreenCoords(c.lat, c.lng, 0.02)
+      if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) {
+        candidates.push({ ...c, sx: p.x, sy: p.y })
+      }
+    } catch { /* ignore */ }
+  }
+  // 中心优先，其次按 rank，最后按纬度（稳定顺序）
+  candidates.sort((a, b) => (a.rank - b.rank) || (b.lat - a.lat))
+  const chosen = []
+  for (const c of candidates) {
+    const clash = chosen.some(o =>
+      Math.abs(o.sx - c.sx) < LABEL_MIN_GAP && Math.abs(o.sy - c.sy) < 20
+    )
+    if (!clash) chosen.push(c)
+  }
+  return chosen
 }
 
 // 每个可见枢纽渲染成精致的 HTML 徽章
@@ -130,9 +192,7 @@ function MiniGlobe() {
   const wrapRef = useRef(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [inView, setInView] = useState(false)
-  const [visibleHubs, setVisibleHubs] = useState(() =>
-    HUBS.filter(h => angularDistance(h, { lat: INITIAL_POV.lat, lng: INITIAL_POV.lng }) < 78)
-  )
+  const [visibleHubs, setVisibleHubs] = useState([])
 
   useEffect(() => {
     const el = wrapRef.current
@@ -155,18 +215,19 @@ function MiniGlobe() {
     return () => io.disconnect()
   }, [])
 
-  // 地球自动旋转时，持续计算落在可见半球的枢纽；只在集合变化时更新 state。
+  // 地球自动旋转时，持续重算可见+无碰撞的城市标签；只在集合变化时更新 state。
   useEffect(() => {
     if (!inView) return
     let raf = 0
     let lastKey = ''
+    let frame = 0
     const tick = () => {
       const g = globeRef.current
-      if (g) {
+      if (g && (frame++ % 3 === 0)) {   // 每 3 帧算一次，降低开销
         try {
           const pov = g.pointOfView()
           const center = { lat: pov.lat, lng: pov.lng }
-          const vis = HUBS.filter(h => angularDistance(h, center) < 80)
+          const vis = selectVisibleLabels(g, center)
           const key = vis.map(v => v.text).join('|')
           if (key !== lastKey) { lastKey = key; setVisibleHubs(vis) }
         } catch { /* ignore */ }
