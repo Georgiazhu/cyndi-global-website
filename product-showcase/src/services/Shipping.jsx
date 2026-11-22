@@ -7,13 +7,13 @@ import TrackingPanel from './TrackingPanel'
 const Globe = lazy(() => import('react-globe.gl'))
 
 // Shipping 服务页：顶部为客户物流查询（TrackingPanel），
-// 3D 地球缩小置于右侧，作为全球路由网络的视觉佐证。
-// 底色与网站底色一致（#faf9f6），地球悬浮、无面板无渐变。
+// 3D 点阵地球缩小置于右侧，作为全球路由网络的视觉佐证。
+// 标签只显示朝向镜头的跨洲枢纽，彻底避免城市名叠字。
 
-const GZ = { lat: 23.1291, lng: 113.2644 }   // Guangzhou
+const SZ = { lat: 22.5431, lng: 114.0579 }   // Shenzhen — 全球仓库中心
 
 // 短程（亚洲）与远程（欧洲 / 北美 / 大洋洲）两组，用颜色区分
-const SHORT = '#f59e0b'
+const SHORT = '#e7a23c'
 const LONG = '#e2571a'
 
 const DESTINATIONS = [
@@ -50,27 +50,37 @@ const DESTINATIONS = [
   { name: 'Perth', lat: -31.9523, lng: 115.8613, color: LONG },
 ]
 
-const ARCS = DESTINATIONS.map(d => ({
-  startLat: GZ.lat, startLng: GZ.lng,
+// 弧线只画到精选的跨洲枢纽 + 少量代表城市，避免 31 条线挤成一团
+const ARC_CITIES = DESTINATIONS.filter(d =>
+  ['Singapore', 'Tokyo', 'London', 'New York', 'Sydney', 'Los Angeles',
+   'Paris', 'Dubai', 'Bangkok', 'Vancouver'].includes(d.name)
+)
+const ARCS = ARC_CITIES.map(d => ({
+  startLat: SZ.lat, startLng: SZ.lng,
   endLat: d.lat, endLng: d.lng,
   color: d.color,
-  alt: Math.min(0.55, 0.06 + haversine(GZ, d) / 22000),
+  alt: Math.min(0.42, 0.05 + haversine(SZ, d) / 26000),
 }))
 
 const POINTS = [
-  { lat: GZ.lat, lng: GZ.lng, color: '#c2410c', size: 0.5 },
-  ...DESTINATIONS.map(d => ({ lat: d.lat, lng: d.lng, color: d.color, size: 0.26 })),
+  { lat: SZ.lat, lng: SZ.lng, color: '#c2410c', size: 0.55 },
+  ...DESTINATIONS.map(d => ({ lat: d.lat, lng: d.lng, color: d.color, size: 0.22 })),
 ]
 
-const LABELS = [
-  { lat: GZ.lat, lng: GZ.lng, text: 'Guangzhou', color: '#ffffff', size: 4.2, altitude: 0.024 },
-  ...DESTINATIONS.map(d => ({
-    lat: d.lat, lng: d.lng, text: d.name, color: '#ffffff', size: 2.0, altitude: 0.018,
-  })),
+const RINGS = [{ lat: SZ.lat, lng: SZ.lng }]
+
+// 只给地理上分散的跨洲枢纽打标签；其余城市保留发光点与弧线。
+// 中心 Shenzhen 单独作为起点标签。
+const HUBS = [
+  { lat: SZ.lat, lng: SZ.lng, text: 'Shenzhen', origin: true },
+  { lat: 1.3521, lng: 103.8198, text: 'Singapore', origin: false },
+  { lat: 35.6762, lng: 139.6503, text: 'Tokyo', origin: false },
+  { lat: 51.5074, lng: -0.1278, text: 'London', origin: false },
+  { lat: 40.7128, lng: -74.0060, text: 'New York', origin: false },
+  { lat: -33.8688, lng: 151.2093, text: 'Sydney', origin: false },
 ]
 
-const RINGS = [{ lat: GZ.lat, lng: GZ.lng }]
-const INITIAL_POV = { lat: 22, lng: 108, altitude: 2.5 }
+const INITIAL_POV = { lat: 20, lng: 100, altitude: 2.45 }
 
 function haversine(a, b) {
   const R = 6371
@@ -81,11 +91,48 @@ function haversine(a, b) {
   return 2 * R * Math.asin(Math.sqrt(s))
 }
 
+// 球面角距（度）——用于判断枢纽是否落在镜头可见半球
+function angularDistance(a, b) {
+  const la1 = a.lat * Math.PI / 180, lo1 = a.lng * Math.PI / 180
+  const la2 = b.lat * Math.PI / 180, lo2 = b.lng * Math.PI / 180
+  const d = Math.sin(la1) * Math.sin(la2) + Math.cos(la1) * Math.cos(la2) * Math.cos(lo2 - lo1)
+  return Math.acos(Math.max(-1, Math.min(1, d))) * 180 / Math.PI
+}
+
+// 每个可见枢纽渲染成精致的 HTML 徽章
+function makeHubElement(hub) {
+  const el = document.createElement('div')
+  el.style.cssText = [
+    'display:inline-flex', 'align-items:center', 'gap:5px',
+    'padding:3px 9px 3px 7px', 'border-radius:999px',
+    'background:rgba(255,255,255,0.94)',
+    'border:1px solid ' + (hub.origin ? '#e8b79c' : '#e7e2da'),
+    'box-shadow:0 2px 8px rgba(60,45,30,0.13)',
+    'white-space:nowrap', 'pointer-events:none',
+    'font-family:Inter,ui-sans-serif,system-ui,sans-serif',
+    'font-size:11px', 'line-height:1.4', 'font-weight:600',
+    'color:' + (hub.origin ? '#b4400f' : '#44403c'),
+  ].join(';')
+  const dot = document.createElement('span')
+  dot.style.cssText = [
+    'width:6px', 'height:6px', 'border-radius:50%',
+    'background:' + (hub.origin ? '#c2410c' : '#e2571a'),
+  ].join(';')
+  const txt = document.createElement('span')
+  txt.textContent = hub.text
+  el.appendChild(dot)
+  el.appendChild(txt)
+  return el
+}
+
 function MiniGlobe() {
   const globeRef = useRef(null)
   const wrapRef = useRef(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [inView, setInView] = useState(false)
+  const [visibleHubs, setVisibleHubs] = useState(() =>
+    HUBS.filter(h => angularDistance(h, { lat: INITIAL_POV.lat, lng: INITIAL_POV.lng }) < 78)
+  )
 
   useEffect(() => {
     const el = wrapRef.current
@@ -108,19 +155,41 @@ function MiniGlobe() {
     return () => io.disconnect()
   }, [])
 
+  // 地球自动旋转时，持续计算落在可见半球的枢纽；只在集合变化时更新 state。
+  useEffect(() => {
+    if (!inView) return
+    let raf = 0
+    let lastKey = ''
+    const tick = () => {
+      const g = globeRef.current
+      if (g) {
+        try {
+          const pov = g.pointOfView()
+          const center = { lat: pov.lat, lng: pov.lng }
+          const vis = HUBS.filter(h => angularDistance(h, center) < 80)
+          const key = vis.map(v => v.text).join('|')
+          if (key !== lastKey) { lastKey = key; setVisibleHubs(vis) }
+        } catch { /* ignore */ }
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [inView])
+
   function handleGlobeReady() {
     const g = globeRef.current
     if (!g) return
     try {
       g.lights().forEach(l => {
-        if (l.isAmbientLight) l.intensity = 3.0
-        else if (l.isDirectionalLight) l.intensity = 0.7
+        if (l.isAmbientLight) l.intensity = 3.2
+        else if (l.isDirectionalLight) l.intensity = 0.45
       })
     } catch { /* ignore */ }
     try {
       const c = g.controls()
       if (c) {
-        c.autoRotate = true; c.autoRotateSpeed = 0.32
+        c.autoRotate = true; c.autoRotateSpeed = 0.28
         c.enableZoom = false; c.enablePan = false
         c.minPolarAngle = Math.PI / 5
         c.maxPolarAngle = Math.PI - Math.PI / 5
@@ -143,36 +212,33 @@ function MiniGlobe() {
             width={size.w}
             height={size.h}
             backgroundColor="rgba(0,0,0,0)"
-            globeImageUrl="/images/shipping/earth-blue-marble.jpg"
+            globeImageUrl="/images/shipping/earth-dots-light.png"
             showAtmosphere
-            atmosphereColor="#aebfc9"
-            atmosphereAltitude={0.18}
+            atmosphereColor="#cfd8dd"
+            atmosphereAltitude={0.16}
             onGlobeReady={handleGlobeReady}
             arcsData={ARCS}
             arcColor="color"
             arcAltitude="alt"
             arcStroke={0.5}
-            arcDashLength={0.4}
-            arcDashGap={0.2}
+            arcDashLength={0.5}
+            arcDashGap={0.3}
             arcDashAnimateTime={6000}
             arcCurveResolution={64}
             pointsData={POINTS}
             pointColor="color"
-            pointAltitude="0.012"
+            pointAltitude="0.014"
             pointRadius="size"
             pointResolution={10}
             ringsData={RINGS}
-            ringColor={() => t => `rgba(226,87,26,${(1 - t) * 0.55})`}
+            ringColor={() => t => `rgba(194,65,12,${(1 - t) * 0.5})`}
             ringMaxRadius={5}
             ringPropagationSpeed={1.1}
-            ringRepeatPeriod={2200}
-            labelsData={LABELS}
-            labelText="text"
-            labelColor="color"
-            labelSize="size"
-            labelAltitude="altitude"
-            labelIncludeDot={false}
-            labelResolution={2}
+            ringRepeatPeriod={2400}
+            htmlElementsData={visibleHubs}
+            htmlElement={makeHubElement}
+            htmlAltitude={0.02}
+            htmlTransitionDuration={350}
           />
         </Suspense>
       )}
@@ -197,7 +263,7 @@ export default function Shipping() {
         <h1 className="mt-4 text-4xl md:text-5xl font-bold tracking-tight">Shipping</h1>
         <p className="mt-3.5 max-w-2xl text-stone-500 leading-relaxed text-[15px]">
           Lower costs, better deliverability, fewer problems. Our route network radiates from our
-          Guangzhou warehouses to Asia, Europe, North America and Oceania &mdash; by sea and by air.
+          Shenzhen warehouse to Asia, Europe, North America and Oceania &mdash; by sea and by air.
         </p>
       </div>
 
