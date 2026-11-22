@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import CyndiNavbar from '../cyndi/CyndiNavbar'
+import TrackingPanel from './TrackingPanel'
 
 // 3D 地球模块（含 three.js，约 2MB）懒加载：
 // 页面先秒开，地球模块仅在滚动进入可视区后才下载和渲染
 const Globe = lazy(() => import('react-globe.gl'))
 
-// Shipping 服务页：可鼠标拖拽旋转的 3D 地球 + 广州出发的运输航线弧。
-// 底色与网站底色一致（#faf9f6），不做任何面板/渐变，让地球"悬浮"在页面上。
-// 起始点（Guangzhou）与每个终点都标注城市英文名。
+// Shipping 服务页：顶部为客户物流查询（TrackingPanel），
+// 3D 地球缩小置于右侧，作为全球路由网络的视觉佐证。
+// 底色与网站底色一致（#faf9f6），地球悬浮、无面板无渐变。
 
 const GZ = { lat: 23.1291, lng: 113.2644 }   // Guangzhou
 
@@ -15,9 +16,7 @@ const GZ = { lat: 23.1291, lng: 113.2644 }   // Guangzhou
 const SHORT = '#f59e0b'
 const LONG = '#e2571a'
 
-// 每条航线：终点坐标 + 城市英文名（结束点标注用）
 const DESTINATIONS = [
-  // ── 亚洲 / 东南亚 ──
   { name: 'Singapore', lat: 1.3521, lng: 103.8198, color: SHORT },
   { name: 'Hong Kong', lat: 22.3193, lng: 114.1694, color: SHORT },
   { name: 'Kuala Lumpur', lat: 3.1390, lng: 101.6869, color: SHORT },
@@ -28,28 +27,23 @@ const DESTINATIONS = [
   { name: 'Phuket', lat: 7.8804, lng: 98.3923, color: SHORT },
   { name: 'Hanoi', lat: 21.0278, lng: 105.8342, color: SHORT },
   { name: 'Ho Chi Minh City', lat: 10.8231, lng: 106.6297, color: SHORT },
-  // ── 日本 ──
   { name: 'Tokyo', lat: 35.6762, lng: 139.6503, color: SHORT },
   { name: 'Osaka', lat: 34.6937, lng: 135.5023, color: SHORT },
   { name: 'Nagoya', lat: 35.1815, lng: 136.9066, color: SHORT },
-  // ── 欧洲 ──
   { name: 'London', lat: 51.5074, lng: -0.1278, color: LONG },
   { name: 'Paris', lat: 48.8566, lng: 2.3522, color: LONG },
   { name: 'Amsterdam', lat: 52.3676, lng: 4.9041, color: LONG },
   { name: 'Rotterdam', lat: 51.9244, lng: 4.4777, color: LONG },
-  // ── 美国 ──
   { name: 'Los Angeles', lat: 34.0522, lng: -118.2437, color: LONG },
   { name: 'Dallas', lat: 32.7767, lng: -96.7970, color: LONG },
   { name: 'New York', lat: 40.7128, lng: -74.0060, color: LONG },
-  { name: 'Miami', lat: 25.7617, lng: -80.1918, color: LONG },
+  { name: 'Miami', lat: 25.7617, lng: -80.1912, color: LONG },
   { name: 'Chicago', lat: 41.8781, lng: -87.6298, color: LONG },
   { name: 'Philadelphia', lat: 39.9526, lng: -75.1652, color: LONG },
-  // ── 加拿大 ──
   { name: 'Toronto', lat: 43.6532, lng: -79.3832, color: LONG },
   { name: 'Vancouver', lat: 49.2827, lng: -123.1207, color: LONG },
-  { name: 'Montreal', lat: 45.5019, lng: -73.5674, color: LONG },
+  { name: 'Montreal', lat: 45.5017, lng: -73.5674, color: LONG },
   { name: 'Calgary', lat: 51.0447, lng: -114.0719, color: LONG },
-  // ── 大洋洲 ──
   { name: 'Sydney', lat: -33.8688, lng: 151.2093, color: LONG },
   { name: 'Melbourne', lat: -37.8136, lng: 144.9631, color: LONG },
   { name: 'Brisbane', lat: -27.4698, lng: 153.0251, color: LONG },
@@ -63,14 +57,11 @@ const ARCS = DESTINATIONS.map(d => ({
   alt: Math.min(0.55, 0.06 + haversine(GZ, d) / 22000),
 }))
 
-// 端点（球面上的小点）
 const POINTS = [
   { lat: GZ.lat, lng: GZ.lng, color: '#c2410c', size: 0.5 },
   ...DESTINATIONS.map(d => ({ lat: d.lat, lng: d.lng, color: d.color, size: 0.26 })),
 ]
 
-// 文字标注：起始点 Guangzhou + 每个终点城市英文名（统一白色）
-// 注意：labelSize 单位是“度”（1 度 ≈ 球半径的 1/57），需 2~4 才可读
 const LABELS = [
   { lat: GZ.lat, lng: GZ.lng, text: 'Guangzhou', color: '#ffffff', size: 4.2, altitude: 0.024 },
   ...DESTINATIONS.map(d => ({
@@ -78,10 +69,7 @@ const LABELS = [
   })),
 ]
 
-// 广州出发的脉冲环
 const RINGS = [{ lat: GZ.lat, lng: GZ.lng }]
-
-// 初始相机视角（正对广州/华南）
 const INITIAL_POV = { lat: 22, lng: 108, altitude: 2.5 }
 
 function haversine(a, b) {
@@ -93,13 +81,12 @@ function haversine(a, b) {
   return 2 * R * Math.asin(Math.sqrt(s))
 }
 
-export default function Shipping() {
+function MiniGlobe() {
   const globeRef = useRef(null)
   const wrapRef = useRef(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [inView, setInView] = useState(false)
 
-  // 跟随容器尺寸（响应式）
   useEffect(() => {
     const el = wrapRef.current
     if (!el) return
@@ -111,22 +98,16 @@ export default function Shipping() {
     return () => ro.disconnect()
   }, [])
 
-  // 滚动进入可视区后再开始加载 3D 地球模块（一次性触发）
   useEffect(() => {
     const el = wrapRef.current
     if (!el) return
     const io = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting) {
-        setInView(true)
-        io.disconnect()
-      }
+      if (entries[0].isIntersecting) { setInView(true); io.disconnect() }
     }, { rootMargin: '200px' })
     io.observe(el)
     return () => io.disconnect()
   }, [])
 
-  // 地球初始化完成后再配相机与控制器（pointOfView 作为 prop 在当前版本被忽略，必须用方法调用）：
-  // 提亮环境光让蓝色地球通透、悬浮感更强；空闲自转；禁用缩放/平移，避免滚轮被地球“吃掉”
   function handleGlobeReady() {
     const g = globeRef.current
     if (!g) return
@@ -135,29 +116,77 @@ export default function Shipping() {
         if (l.isAmbientLight) l.intensity = 3.0
         else if (l.isDirectionalLight) l.intensity = 0.7
       })
-    } catch { /* 光照配置失败不影响渲染 */ }
+    } catch { /* ignore */ }
     try {
       const c = g.controls()
       if (c) {
-        c.autoRotate = true
-        c.autoRotateSpeed = 0.32
-        c.enableZoom = false
-        c.enablePan = false
+        c.autoRotate = true; c.autoRotateSpeed = 0.32
+        c.enableZoom = false; c.enablePan = false
         c.minPolarAngle = Math.PI / 5
         c.maxPolarAngle = Math.PI - Math.PI / 5
       }
-    } catch { /* 控制器配置失败不影响渲染 */ }
-    try {
-      g.pointOfView(INITIAL_POV, 0)
-    } catch { /* 视角设置失败不影响渲染 */ }
+    } catch { /* ignore */ }
+    try { g.pointOfView(INITIAL_POV, 0) } catch { /* ignore */ }
   }
 
+  return (
+    <div ref={wrapRef} className="relative h-[340px] lg:h-[420px] w-full cursor-grab active:cursor-grabbing">
+      {!inView && (
+        <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+          <div className="w-10 h-10 rounded-full border-2 border-stone-200 border-t-[#e2571a] animate-spin" />
+        </div>
+      )}
+      {inView && size.w > 0 && (
+        <Suspense fallback={null}>
+          <Globe
+            ref={globeRef}
+            width={size.w}
+            height={size.h}
+            backgroundColor="rgba(0,0,0,0)"
+            globeImageUrl="/images/shipping/earth-blue-marble.jpg"
+            showAtmosphere
+            atmosphereColor="#aebfc9"
+            atmosphereAltitude={0.18}
+            onGlobeReady={handleGlobeReady}
+            arcsData={ARCS}
+            arcColor="color"
+            arcAltitude="alt"
+            arcStroke={0.5}
+            arcDashLength={0.4}
+            arcDashGap={0.2}
+            arcDashAnimateTime={6000}
+            arcCurveResolution={64}
+            pointsData={POINTS}
+            pointColor="color"
+            pointAltitude="0.012"
+            pointRadius="size"
+            pointResolution={10}
+            ringsData={RINGS}
+            ringColor={() => t => `rgba(226,87,26,${(1 - t) * 0.55})`}
+            ringMaxRadius={5}
+            ringPropagationSpeed={1.1}
+            ringRepeatPeriod={2200}
+            labelsData={LABELS}
+            labelText="text"
+            labelColor="color"
+            labelSize="size"
+            labelAltitude="altitude"
+            labelIncludeDot={false}
+            labelResolution={2}
+          />
+        </Suspense>
+      )}
+    </div>
+  )
+}
+
+export default function Shipping() {
   return (
     <div className="min-h-screen bg-[#faf9f6] text-stone-900">
       <CyndiNavbar />
 
       {/* ── Header ── */}
-      <div id="top" className="max-w-[1280px] mx-auto px-6 pt-28 pb-6">
+      <div id="top" className="max-w-[1280px] mx-auto px-6 pt-28 pb-4">
         <a href="/#top"
           className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:border-stone-400 hover:bg-stone-50 hover:text-stone-900">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -172,65 +201,33 @@ export default function Shipping() {
         </p>
       </div>
 
-      {/* ── 3D Globe：无面板、无渐变，地球直接悬浮在网页底色上（懒加载） ── */}
-      <section className="relative w-full h-[62vh] md:h-[80vh] mt-2">
-        <div ref={wrapRef} className="absolute inset-0 cursor-grab active:cursor-grabbing">
-          {/* 加载占位：细圈 spinner，秒开不阻塞 */}
-          {!inView && (
-            <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
-              <div className="w-10 h-10 rounded-full border-2 border-stone-200 border-t-[#e2571a] animate-spin" />
+      {/* ── 主体：左查询 + 右小地球 ── */}
+      <section className="max-w-[1280px] mx-auto px-6 pt-4 pb-10">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,1fr)] gap-8 items-start">
+          <TrackingPanel />
+
+          <aside className="rounded-2xl bg-white ring-1 ring-stone-200/70 px-3 pt-6 pb-2 self-start lg:sticky lg:top-28">
+            <div className="px-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#e07a3a]">OUR NETWORK</p>
+              <h3 className="mt-2 text-lg font-semibold text-stone-900">From China to the world</h3>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-stone-500">
+                One global warehouse, door-to-door delivery across Asia, Europe, North America and Oceania.
+              </p>
             </div>
-          )}
-          {inView && size.w > 0 && (
-            <Suspense fallback={null}>
-            <Globe
-              ref={globeRef}
-              width={size.w}
-              height={size.h}
-              backgroundColor="rgba(0,0,0,0)"
-              globeImageUrl="/images/shipping/earth-blue-marble.jpg"
-              showAtmosphere
-              atmosphereColor="#aebfc9"
-              atmosphereAltitude={0.18}
-              onGlobeReady={handleGlobeReady}
-              /* 航线（发射速度放慢） */
-              arcsData={ARCS}
-              arcColor="color"
-              arcAltitude="alt"
-              arcStroke={0.5}
-              arcDashLength={0.4}
-              arcDashGap={0.2}
-              arcDashAnimateTime={6000}
-              arcCurveResolution={64}
-              /* 端点 */
-              pointsData={POINTS}
-              pointColor="color"
-              pointAltitude={0.012}
-              pointRadius="size"
-              pointResolution={10}
-              /* 广州脉冲环（节奏同步放慢） */
-              ringsData={RINGS}
-              ringColor={() => t => `rgba(226,87,26,${(1 - t) * 0.55})`}
-              ringMaxRadius={5}
-              ringPropagationSpeed={1.1}
-              ringRepeatPeriod={2200}
-              /* 起始点 / 结束点城市英文名 */
-              labelsData={LABELS}
-              labelText="text"
-              labelColor="color"
-              labelSize="size"
-              labelAltitude="altitude"
-              labelIncludeDot={false}
-              labelResolution={2}
-            />
-            </Suspense>
-          )}
+            <MiniGlobe />
+            <div className="flex flex-wrap gap-2 px-3 pb-2">
+              <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">Asia</span>
+              <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-medium text-[#c8652c]">Europe</span>
+              <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-medium text-[#c8652c]">North America</span>
+              <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-medium text-[#c8652c]">Oceania</span>
+            </div>
+          </aside>
         </div>
       </section>
 
       {/* ── CTA ── */}
       <section>
-        <div className="max-w-[1280px] mx-auto px-6 py-20">
+        <div className="max-w-[1280px] mx-auto px-6 pb-20">
           <div className="rounded-2xl bg-white ring-1 ring-stone-200/70 shadow-sm px-6 py-12 sm:px-10 text-center">
             <h2 className="text-2xl font-semibold tracking-tight">Ship with us</h2>
             <p className="mt-2.5 text-stone-500 text-[15px] leading-relaxed max-w-xl mx-auto">
