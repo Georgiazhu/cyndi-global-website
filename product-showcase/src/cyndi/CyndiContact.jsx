@@ -167,25 +167,6 @@ export default function CyndiContact() {
           </div>
         </div>
       </section>
-
-      {/* ── Footer ── */}
-      <footer className="bg-stone-900 text-stone-400 px-6 py-14">
-        <div className="max-w-7xl mx-auto flex flex-col items-center text-center gap-5">
-          <div className="flex items-center gap-3">
-            <span className="w-9 h-9 rounded-full bg-white text-stone-900 grid place-items-center text-sm font-bold">C</span>
-            <span className="text-xl font-semibold tracking-tight text-white">Cyndi</span>
-          </div>
-          <p className="text-[13px] leading-relaxed max-w-md">
-            Global Swag &amp; Brand Management &mdash; Empowering Brands. Engaging People.
-          </p>
-          <a href="mailto:info@cyndiglobal.com" className="text-[13px] text-white hover:text-[#e07a3a] transition-colors">
-            info@cyndiglobal.com
-          </a>
-          <div className="w-full pt-6 mt-2 border-t border-stone-800 text-[12px] text-stone-500">
-            &copy; 2026 Cyndi Global Limited. All rights reserved. &middot; Hong Kong
-          </div>
-        </div>
-      </footer>
     </>
   )
 }

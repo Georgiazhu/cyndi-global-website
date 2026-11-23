@@ -28,6 +28,11 @@
   --color-line: #e7e5e4;
   --color-deepbg: #1c1917;
 
+  /* Brand blue tokens for the hero / final CTA / footer (restored from original design) */
+  --color-brand-blue: #5A7CB7;
+  --color-brand-deep: #141E28;
+  --color-brand-light: #B5C4DF;
+
   --font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --animate-slide-in: slide-in 0.3s ease-out;

@@ -1,5 +1,8 @@
 import CyndiNavbar from './CyndiNavbar.jsx'
-import CyndiHero from './CyndiHero.jsx'
+// Restored brand-blue hero / final CTA / footer (original design)
+import BrandHero from './home/components/BrandHero.jsx'
+import BrandFinalCta from './home/components/BrandFinalCta.jsx'
+import BrandFooter from './home/components/BrandFooter.jsx'
 import CyndiContact from './CyndiContact.jsx'
 // New monochrome narrative sections (self-contained under ./home)
 import WhoWeAre from './home/sections/WhoWeAre.jsx'
@@ -13,7 +16,7 @@ export default function CyndiApp() {
   return (
     <div className="min-h-screen bg-white font-sans text-stone-900">
       <CyndiNavbar />
-      <CyndiHero />
+      <BrandHero />
       <main>
         <WhoWeAre />
         <WhyOneWarehouse />
@@ -21,8 +24,10 @@ export default function CyndiApp() {
         <Distribution />
         <PortalTeaser />
         <Faq />
+        <CyndiContact />
       </main>
-      <CyndiContact />
+      <BrandFinalCta />
+      <BrandFooter />
     </div>
   )
 }
