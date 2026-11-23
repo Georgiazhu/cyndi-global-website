@@ -109,9 +109,21 @@ export default function CyndiNavbar() {
       }`}
     >
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 h-20 flex items-center justify-between gap-3">
-        {/* Logo — new Cyndi Global brand (orange C + Cyndiglobal wordmark) */}
-        <a href="/#top" className="flex items-center shrink-0">
-          <img src="/cyndi-logo-full.png" alt="Cyndi Global" className="h-8 w-auto" style={{ filter: 'brightness(0)' }} />
+        {/* Logo — scroll-collapse: the wordmark folds into the mark on scroll (Anthropic-style),
+            then unfolds when back at the top. */}
+        <a href="/#top" aria-label="Cyndi Global home" className="flex items-center shrink-0 overflow-hidden">
+          <img src="/cyndi-logo-mark.png" alt="" className="h-8 w-auto shrink-0" />
+          <span
+            className="inline-flex items-center overflow-hidden whitespace-nowrap motion-reduce:transition-none transition-[max-width,opacity,transform] duration-[450ms] ease-[cubic-bezier(.65,0,.35,1)]"
+            style={{
+              maxWidth: scrolled ? '0px' : '140px',
+              opacity: scrolled ? 0 : 1,
+              transform: scrolled ? 'translateX(-14px) scaleX(.55)' : 'translateX(0) scaleX(1)',
+              transformOrigin: 'left center',
+            }}
+          >
+            <img src="/cyndi-logo-word.png" alt="" className="h-8 w-auto" />
+          </span>
         </a>
 
         {/* Nav links */}
