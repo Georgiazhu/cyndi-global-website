@@ -1,13 +1,14 @@
-// Restored from the original design: blue final call-to-action band.
+// New brand final CTA: bold Dragon Fire orange block with dotted texture.
 export default function BrandFinalCta() {
   return (
-    <section id="quote" className="bg-brand-blue text-white">
-      <div className="mx-auto max-w-6xl px-6 py-20 text-center">
-        <p className="mb-5 text-base tracking-wide text-brand-light">Empowering Brands,Engaging People</p>
-        <h2 className="text-3xl md:text-4xl font-bold">Let's build your global swag program.</h2>
-        <div className="mt-8 flex justify-center gap-4">
-          <a href="mailto:info@cyndiglobal.com" className="rounded bg-white px-6 py-3 font-semibold text-brand-blue hover:bg-white/90">Get a quote</a>
-          <a href="#portal-login" className="rounded border border-white px-6 py-3 font-semibold hover:bg-white/10">Portal login</a>
+    <section id="quote" className="relative overflow-hidden bg-fire text-white">
+      <div className="dot-grid pointer-events-none absolute inset-0 text-white/15" aria-hidden="true" />
+      <div className="relative mx-auto max-w-7xl px-6 py-28 text-center md:py-36">
+        <p className="mb-5 text-sm font-medium tracking-wide text-white/75">Empowering Brands,Engaging People</p>
+        <h2 className="mx-auto max-w-4xl text-4xl font-bold leading-tight tracking-tight md:text-6xl">Let's build your global swag program.</h2>
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <a href="mailto:info@cyndiglobal.com" className="rounded-full bg-white px-8 py-4 text-sm font-semibold text-fire shadow-sm transition-colors hover:bg-white/90">Get a quote</a>
+          <a href="#portal-login" className="rounded-full border border-white/70 px-8 py-4 text-sm font-semibold text-white transition-colors hover:bg-white/10">Portal login</a>
         </div>
       </div>
     </section>

@@ -1,10 +1,10 @@
 export default function Section({ id, title, intro, dark = false, children }) {
   return (
-    <section id={id} className={dark ? 'bg-stone-900 text-white' : 'bg-white'}>
-      <div className="mx-auto max-w-6xl px-6 py-20">
-        {title && <h2 className={'text-2xl md:text-4xl font-semibold tracking-tight ' + (dark ? 'text-white' : 'text-ink')}>{title}</h2>}
-        {intro && <p className={'mt-4 max-w-2xl text-base ' + (dark ? 'text-stone-400' : 'text-body')}>{intro}</p>}
-        <div className="mt-12">{children}</div>
+    <section id={id} className={dark ? 'bg-ink text-white' : 'bg-white'}>
+      <div className="mx-auto max-w-7xl px-6 py-24 md:py-32">
+        {title && <h2 className={'max-w-4xl text-3xl font-bold leading-tight tracking-tight md:text-5xl ' + (dark ? 'text-white' : 'text-ink')}>{title}</h2>}
+        {intro && <p className={'mt-5 max-w-2xl text-base leading-relaxed md:text-lg ' + (dark ? 'text-white/60' : 'text-secondary')}>{intro}</p>}
+        <div className="mt-14">{children}</div>
       </div>
     </section>
   )

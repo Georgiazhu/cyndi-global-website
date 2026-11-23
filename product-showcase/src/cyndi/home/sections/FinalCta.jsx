@@ -2,14 +2,14 @@ import { PORTAL_LOGIN_URL, QUOTE_URL } from '../content.js'
 
 export default function FinalCta() {
   return (
-    <section id="quote" className="bg-stone-900 text-white">
-      <div className="mx-auto max-w-6xl px-6 py-24 text-center">
-        <p className="text-xs uppercase tracking-[0.28em] text-stone-500">Contact</p>
-        <h2 className="mt-4 text-3xl md:text-4xl font-semibold tracking-tight">Start a conversation</h2>
-        <p className="mt-4 text-sm text-stone-400">Tell us what your team needs and we'll come back with options, timelines, and pricing.</p>
-        <div className="mt-10 flex justify-center gap-4">
-          <a href={QUOTE_URL} className="bg-white px-9 py-3.5 text-xs uppercase tracking-widest font-medium text-stone-900 hover:bg-stone-200">Get a quote</a>
-          <a href={PORTAL_LOGIN_URL} className="border border-white/60 px-9 py-3.5 text-xs uppercase tracking-widest font-medium text-white hover:bg-white/10">Portal login</a>
+    <section id="quote" className="relative overflow-hidden bg-fire text-white">
+      <div className="dot-grid pointer-events-none absolute inset-0 text-white/15" aria-hidden="true" />
+      <div className="relative mx-auto max-w-7xl px-6 py-28 text-center md:py-36">
+        <p className="mb-5 text-sm font-medium tracking-wide text-white/75">Empowering Brands,Engaging People</p>
+        <h2 className="mx-auto max-w-4xl text-4xl font-bold leading-tight tracking-tight md:text-6xl">Let's build your global swag program.</h2>
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <a href={QUOTE_URL} className="rounded-full bg-white px-8 py-4 text-sm font-semibold text-fire shadow-sm transition-colors hover:bg-white/90">Get a quote</a>
+          <a href={PORTAL_LOGIN_URL} className="rounded-full border border-white/70 px-8 py-4 text-sm font-semibold text-white transition-colors hover:bg-white/10">Portal login</a>
         </div>
       </div>
     </section>

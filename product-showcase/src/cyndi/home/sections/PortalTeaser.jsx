@@ -4,16 +4,16 @@ import { portalFeatures, PORTAL_LOGIN_URL } from '../content.js'
 export default function PortalTeaser() {
   return (
     <Section id="portal" title="Everything your brand needs, in one portal" intro="Sign in once to manage orders, inventory and deliveries.">
-      <div className="grid gap-px sm:grid-cols-2 lg:grid-cols-4 bg-line border border-line">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {portalFeatures.map((f) => (
-          <div key={f.title} className="bg-white p-7">
-            <div className="text-lg text-stone-400">✓</div>
-            <h3 className="mt-3 text-base font-semibold text-ink">{f.title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-body">{f.text}</p>
+          <div key={f.title} className="rounded-2xl border border-line bg-white p-8">
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-fire-soft text-lg text-fire">✓</div>
+            <h3 className="mt-5 text-base font-semibold text-ink">{f.title}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-secondary">{f.text}</p>
           </div>
         ))}
       </div>
-      <a href={PORTAL_LOGIN_URL} className="mt-10 inline-block border border-stone-900 px-8 py-3 text-xs uppercase tracking-widest font-medium text-stone-900 hover:bg-stone-900 hover:text-white transition-colors">Portal login</a>
+      <a href={PORTAL_LOGIN_URL} className="mt-12 inline-block rounded-full bg-fire px-9 py-4 text-xs font-semibold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-fire-dark">Portal login</a>
     </Section>
   )
 }

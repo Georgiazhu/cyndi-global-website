@@ -33,6 +33,13 @@
   --color-brand-deep: #141E28;
   --color-brand-light: #B5C4DF;
 
+  /* Cyndi new brand — Pantone Dragon Fire (#E2501D) + brand grey (#474747) */
+  --color-fire: #E2501D;
+  --color-fire-dark: #C44316;
+  --color-fire-soft: #FCEFE8;
+  --color-fire-tint: #FFF7F3;
+  --color-brand-gray: #474747;
+
   --font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --animate-slide-in: slide-in 0.3s ease-out;
@@ -82,4 +89,16 @@
     background-color: #ffffff;
     -webkit-font-smoothing: antialiased;
   }
+}
+
+/* Cardless-style dotted grid + warm hero wash (new brand) */
+.dot-grid {
+  background-image: radial-gradient(currentColor 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.hero-wash {
+  background:
+    radial-gradient(60% 80% at 85% 20%, rgba(226,80,29,0.10) 0%, transparent 60%),
+    radial-gradient(50% 60% at 10% 90%, rgba(226,80,29,0.06) 0%, transparent 60%),
+    linear-gradient(180deg, #FFF7F3 0%, #FFFFFF 100%);
 }
