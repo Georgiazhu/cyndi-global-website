@@ -4,11 +4,11 @@ export default function Hero() {
   return (
     <section id="top" className="hero-wash relative overflow-hidden">
       {/* dotted grid decoration */}
-      <div className="dot-grid pointer-events-none absolute inset-y-0 right-0 w-1/2 text-fire/25" aria-hidden="true" />
+      <div className="dot-grid pointer-events-none absolute inset-y-0 right-0 w-1/2 text-oat/25" aria-hidden="true" />
       <div className="relative mx-auto max-w-7xl px-6 py-28 md:py-40">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-fire">Global swag supply chain</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-oat">Global swag supply chain</p>
         <h1 className="mt-7 max-w-5xl text-5xl font-bold leading-[1.05] tracking-tight text-ink md:text-7xl lg:text-[5.5rem]">
-          Cyndi Global —<br />Your Dedicated <span className="text-fire">SWAG Team</span>
+          Cyndi Global —<br />Your Dedicated <span className="text-oat">SWAG Team</span>
         </h1>
         <p className="mt-8 max-w-2xl text-lg leading-relaxed text-secondary md:text-xl">
           Luxury swag for brands, anywhere in the world. One global warehouse, door-to-door delivery to 200+ countries and regions.

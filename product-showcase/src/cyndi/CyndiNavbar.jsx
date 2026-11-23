@@ -17,7 +17,7 @@ function NavChevron({ open }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
       strokeLinecap="round" strokeLinejoin="round"
-      className={`w-3 h-3 shrink-0 transition-all duration-200 ${open ? 'rotate-180 text-[#e07a3a]' : 'text-stone-400'}`}>
+      className={`w-3 h-3 shrink-0 transition-all duration-200 ${open ? 'rotate-180 text-oat' : 'text-stone-400'}`}>
       <path d="m6 9 6 6 6-6" />
     </svg>
   )
@@ -111,7 +111,7 @@ export default function CyndiNavbar() {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 h-20 flex items-center justify-between gap-3">
         {/* Logo — new Cyndi Global brand (orange C + Cyndiglobal wordmark) */}
         <a href="/#top" className="flex items-center shrink-0">
-          <img src="/cyndi-logo-full.png" alt="Cyndi Global" className="h-8 w-auto" />
+          <img src="/cyndi-logo-full.png" alt="Cyndi Global" className="h-8 w-auto" style={{ filter: 'brightness(0)' }} />
         </a>
 
         {/* Nav links */}
@@ -120,7 +120,7 @@ export default function CyndiNavbar() {
             <button type="button" className={triggerCls(openMenu === 'swag')} aria-expanded={openMenu === 'swag'}>
               Swag <NavChevron open={openMenu === 'swag'} />
             </button>
-            <span className={`pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3 h-0.5 rounded-full bg-[#e07a3a] transition-all duration-200 ${openMenu === 'swag' ? 'w-6 opacity-100' : 'w-0 opacity-0'}`} />
+            <span className={`pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3 h-0.5 rounded-full bg-oat transition-all duration-200 ${openMenu === 'swag' ? 'w-6 opacity-100' : 'w-0 opacity-0'}`} />
             <MegaShell open={openMenu === 'swag'} width="w-[560px]" align="left">
               <SwagMega />
             </MegaShell>
@@ -130,7 +130,7 @@ export default function CyndiNavbar() {
             <button type="button" className={triggerCls(openMenu === 'service')} aria-expanded={openMenu === 'service'}>
               Service <NavChevron open={openMenu === 'service'} />
             </button>
-            <span className={`pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3 h-0.5 rounded-full bg-[#e07a3a] transition-all duration-200 ${openMenu === 'service' ? 'w-6 opacity-100' : 'w-0 opacity-0'}`} />
+            <span className={`pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3 h-0.5 rounded-full bg-oat transition-all duration-200 ${openMenu === 'service' ? 'w-6 opacity-100' : 'w-0 opacity-0'}`} />
             <MegaShell open={openMenu === 'service'} width="w-[392px]">
               <SimpleMega items={serviceItems} />
             </MegaShell>
@@ -140,7 +140,7 @@ export default function CyndiNavbar() {
             <button type="button" className={triggerCls(openMenu === 'solution')} aria-expanded={openMenu === 'solution'}>
               Solution <NavChevron open={openMenu === 'solution'} />
             </button>
-            <span className={`pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3 h-0.5 rounded-full bg-[#e07a3a] transition-all duration-200 ${openMenu === 'solution' ? 'w-6 opacity-100' : 'w-0 opacity-0'}`} />
+            <span className={`pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3 h-0.5 rounded-full bg-oat transition-all duration-200 ${openMenu === 'solution' ? 'w-6 opacity-100' : 'w-0 opacity-0'}`} />
             <MegaShell open={openMenu === 'solution'} width="w-[392px]">
               <SimpleMega items={solutionItems} />
             </MegaShell>
@@ -150,7 +150,7 @@ export default function CyndiNavbar() {
             <button type="button" className={triggerCls(openMenu === 'brand')} aria-expanded={openMenu === 'brand'}>
               Brand <NavChevron open={openMenu === 'brand'} />
             </button>
-            <span className={`pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3 h-0.5 rounded-full bg-[#e07a3a] transition-all duration-200 ${openMenu === 'brand' ? 'w-6 opacity-100' : 'w-0 opacity-0'}`} />
+            <span className={`pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3 h-0.5 rounded-full bg-oat transition-all duration-200 ${openMenu === 'brand' ? 'w-6 opacity-100' : 'w-0 opacity-0'}`} />
             <MegaShell open={openMenu === 'brand'} width="w-[420px]">
               <div className="-mt-1">
                 <BrandMega />
@@ -233,7 +233,7 @@ function MobileMenu({ section, onToggle, onNavigate }) {
           className="rounded-xl border border-stone-200 bg-[#faf9f6] p-3.5 active:bg-stone-100 transition-colors">
           <span className="flex items-center justify-between gap-1">
             <strong className="text-[15px] font-semibold text-stone-900">Showcase</strong>
-            <span className="text-[#e07a3a] text-[15px] leading-none">↗</span>
+            <span className="text-oat text-[15px] leading-none">↗</span>
           </span>
           <span className="block mt-1 text-[12px] leading-snug text-stone-500">Product proposals</span>
         </a>
@@ -241,7 +241,7 @@ function MobileMenu({ section, onToggle, onNavigate }) {
           className="rounded-xl border border-stone-200 bg-[#faf9f6] p-3.5 active:bg-stone-100 transition-colors">
           <span className="flex items-center justify-between gap-1">
             <strong className="text-[15px] font-semibold text-stone-900">Admin</strong>
-            <span className="text-[#e07a3a] text-[15px] leading-none">↗</span>
+            <span className="text-oat text-[15px] leading-none">↗</span>
           </span>
           <span className="block mt-1 text-[12px] leading-snug text-stone-500">Admin console</span>
         </a>
@@ -322,7 +322,7 @@ function SimpleMega({ items }) {
           const isOpen = expanded === it.title
           const iconChip = (hover) =>
             `w-11 h-11 rounded-xl grid place-items-center shrink-0 transition-all duration-200 ${hover
-              ? 'bg-white text-[#e07a3a] shadow-sm'
+              ? 'bg-white text-oat shadow-sm'
               : 'bg-stone-100 text-stone-500'}`
 
           if (!hasChildren) {
@@ -337,7 +337,7 @@ function SimpleMega({ items }) {
                   <strong className="text-[15px] font-semibold text-stone-900 transition-colors duration-200 group-hover:text-[#b7410e]">{it.title}</strong>
                   <em className="not-italic text-[12.5px] text-stone-500 leading-snug">{it.blurb}</em>
                 </span>
-                <span className="text-[#e07a3a] text-lg leading-none opacity-0 -translate-x-2 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0">›</span>
+                <span className="text-oat text-lg leading-none opacity-0 -translate-x-2 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0">›</span>
               </a>
             )
           }
@@ -371,7 +371,7 @@ function SimpleMega({ items }) {
                   {it.children.map((child) => (
                     <a key={child.title} href={child.href || '#'}
                       className="group flex items-center gap-2 py-2 px-3 rounded-lg text-[13px] text-stone-600 transition-all duration-200 hover:text-[#b7410e] hover:bg-white hover:shadow-sm active:scale-[0.98]">
-                      <span className="w-1.5 h-1.5 rounded-full bg-stone-300 group-hover:bg-[#e07a3a] transition-colors shrink-0" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-stone-300 group-hover:bg-oat transition-colors shrink-0" />
                       <span className="font-medium">{child.title}</span>
                       {child.blurb && <em className="not-italic text-[11px] text-stone-400 ml-auto">{child.blurb}</em>}
                     </a>
@@ -407,7 +407,7 @@ function SwagMega() {
             {col.map(cat => (
               <div key={cat.name} className="rounded-lg px-2 py-1.5 hover:bg-[#fdf5ef] transition-colors">
                 <p className="flex items-center gap-2 text-[13px] font-semibold text-stone-900">
-                  <Icon d={cat.icon} className="w-4 h-4 text-[#e07a3a]" />
+                  <Icon d={cat.icon} className="w-4 h-4 text-oat" />
                   {cat.name}
                 </p>
                 <p className="mt-1 flex flex-wrap items-center gap-y-0.5 pl-6">
@@ -441,7 +441,7 @@ function BrandMega() {
             className="group relative flex items-center justify-center bg-[#faf9f6] border border-stone-200 rounded-xl px-6 py-5 transition-all duration-200 hover:border-[#eaa177] hover:bg-white hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97] active:shadow-sm">
             <img src={b.src} alt={b.alt} loading="lazy"
               className="max-h-10 w-auto object-contain grayscale opacity-75 group-hover:grayscale-0 group-hover:opacity-100 transition duration-200" />
-            <span className="absolute top-2 right-2 text-[#e07a3a] text-sm leading-none opacity-0 -translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0">↗</span>
+            <span className="absolute top-2 right-2 text-oat text-sm leading-none opacity-0 -translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0">↗</span>
           </a>
         ))}
       </div>

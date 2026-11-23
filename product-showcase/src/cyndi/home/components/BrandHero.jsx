@@ -7,7 +7,7 @@ export default function BrandHero() {
       <DottedGlobe className="pointer-events-none absolute inset-y-0 right-0 w-full md:w-3/5 opacity-85" />
       <div className="relative mx-auto max-w-7xl px-6 py-24 md:py-28">
         <h1 className="max-w-4xl text-4xl font-medium leading-[1.08] tracking-tight text-ink md:text-5xl lg:text-[4.25rem]">
-          Your Dedicated<br /><span className="text-fire">SWAG Team</span>
+          Your Dedicated<br /><span className="text-oat">SWAG Team</span>
         </h1>
         <p className="mt-7 max-w-md text-base leading-relaxed text-secondary md:text-lg">
           Luxury swag for brands, anywhere in the world. One global warehouse, door-to-door delivery to 200+ countries and regions.

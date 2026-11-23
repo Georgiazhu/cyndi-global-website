@@ -92,7 +92,7 @@ export default function CyndiContact() {
                       </dt>
                       <dd className="text-[15px] font-medium text-stone-900 leading-relaxed break-words">
                         {it.href ? (
-                          <a href={it.href} className="hover:text-[#e07a3a] transition-colors">{it.value}</a>
+                          <a href={it.href} className="hover:text-oat transition-colors">{it.value}</a>
                         ) : (
                           it.value
                         )}
@@ -137,7 +137,7 @@ export default function CyndiContact() {
 
                 <div className="mt-10 flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-7">
                   <button type="submit"
-                    className="group inline-flex items-center justify-center gap-2.5 bg-stone-900 text-white px-9 py-[15px] text-[13px] font-medium uppercase tracking-wider hover:bg-[#e07a3a] transition-colors">
+                    className="group inline-flex items-center justify-center gap-2.5 bg-stone-900 text-white px-9 py-[15px] text-[13px] font-medium uppercase tracking-wider hover:bg-oat transition-colors">
                     Send Message
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                       strokeLinecap="round" className="w-[15px] h-[15px] group-hover:translate-x-1 transition-transform">
@@ -146,7 +146,7 @@ export default function CyndiContact() {
                   </button>
                   <p className="text-[13px] leading-relaxed text-stone-500">
                     Or email us directly at{' '}
-                    <a href="mailto:info@cyndiglobal.com" className="text-stone-900 hover:text-[#e07a3a] transition-colors">
+                    <a href="mailto:info@cyndiglobal.com" className="text-stone-900 hover:text-oat transition-colors">
                       info@cyndiglobal.com
                     </a>
                   </p>

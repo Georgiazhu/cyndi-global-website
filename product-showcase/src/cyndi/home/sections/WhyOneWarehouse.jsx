@@ -12,9 +12,9 @@ export default function WhyOneWarehouse() {
           </ul>
         </div>
         <div className="rounded-2xl bg-white p-10">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-fire">With Cyndi Global</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-oat">With Cyndi Global</h3>
           <ul className="mt-8 space-y-4 text-base font-medium text-ink">
-            {compare.withCyndi.map((t) => <li key={t} className="flex gap-3"><span className="text-fire">✓</span>{t}</li>)}
+            {compare.withCyndi.map((t) => <li key={t} className="flex gap-3"><span className="text-oat">✓</span>{t}</li>)}
           </ul>
         </div>
       </div>

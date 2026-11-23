@@ -7,7 +7,7 @@ export default function PortalTeaser() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {portalFeatures.map((f) => (
           <div key={f.title} className="rounded-2xl border border-line bg-white p-8">
-            <div className="grid h-10 w-10 place-items-center rounded-full bg-fire-soft text-lg text-fire">✓</div>
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-oat-soft text-lg text-oat">✓</div>
             <h3 className="mt-5 text-base font-semibold text-ink">{f.title}</h3>
             <p className="mt-2 text-sm leading-relaxed text-secondary">{f.text}</p>
           </div>

@@ -35,6 +35,8 @@
 
   /* Cyndi new brand — Pantone Dragon Fire (#E2501D) + brand grey (#474747) */
   --color-fire: #E2501D;
+  --color-oat: #8C7B66;
+  --color-oat-soft: #F5F1EA;
   --color-fire-dark: #C44316;
   --color-fire-soft: #FCEFE8;
   --color-fire-tint: #FFF7F3;
@@ -98,6 +100,6 @@
 }
 .hero-wash {
   background:
-    radial-gradient(70% 90% at 78% 40%, rgba(226,80,29,0.055) 0%, transparent 72%),
-    linear-gradient(100deg, #FFFFFF 0%, #FFFDFB 45%, #FFF6F0 100%);
+    radial-gradient(70% 90% at 78% 40%, rgba(140,123,102,0.055) 0%, transparent 72%),
+    linear-gradient(100deg, #FFFFFF 0%, #FFFDFB 45%, #F7F4EF 100%);
 }

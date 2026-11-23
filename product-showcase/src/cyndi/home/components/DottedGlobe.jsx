@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { LAND_MASK } from '../landMask.js'
 
 /*
- * Cardless hero dotted globe — Cyndi Dragon Fire palette.
+ * Cardless hero dotted globe — Cyndi deep-oat palette.
  *
  * The reference is a RIGID spherical dot lattice: its silhouette never
  * changes. Every dot is pinned to a fixed lat/lon position on a unit sphere,
@@ -59,8 +59,8 @@ function rng(seed) {
   }
 }
 
-/* Dragon Fire palette */
-const COLORS = ['226,80,29', '226,108,66', '235,150,116']
+/* Deep oat palette */
+const COLORS = ['140,123,102', '158,141,117', '181,167,147']
 const INK_DEEP = 0, INK_MID = 1, INK_FAINT = 2
 const RING_SCALE = 1.45
 const CROSS_SCALE = 1.2
