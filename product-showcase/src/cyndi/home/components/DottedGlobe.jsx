@@ -1,11 +1,23 @@
 import { useEffect, useRef } from 'react'
 import { LAND_MASK } from '../landMask.js'
 
-// Cardless-style animated dotted globe, recoloured in Dragon Fire orange.
-// Ocean  -> a faint "×"
-// Land interior -> a solid orange dot
-// Land coastline (edge touching ocean) -> a hollow orange ring
-// A gentle radial wave animates size + opacity across the map.
+const ROWS = LAND_MASK.length
+const COLS = LAND_MASK[0].length
+
+// Sample the equirectangular land mask at a lat/lon (degrees).
+function isLand(latDeg, lonDeg) {
+  const i = Math.round((90 - latDeg) / 180 * (ROWS - 1))
+  const lon = ((lonDeg + 180) % 360 + 360) % 360 - 180
+  const j = Math.round((lon + 180) / 360 * (COLS - 1))
+  const row = LAND_MASK[Math.max(0, Math.min(ROWS - 1, i))]
+  return row && row[Math.max(0, Math.min(COLS - 1, j))] === '1'
+}
+
+// Cardless hero composition, recoloured in Dragon Fire orange:
+//  - a field of faint "×" cells (ocean / background lattice)
+//  - an L-shaped guide drawn with hollow rings
+//  - a circular dotted globe (orthographic projection of the land mask)
+//    with slow rotation + a gentle breathing pulse.
 export default function DottedGlobe({ className = '' }) {
   const canvasRef = useRef(null)
 
@@ -13,21 +25,11 @@ export default function DottedGlobe({ className = '' }) {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
-    const rows = LAND_MASK.length
-    const cols = LAND_MASK[0].length
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
     let raf = 0
     let w = 0
     let h = 0
     let dpr = 1
-
-    const isLand = (i, j) =>
-      i >= 0 && i < rows && j >= 0 && j < cols && LAND_MASK[i][j] === '1'
-
-    // A coastline cell is land with at least one non-land 4-neighbour.
-    const isCoast = (i, j) =>
-      isLand(i, j) &&
-      !(isLand(i - 1, j) && isLand(i + 1, j) && isLand(i, j - 1) && isLand(i, j + 1))
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect()
@@ -41,48 +43,86 @@ export default function DottedGlobe({ className = '' }) {
 
     const draw = (t) => {
       ctx.clearRect(0, 0, w, h)
-      const gapX = w / (cols + 1)
-      const gapY = h / (rows + 1)
-      const gap = Math.min(gapX, gapY)
-      const oceanColor = '#E9A88B'   // faint dragon-fire tint
-      const landColor = '#E2501D'    // dragon fire
-      const cx = cols / 2
-      const cy = rows / 2
+      const gap = Math.max(12, Math.min(19, w / 56))
+      const cols = Math.ceil(w / gap)
+      const rows = Math.ceil(h / gap)
+      const px = (j) => (j + 0.5) * gap
+      const py = (i) => (i + 0.5) * gap
+      const ocean = '#E9A88B'
+      const fire = '#E2501D'
+      const wave = reduce ? 0 : Math.sin(t * 0.0012)
+
+      // 1) faint × lattice over the whole area
+      ctx.strokeStyle = ocean
+      ctx.lineWidth = Math.max(0.6, gap * 0.055)
+      const cross = (x, y, s, alpha) => {
+        ctx.globalAlpha = alpha
+        ctx.beginPath()
+        ctx.moveTo(x - s, y - s); ctx.lineTo(x + s, y + s)
+        ctx.moveTo(x + s, y - s); ctx.lineTo(x - s, y + s)
+        ctx.stroke()
+      }
+      const s = gap * 0.13
+      for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < cols; j++) {
+          cross(px(j), py(i), s, 0.26 + (wave + 1) * 0.035)
+        }
+      }
+
+      // 2) L-shaped guide of hollow rings (cardless signature)
+      const elbowCol = Math.round(cols * 0.06)
+      const elbowRow = Math.round(rows * 0.30)
+      ctx.strokeStyle = fire
+      ctx.lineWidth = Math.max(0.9, gap * 0.09)
+      const ring = (x, y, r, alpha) => {
+        ctx.globalAlpha = alpha
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke()
+      }
+      const rRing = gap * 0.30
+      for (let j = elbowCol; j < cols; j++) ring(px(j), py(elbowRow), rRing, 0.5)
+      for (let i = elbowRow; i < rows; i++) ring(px(elbowCol), py(i), rRing, 0.5)
+
+      // 3) circular dotted globe
+      const cx = w * 0.44
+      const cy = h * 0.62
+      const R = Math.min(w * 0.32, h * 0.36)
+      const spin = reduce ? 0.06 : 0.06 + t * 0.000045   // central longitude (Africa/Europe), in turns
+      const pulse = 1 + wave * 0.09
 
       for (let i = 0; i < rows; i++) {
         for (let j = 0; j < cols; j++) {
-          const x = (j + 1) * gapX
-          const y = (i + 1) * gapY
-          // radial ripple from map centre
-          const dist = Math.hypot((j - cx) * 0.7, (i - cy))
-          const wave = reduce ? 0 : Math.sin(dist * 0.42 - t * 0.0015)
-          const pulse = 1 + wave * 0.1
+          const x = px(j), y = py(i)
+          const nx = (x - cx) / R
+          const ny = (y - cy) / R
+          const r2 = nx * nx + ny * ny
+          if (r2 > 1) continue
+          const z = Math.sqrt(Math.max(0, 1 - r2))
+          const lat = Math.asin(Math.max(-1, Math.min(1, -ny)))          // north up
+          const dLon = Math.atan2(nx, Math.max(1e-4, z))
+          const lon = spin * Math.PI * 2 + dLon
+          const land = isLand(lat * 180 / Math.PI, lon * 180 / Math.PI)
+          const depth = 0.45 + z * 0.55   // fade near the limb
 
-          if (!isLand(i, j)) {
-            ctx.globalAlpha = 0.3 + (wave + 1) * 0.07
-            ctx.strokeStyle = oceanColor
-            ctx.lineWidth = Math.max(0.7, gap * 0.075)
-            const s = gap * 0.14 * pulse
-            ctx.beginPath()
-            ctx.moveTo(x - s, y - s); ctx.lineTo(x + s, y + s)
-            ctx.moveTo(x + s, y - s); ctx.lineTo(x - s, y + s)
-            ctx.stroke()
-          } else if (isCoast(i, j)) {
-            // coastline: hollow ring, like Cardless
-            ctx.globalAlpha = 0.8 + (wave + 1) * 0.1
-            ctx.strokeStyle = landColor
-            ctx.lineWidth = Math.max(0.9, gap * 0.1)
-            const r = gap * 0.3 * pulse
-            ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke()
-          } else {
-            // interior: solid filled dot, like Cardless
-            ctx.globalAlpha = 0.82 + (wave + 1) * 0.09
-            ctx.fillStyle = landColor
-            const r = gap * 0.29 * pulse
+          if (land) {
+            ctx.fillStyle = fire
+            ctx.globalAlpha = (0.78 + (wave + 1) * 0.1) * depth
+            const r = gap * 0.27 * pulse * (0.7 + z * 0.3)
             ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill()
+          } else {
+            cross(x, y, s * 0.8, 0.3 * depth)
           }
         }
       }
+
+      // 4) hollow-ring circle outlining the globe
+      ctx.strokeStyle = fire
+      ctx.lineWidth = Math.max(0.9, gap * 0.09)
+      const seg = Math.max(28, Math.round(2 * Math.PI * R / gap))
+      for (let k = 0; k < seg; k++) {
+        const a = k / seg * Math.PI * 2
+        ring(cx + Math.cos(a) * R, cy + Math.sin(a) * R, rRing, 0.55)
+      }
+
       ctx.globalAlpha = 1
       if (!reduce) raf = requestAnimationFrame(draw)
     }

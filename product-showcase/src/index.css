@@ -98,7 +98,6 @@
 }
 .hero-wash {
   background:
-    radial-gradient(60% 80% at 85% 20%, rgba(226,80,29,0.10) 0%, transparent 60%),
-    radial-gradient(50% 60% at 10% 90%, rgba(226,80,29,0.06) 0%, transparent 60%),
-    linear-gradient(180deg, #FFF7F3 0%, #FFFFFF 100%);
+    radial-gradient(80% 100% at 80% 30%, rgba(226,80,29,0.10) 0%, transparent 70%),
+    linear-gradient(180deg, #FDEFE9 0%, #FEF7F3 55%, #FFF9F6 100%);
 }
