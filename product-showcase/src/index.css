@@ -19,6 +19,15 @@
   --color-light-gray: #eef6fb;
   --color-border: #dbe7f0;
 
+  /* Monochrome tokens for the homepage narrative sections */
+  --color-ink: #1c1917;
+  --color-secondary: #57534e;
+  --color-body: #57534e;
+  --color-muted: #a8a29e;
+  --color-surface: #f5f5f4;
+  --color-line: #e7e5e4;
+  --color-deepbg: #1c1917;
+
   --font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --animate-slide-in: slide-in 0.3s ease-out;
