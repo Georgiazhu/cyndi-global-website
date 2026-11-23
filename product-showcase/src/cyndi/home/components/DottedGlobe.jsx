@@ -15,12 +15,12 @@ function isLand(latDeg, lonDeg) {
 }
 
 // Cardless hero globe, recoloured in Dragon Fire orange.
-// A huge dotted sphere, cropped by the bottom/right edge of the hero.
-// Points sit on a lat/lon lattice on the sphere; a tilted polar axis makes
-// the parallels read as curved arcs. Land = solid orange dots, ocean = faint
-// orange dots, both fading towards the limb. Slow rotation + breathing pulse.
-const LAT_STEP = 1.0
-const LON_STEP = 1.0
+// Calibrated against the reference frame: a huge, light, finely-dotted sphere,
+// cropped by the bottom/right edge. Reference dot field = faint, evenly spaced
+// small marks (not heavy solid arcs), land only a slightly darker cluster.
+// Measured reference grid spacing ~11 CSS px; symbols switch along a slow wave.
+const LAT_STEP = 1.35
+const LON_STEP = 1.35
 const TILT = 0.22
 const CT = Math.cos(TILT)
 const ST = Math.sin(TILT)
@@ -61,11 +61,11 @@ export default function DottedGlobe({ className = '' }) {
 
     const draw = (t) => {
       ctx.clearRect(0, 0, w, h)
-      // The sphere is deliberately larger than the canvas: only its upper-left
-      // arc is visible, the rest is cut off by the hero's bottom/right edge.
-      const R = w * 0.50
-      const cx = w * 0.54
-      const cy = h * 0.40 + R
+      // Reference: a very large sphere whose upper arc sits near the headline's
+      // second line; bottom and right are cropped away by the hero edge.
+      const R = w * 0.56
+      const cx = w * 0.56
+      const cy = h * 0.30 + R
       const spin = (reduce ? 18 : 18 + t * 0.003) * RAD
       const wave = reduce ? 0 : Math.sin(t * 0.0011)
       const scale = R / 500
@@ -78,7 +78,7 @@ export default function DottedGlobe({ className = '' }) {
         const cur = p.lon * RAD + spin
         const x = p.cla * Math.sin(cur)
         const z = p.cla * Math.cos(cur)
-        // tilt the polar axis so parallels become curved arcs
+        // tilt the polar axis so parallels read as curved arcs
         const yt = p.sla * CT - z * ST
         const zt = p.sla * ST + z * CT
         if (zt <= 0.03) continue                       // back hemisphere
@@ -89,20 +89,21 @@ export default function DottedGlobe({ className = '' }) {
           landPts.push(sx, sy, zt)
         } else {
           const depth = 0.18 + zt * 0.82
-          ctx.globalAlpha = 0.52 * depth
-          const s = Math.max(0.75, 1.55 * scale * (0.55 + zt * 0.45))
+          ctx.globalAlpha = 0.38 * depth
+          const s = Math.max(0.6, 1.15 * scale * (0.60 + zt * 0.40))
           ctx.fillStyle = ocean
           ctx.fillRect(sx - s * 0.5, sy - s * 0.5, s, s)
         }
       }
 
-      const pulse = 1 + wave * 0.08
+      // Land is only a slightly darker, denser cluster - never a solid fill.
+      const pulse = 1 + wave * 0.05
       ctx.fillStyle = fire
       for (let k = 0; k < landPts.length; k += 3) {
         const zt = landPts[k + 2]
         const depth = 0.32 + zt * 0.68
-        ctx.globalAlpha = 0.90 * depth
-        const r = Math.max(0.7, 1.9 * scale * pulse * (0.55 + zt * 0.45))
+        ctx.globalAlpha = 0.62 * depth
+        const r = Math.max(0.65, 1.4 * scale * pulse * (0.60 + zt * 0.40))
         ctx.beginPath()
         ctx.arc(landPts[k], landPts[k + 1], r, 0, Math.PI * 2)
         ctx.fill()
