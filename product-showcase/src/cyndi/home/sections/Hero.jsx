@@ -14,7 +14,7 @@ export default function Hero() {
           Luxury swag for brands, anywhere in the world. One global warehouse, door-to-door delivery to 200+ countries and regions.
         </p>
         <div className="mt-10 flex flex-wrap items-center gap-3">
-          <a href={QUOTE_URL} className="rounded-full bg-fire px-8 py-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-fire-dark">Get a quote</a>
+          <a href={QUOTE_URL} className="rounded-full bg-ink px-8 py-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-black">Get a quote</a>
           <a href={PORTAL_LOGIN_URL} className="rounded-full border border-ink/20 px-8 py-4 text-sm font-semibold text-ink transition-colors hover:border-ink/60">Portal login</a>
         </div>
         {/* mini stat strip, cardless style */}

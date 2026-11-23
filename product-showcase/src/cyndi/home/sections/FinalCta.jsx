@@ -2,7 +2,7 @@ import { PORTAL_LOGIN_URL, QUOTE_URL } from '../content.js'
 
 export default function FinalCta() {
   return (
-    <section id="quote" className="relative overflow-hidden bg-fire text-white">
+    <section id="quote" className="relative overflow-hidden bg-ink text-white">
       <div className="dot-grid pointer-events-none absolute inset-0 text-white/15" aria-hidden="true" />
       <div className="relative mx-auto max-w-7xl px-6 py-28 text-center md:py-36">
         <p className="mb-5 text-sm font-medium tracking-wide text-white/75">Empowering Brands,Engaging People</p>

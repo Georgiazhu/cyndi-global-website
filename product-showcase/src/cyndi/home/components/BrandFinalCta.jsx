@@ -1,7 +1,7 @@
-// New brand final CTA: bold Dragon Fire orange block with dotted texture.
+// New brand final CTA: black brand block with dotted texture.
 export default function BrandFinalCta() {
   return (
-    <section id="quote" className="relative overflow-hidden bg-fire text-white">
+    <section id="quote" className="relative overflow-hidden bg-ink text-white">
       <div className="dot-grid pointer-events-none absolute inset-0 text-white/15" aria-hidden="true" />
       <div className="relative mx-auto max-w-7xl px-6 py-20 text-center md:py-24">
         <p className="mb-5 text-sm font-medium tracking-wide text-white/75">Empowering Brands,Engaging People</p>

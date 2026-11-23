@@ -13,7 +13,7 @@ export default function PortalTeaser() {
           </div>
         ))}
       </div>
-      <a href={PORTAL_LOGIN_URL} className="mt-12 inline-block rounded-full bg-fire px-9 py-4 text-xs font-semibold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-fire-dark">Portal login</a>
+      <a href={PORTAL_LOGIN_URL} className="mt-12 inline-block rounded-full bg-ink px-9 py-4 text-xs font-semibold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-black">Portal login</a>
     </Section>
   )
 }
