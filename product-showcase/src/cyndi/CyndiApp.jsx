@@ -3,7 +3,6 @@ import CyndiNavbar from './CyndiNavbar.jsx'
 import BrandHero from './home/components/BrandHero.jsx'
 import BrandFinalCta from './home/components/BrandFinalCta.jsx'
 import BrandFooter from './home/components/BrandFooter.jsx'
-import CyndiContact from './CyndiContact.jsx'
 // New monochrome narrative sections (self-contained under ./home)
 import WhoWeAre from './home/sections/WhoWeAre.jsx'
 import WhyOneWarehouse from './home/sections/WhyOneWarehouse.jsx'
@@ -24,7 +23,6 @@ export default function CyndiApp() {
         <Distribution />
         <PortalTeaser />
         <Faq />
-        <CyndiContact />
       </main>
       <BrandFinalCta />
       <BrandFooter />

@@ -7,6 +7,7 @@ export default function BrandFooter() {
           <div className="text-white text-lg font-bold">Cyndi Global</div>
           <p className="mt-2 max-w-sm">Luxury swag for brands, anywhere in the world.</p>
           <p className="mt-2 opacity-80">Hong Kong</p>
+          <a href="mailto:info@cyndiglobal.com" className="mt-2 block opacity-80 hover:text-white">info@cyndiglobal.com</a>
         </div>
         <div className="flex gap-10">
           <a href="#portal-login" className="hover:text-white">Portal login</a>
