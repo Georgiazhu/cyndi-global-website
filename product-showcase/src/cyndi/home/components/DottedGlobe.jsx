@@ -88,9 +88,9 @@ const CROSS_SCALE = 1.2              // recovered ti
 const LINE_W = 0.65                  // recovered ni
 
 /* ---- sphere lattice (geometry only, glyph/pop assigned per resize) ------- */
-const LAT_STEP = 1.25
-const LON_STEP = 1.25
-const TILT = 0.24
+const LAT_STEP = 1.4
+const LON_STEP = 1.4
+const TILT = 0.21
 const CT = Math.cos(TILT)
 const ST = Math.sin(TILT)
 
@@ -165,7 +165,7 @@ export default function DottedGlobe({ className = '' }) {
       // Huge sphere, cropped by bottom/right — matches the reference frame.
       const R = w * 0.60
       const cx = w * 0.56
-      const cy = h * 0.26 + R
+      const cy = h * 0.32 + R
       const spin = 8 * RAD            // fixed longitude; the field does not spin
       const scale = R / 500
       const rand = rng(7303)
@@ -204,10 +204,11 @@ export default function DottedGlobe({ className = '' }) {
           // Land is a solid-dot cluster; ocean keeps ring/cross arcs light.
           if (p.land) glyph = 'dot'
           const depth = 0.30 + p.zt * 0.70
-          const size = Math.max(0.72, 1.6 * scale * (0.55 + p.zt * 0.45) * (p.land ? 1.28 : 1))
+          const size = Math.max(0.66, 1.3 * scale * (0.55 + p.zt * 0.45) * (p.land ? 1.5 : 1))
           // Fade toward the hero bottom edge so the crop is soft, not a hard line.
           const edgeFade = clamp((h - p.sy) / (h * 0.26), 0, 1)
-          const alpha = (p.land ? 1.0 : 0.72) * depth * (0.35 + 0.65 * smooth(edgeFade))
+          const poleFade = clamp((p.rr - 0.02) / 0.16, 0, 1)
+          const alpha = (p.land ? 1.0 : 0.72) * depth * (0.35 + 0.65 * smooth(edgeFade)) * (0.65 + 0.35 * smooth(poleFade))
           const color = p.land ? INK_DEEP : (glyph === 'cross' ? INK_FAINT : INK_MID)
           // Outer free dots drift; the inner field stays pinned.
           const free = clamp((p.rr - 0.58) / 0.42, 0, 1)
