@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { LAND_MASK } from '../landMask.js'
 
-// Cardless-style animated dotted world map.
-// Ocean cells render as a light "×", land cells as a darker mix of
-// hollow rings / solid dots / small squares, with a gentle wave ripple.
+// Cardless-style animated dotted globe, recoloured in Dragon Fire orange.
+// Ocean  -> a faint "×"
+// Land interior -> a solid orange dot
+// Land coastline (edge touching ocean) -> a hollow orange ring
+// A gentle radial wave animates size + opacity across the map.
 export default function DottedGlobe({ className = '' }) {
   const canvasRef = useRef(null)
 
@@ -19,6 +21,14 @@ export default function DottedGlobe({ className = '' }) {
     let h = 0
     let dpr = 1
 
+    const isLand = (i, j) =>
+      i >= 0 && i < rows && j >= 0 && j < cols && LAND_MASK[i][j] === '1'
+
+    // A coastline cell is land with at least one non-land 4-neighbour.
+    const isCoast = (i, j) =>
+      isLand(i, j) &&
+      !(isLand(i - 1, j) && isLand(i + 1, j) && isLand(i, j - 1) && isLand(i, j + 1))
+
     const resize = () => {
       const rect = canvas.getBoundingClientRect()
       dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -31,52 +41,45 @@ export default function DottedGlobe({ className = '' }) {
 
     const draw = (t) => {
       ctx.clearRect(0, 0, w, h)
-      // grid spacing in css px; leave a little breathing room
       const gapX = w / (cols + 1)
       const gapY = h / (rows + 1)
-      const base = Math.min(gapX, gapY)
-      const rOcean = Math.max(0.7, base * 0.13)
-      const rLand = Math.max(1.0, base * 0.26)
-      const oceanColor = '#E2A88F'   // light dragon-fire tint
+      const gap = Math.min(gapX, gapY)
+      const oceanColor = '#E9A88B'   // faint dragon-fire tint
       const landColor = '#E2501D'    // dragon fire
+      const cx = cols / 2
+      const cy = rows / 2
 
       for (let i = 0; i < rows; i++) {
-        const line = LAND_MASK[i]
         for (let j = 0; j < cols; j++) {
-          const land = line[j] === '1'
           const x = (j + 1) * gapX
           const y = (i + 1) * gapY
-          // radial ripple from map centre + small positional phase
-          const cx = cols / 2
-          const cy = rows / 2
+          // radial ripple from map centre
           const dist = Math.hypot((j - cx) * 0.7, (i - cy))
-          const wave = reduce ? 0 : Math.sin(dist * 0.45 - t * 0.0016)
-          const pulse = 1 + wave * 0.12
+          const wave = reduce ? 0 : Math.sin(dist * 0.42 - t * 0.0015)
+          const pulse = 1 + wave * 0.1
 
-          if (!land) {
-            ctx.globalAlpha = 0.32 + (wave + 1) * 0.06
+          if (!isLand(i, j)) {
+            ctx.globalAlpha = 0.3 + (wave + 1) * 0.07
             ctx.strokeStyle = oceanColor
-            ctx.lineWidth = Math.max(0.7, base * 0.09)
-            const s = rOcean * 0.9 * pulse
+            ctx.lineWidth = Math.max(0.7, gap * 0.075)
+            const s = gap * 0.14 * pulse
             ctx.beginPath()
             ctx.moveTo(x - s, y - s); ctx.lineTo(x + s, y + s)
             ctx.moveTo(x + s, y - s); ctx.lineTo(x - s, y + s)
             ctx.stroke()
-          } else {
-            // land: cycle between solid dot, hollow ring and tiny square
-            ctx.globalAlpha = 0.55 + (wave + 1) * 0.2
-            ctx.fillStyle = landColor
+          } else if (isCoast(i, j)) {
+            // coastline: hollow ring, like Cardless
+            ctx.globalAlpha = 0.8 + (wave + 1) * 0.1
             ctx.strokeStyle = landColor
-            const phase = (i * 7 + j * 13) % 9
-            const rr = rLand * pulse
-            if (phase < 3) {
-              ctx.fillRect(x - rr * 0.8, y - rr * 0.8, rr * 1.6, rr * 1.6)
-            } else if (phase < 6) {
-              ctx.beginPath(); ctx.arc(x, y, rr * 0.9, 0, Math.PI * 2); ctx.fill()
-            } else {
-              ctx.lineWidth = Math.max(0.9, base * 0.11)
-              ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.stroke()
-            }
+            ctx.lineWidth = Math.max(0.9, gap * 0.1)
+            const r = gap * 0.3 * pulse
+            ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke()
+          } else {
+            // interior: solid filled dot, like Cardless
+            ctx.globalAlpha = 0.82 + (wave + 1) * 0.09
+            ctx.fillStyle = landColor
+            const r = gap * 0.29 * pulse
+            ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill()
           }
         }
       }
@@ -86,7 +89,10 @@ export default function DottedGlobe({ className = '' }) {
 
     resize()
     raf = requestAnimationFrame(draw)
-    const onResize = () => { resize(); if (reduce) cancelAnimationFrame(raf), raf = requestAnimationFrame(draw) }
+    const onResize = () => {
+      resize()
+      if (reduce) { cancelAnimationFrame(raf); raf = requestAnimationFrame(draw) }
+    }
     window.addEventListener('resize', onResize)
     return () => {
       cancelAnimationFrame(raf)
