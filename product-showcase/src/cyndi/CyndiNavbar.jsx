@@ -109,10 +109,9 @@ export default function CyndiNavbar() {
       }`}
     >
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 h-20 flex items-center justify-between gap-3">
-        {/* Logo */}
-        <a href="/#top" className="flex items-center gap-3 shrink-0">
-          <span className="w-9 h-9 rounded-full bg-stone-900 text-white grid place-items-center text-sm font-bold">C</span>
-          <span className="text-xl font-bold tracking-tight text-stone-900">Cyndi</span>
+        {/* Logo — new Cyndi Global brand (orange C + Cyndiglobal wordmark) */}
+        <a href="/#top" className="flex items-center shrink-0">
+          <img src="/cyndi-logo-full.png" alt="Cyndi Global" className="h-8 w-auto" />
         </a>
 
         {/* Nav links */}
