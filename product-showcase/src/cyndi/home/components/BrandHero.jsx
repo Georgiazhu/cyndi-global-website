@@ -9,7 +9,7 @@ export default function BrandHero() {
         <h1 className="max-w-4xl text-5xl font-bold leading-[1.05] tracking-tight text-ink md:text-7xl lg:text-[5.5rem]">
           Your Dedicated<br /><span className="text-fire">SWAG Team</span>
         </h1>
-        <p className="mt-7 max-w-xl text-base leading-relaxed text-secondary md:text-lg">
+        <p className="mt-7 max-w-md text-base leading-relaxed text-secondary md:text-lg">
           Luxury swag for brands, anywhere in the world. One global warehouse, door-to-door delivery to 200+ countries and regions.
         </p>
         <div className="mt-9 flex flex-wrap items-center gap-4">

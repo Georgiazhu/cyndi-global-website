@@ -3,6 +3,7 @@ import { LAND_MASK } from '../landMask.js'
 
 const ROWS = LAND_MASK.length
 const COLS = LAND_MASK[0].length
+const RAD = Math.PI / 180
 
 // Sample the equirectangular land mask at a lat/lon (degrees).
 function isLand(latDeg, lonDeg) {
@@ -13,11 +14,28 @@ function isLand(latDeg, lonDeg) {
   return row && row[Math.max(0, Math.min(COLS - 1, j))] === '1'
 }
 
-// Cardless hero composition, recoloured in Dragon Fire orange:
-//  - a field of faint "×" cells (ocean / background lattice)
-//  - an L-shaped guide drawn with hollow rings
-//  - a circular dotted globe (orthographic projection of the land mask)
-//    with slow rotation + a gentle breathing pulse.
+// Cardless hero globe, recoloured in Dragon Fire orange.
+// A huge dotted sphere, cropped by the bottom/right edge of the hero.
+// Points sit on a lat/lon lattice on the sphere; a tilted polar axis makes
+// the parallels read as curved arcs. Land = solid orange dots, ocean = faint
+// orange dots, both fading towards the limb. Slow rotation + breathing pulse.
+const LAT_STEP = 1.0
+const LON_STEP = 1.0
+const TILT = 0.22
+const CT = Math.cos(TILT)
+const ST = Math.sin(TILT)
+
+// Pre-build the sphere lattice once (geo coords + land flag).
+const POINTS = []
+for (let lat = -89; lat <= 89; lat += LAT_STEP) {
+  const la = lat * RAD
+  const cla = Math.cos(la)
+  const sla = Math.sin(la)
+  for (let lon = -180; lon < 180; lon += LON_STEP) {
+    POINTS.push({ cla, sla, lon, land: isLand(lat, lon) })
+  }
+}
+
 export default function DottedGlobe({ className = '' }) {
   const canvasRef = useRef(null)
 
@@ -43,84 +61,51 @@ export default function DottedGlobe({ className = '' }) {
 
     const draw = (t) => {
       ctx.clearRect(0, 0, w, h)
-      const gap = Math.max(12, Math.min(19, w / 56))
-      const cols = Math.ceil(w / gap)
-      const rows = Math.ceil(h / gap)
-      const px = (j) => (j + 0.5) * gap
-      const py = (i) => (i + 0.5) * gap
-      const ocean = '#E9A88B'
+      // The sphere is deliberately larger than the canvas: only its upper-left
+      // arc is visible, the rest is cut off by the hero's bottom/right edge.
+      const R = w * 0.50
+      const cx = w * 0.54
+      const cy = h * 0.40 + R
+      const spin = (reduce ? 18 : 18 + t * 0.003) * RAD
+      const wave = reduce ? 0 : Math.sin(t * 0.0011)
+      const scale = R / 500
       const fire = '#E2501D'
-      const wave = reduce ? 0 : Math.sin(t * 0.0012)
+      const ocean = '#E9A88B'
+      const landPts = []
 
-      // 1) faint × lattice over the whole area
-      ctx.strokeStyle = ocean
-      ctx.lineWidth = Math.max(0.6, gap * 0.055)
-      const cross = (x, y, s, alpha) => {
-        ctx.globalAlpha = alpha
+      for (let k = 0; k < POINTS.length; k++) {
+        const p = POINTS[k]
+        const cur = p.lon * RAD + spin
+        const x = p.cla * Math.sin(cur)
+        const z = p.cla * Math.cos(cur)
+        // tilt the polar axis so parallels become curved arcs
+        const yt = p.sla * CT - z * ST
+        const zt = p.sla * ST + z * CT
+        if (zt <= 0.03) continue                       // back hemisphere
+        const sx = cx + x * R
+        const sy = cy - yt * R
+        if (sx < -3 || sx > w + 3 || sy < -3 || sy > h + 3) continue
+        if (p.land) {
+          landPts.push(sx, sy, zt)
+        } else {
+          const depth = 0.18 + zt * 0.82
+          ctx.globalAlpha = 0.52 * depth
+          const s = Math.max(0.75, 1.55 * scale * (0.55 + zt * 0.45))
+          ctx.fillStyle = ocean
+          ctx.fillRect(sx - s * 0.5, sy - s * 0.5, s, s)
+        }
+      }
+
+      const pulse = 1 + wave * 0.08
+      ctx.fillStyle = fire
+      for (let k = 0; k < landPts.length; k += 3) {
+        const zt = landPts[k + 2]
+        const depth = 0.32 + zt * 0.68
+        ctx.globalAlpha = 0.90 * depth
+        const r = Math.max(0.7, 1.9 * scale * pulse * (0.55 + zt * 0.45))
         ctx.beginPath()
-        ctx.moveTo(x - s, y - s); ctx.lineTo(x + s, y + s)
-        ctx.moveTo(x + s, y - s); ctx.lineTo(x - s, y + s)
-        ctx.stroke()
-      }
-      const s = gap * 0.13
-      for (let i = 0; i < rows; i++) {
-        for (let j = 0; j < cols; j++) {
-          cross(px(j), py(i), s, 0.26 + (wave + 1) * 0.035)
-        }
-      }
-
-      // 2) L-shaped guide of hollow rings (cardless signature)
-      const elbowCol = Math.round(cols * 0.06)
-      const elbowRow = Math.round(rows * 0.30)
-      ctx.strokeStyle = fire
-      ctx.lineWidth = Math.max(0.9, gap * 0.09)
-      const ring = (x, y, r, alpha) => {
-        ctx.globalAlpha = alpha
-        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke()
-      }
-      const rRing = gap * 0.30
-      for (let j = elbowCol; j < cols; j++) ring(px(j), py(elbowRow), rRing, 0.5)
-      for (let i = elbowRow; i < rows; i++) ring(px(elbowCol), py(i), rRing, 0.5)
-
-      // 3) circular dotted globe
-      const cx = w * 0.44
-      const cy = h * 0.62
-      const R = Math.min(w * 0.32, h * 0.36)
-      const spin = reduce ? 0.06 : 0.06 + t * 0.000045   // central longitude (Africa/Europe), in turns
-      const pulse = 1 + wave * 0.09
-
-      for (let i = 0; i < rows; i++) {
-        for (let j = 0; j < cols; j++) {
-          const x = px(j), y = py(i)
-          const nx = (x - cx) / R
-          const ny = (y - cy) / R
-          const r2 = nx * nx + ny * ny
-          if (r2 > 1) continue
-          const z = Math.sqrt(Math.max(0, 1 - r2))
-          const lat = Math.asin(Math.max(-1, Math.min(1, -ny)))          // north up
-          const dLon = Math.atan2(nx, Math.max(1e-4, z))
-          const lon = spin * Math.PI * 2 + dLon
-          const land = isLand(lat * 180 / Math.PI, lon * 180 / Math.PI)
-          const depth = 0.45 + z * 0.55   // fade near the limb
-
-          if (land) {
-            ctx.fillStyle = fire
-            ctx.globalAlpha = (0.78 + (wave + 1) * 0.1) * depth
-            const r = gap * 0.27 * pulse * (0.7 + z * 0.3)
-            ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill()
-          } else {
-            cross(x, y, s * 0.8, 0.3 * depth)
-          }
-        }
-      }
-
-      // 4) hollow-ring circle outlining the globe
-      ctx.strokeStyle = fire
-      ctx.lineWidth = Math.max(0.9, gap * 0.09)
-      const seg = Math.max(28, Math.round(2 * Math.PI * R / gap))
-      for (let k = 0; k < seg; k++) {
-        const a = k / seg * Math.PI * 2
-        ring(cx + Math.cos(a) * R, cy + Math.sin(a) * R, rRing, 0.55)
+        ctx.arc(landPts[k], landPts[k + 1], r, 0, Math.PI * 2)
+        ctx.fill()
       }
 
       ctx.globalAlpha = 1
