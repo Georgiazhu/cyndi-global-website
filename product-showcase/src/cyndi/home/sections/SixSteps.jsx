@@ -29,7 +29,7 @@ export default function SixSteps() {
   const pairs = [0, 2, 4].map((i) => [steps[i], steps[i + 1]])
   return (
     <Section id="how" title="From brief to delivery in six steps" intro="Every order follows the same locked sequence, with two approval gates, so nothing ships that you have not signed off.">
-      <div className="hidden md:grid grid-cols-[1fr_56px_1fr] mb-3">
+      <div className="hidden md:grid grid-cols-[1fr_56px_1fr] gap-3 mb-3">
         <div className="rounded-xl bg-oat-soft px-6 py-3 text-sm font-semibold uppercase tracking-wide text-ink">
           You<span className="block text-xs font-normal normal-case tracking-normal text-muted">Your admin</span>
         </div>
