@@ -33,6 +33,22 @@ export async function ensurePortalSchema(db) {
       updated_by     TEXT
     )`).run();
     try { await db.prepare(`CREATE INDEX IF NOT EXISTS idx_portal_projects_status ON portal_projects(status)`).run(); } catch {}
+
+    // 忘记密码验证码：只存哈希，不存明文；每次请求一条新记录，验证后即标记 used_at。
+    await db.prepare(`CREATE TABLE IF NOT EXISTS portal_password_resets (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id   INTEGER NOT NULL,
+      email         TEXT NOT NULL,
+      code_hash     TEXT NOT NULL,
+      salt          TEXT NOT NULL,
+      attempts      INTEGER NOT NULL DEFAULT 0,
+      expires_at    TEXT NOT NULL,
+      used_at       TEXT,
+      reset_at      TEXT,
+      created_at    TEXT NOT NULL
+    )`).run();
+    try { await db.prepare(`CREATE INDEX IF NOT EXISTS idx_portal_resets_customer ON portal_password_resets(customer_id, id DESC)`).run(); } catch {}
+    try { await db.prepare(`CREATE INDEX IF NOT EXISTS idx_portal_resets_email ON portal_password_resets(email, created_at DESC)`).run(); } catch {}
   })().catch((e) => { schemaReady = null; throw e; });
   return schemaReady;
 }

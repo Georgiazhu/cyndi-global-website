@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Reset password | Cyndi Global Portal</title>
+<style>
+:root{--ink:#1c1917;--oat:#8C7B66;--bg:#F5F1EA;--line:#e4ddd1;--muted:#6b6258}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+.topbar{height:70px;display:flex;align-items:center;justify-content:space-between;padding:0 6%;border-bottom:1px solid var(--line);background:#fff}
+.topbar img{height:30px;width:auto;display:block}
+.topbar .side{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--oat)}
+.wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:48px 20px}
+.card{width:100%;max-width:440px}
+.brand{text-align:center;margin-bottom:30px}
+.brand .kicker{font-size:11px;letter-spacing:.28em;color:var(--oat);font-weight:700}
+.brand .brand-logo{width:190px;height:auto;max-width:80%;display:block;margin:8px auto 10px}
+.brand p{font-size:13px;color:var(--muted)}
+.form{background:#fff;border:1px solid var(--line);border-radius:14px;padding:30px;box-shadow:0 16px 40px rgba(28,25,23,.06)}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;font-weight:600;color:#57534e;margin-bottom:7px}
+.field input{width:100%;padding:13px 14px;border:1px solid #ddd5c7;border-radius:9px;font-size:14px;color:var(--ink);outline:none;transition:.15s}
+.field input:focus{border-color:var(--oat);box-shadow:0 0 0 3px rgba(140,123,102,.16)}
+.code{letter-spacing:.32em;font-size:18px;text-align:center}
+.req{margin:2px 0 18px;padding:12px 14px;background:var(--bg);border-radius:8px;font-size:11.5px;color:var(--muted);line-height:1.9}
+.req b{color:#6b5c48}.req .ok{color:#3f7a52}
+.btn{width:100%;padding:14px;border:0;border-radius:9px;background:var(--ink);color:#fff;font-weight:700;font-size:14px;cursor:pointer;transition:.15s}
+.btn:hover{background:#000}.btn:disabled{opacity:.55;cursor:default}
+.msg{margin-bottom:16px;padding:11px 13px;border-radius:8px;font-size:13px;display:none;line-height:1.6}
+.msg.err{display:block;background:#fff1eb;color:#9a3d22}
+.msg.ok{display:block;background:#edf7ef;color:#3f7a52}
+.hint{margin-top:16px;font-size:12px;color:var(--muted);text-align:center;line-height:1.8}
+.hint a{color:#6b5c48;text-decoration:none;border-bottom:1px solid #c9b8a0}
+.fine{margin-top:24px;text-align:center;font-size:11px;color:#9a9186;line-height:1.8}
+.foot{padding:18px;text-align:center;font-size:11px;color:#a99b88}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/"><img src="/cyndi-logo-full-v5.png" alt="Cyndi Global"></a>
+  <span class="side">Confidential portal</span>
+</div>
+<div class="wrap">
+  <div class="card">
+    <div class="brand">
+      <div class="kicker">CUSTOMER PORTAL</div>
+      <img class="brand-logo" src="/cyndi-logo-full-v5.png" alt="Cyndi Global">
+      <p>Verify code &amp; choose a new password</p>
+    </div>
+    <form class="form" id="f">
+      <div id="msg" class="msg" role="alert"></div>
+      <div class="field">
+        <label for="email">Work email</label>
+        <input id="email" type="email" autocomplete="email" placeholder="you@company.com" required>
+      </div>
+      <div class="field">
+        <label for="code">6-digit verification code</label>
+        <input id="code" class="code" inputmode="numeric" maxlength="6" placeholder="000000" required>
+      </div>
+      <div class="field">
+        <label for="p1">New password</label>
+        <input id="p1" type="password" autocomplete="new-password" placeholder="At least 8 characters" required>
+      </div>
+      <div class="field">
+        <label for="p2">Confirm new password</label>
+        <input id="p2" type="password" autocomplete="new-password" placeholder="Re-enter your password" required>
+      </div>
+      <div class="req">
+        <b>Password requirements</b><br>
+        <span id="r8">○</span> At least 8 characters &nbsp; <span id="ru">○</span> One uppercase letter<br>
+        <span id="rn">○</span> One number &nbsp; <span id="rm">○</span> Match confirmation
+      </div>
+      <button class="btn" id="submit" type="submit">Verify &amp; reset password</button>
+      <div class="hint"><a href="/portal/forgot-password/">Request a new code</a> &nbsp;·&nbsp; <a href="/portal/login/">Sign in</a></div>
+    </form>
+    <div class="fine">Codes expire after 15 minutes and can only be used once.</div>
+  </div>
+</div>
+<div class="foot">© Cyndi Global Limited</div>
+<script>
+const $ = (s) => document.querySelector(s);
+const qs = new URLSearchParams(location.search);
+$('#email').value = qs.get('email') || sessionStorage.getItem('portalResetEmail') || '';
+
+function mark(id, ok) { const e=$(id); e.textContent = ok?'✓':'○'; e.className = ok?'ok':''; return ok; }
+function passwordOk() {
+  const a=$('#p1').value, b=$('#p2').value;
+  const checks = [
+    mark('#r8', a.length>=8),
+    mark('#ru', /[A-Z]/.test(a)),
+    mark('#rn', /[0-9]/.test(a)),
+    mark('#rm', a.length>0 && a===b),
+  ];
+  return checks.every(Boolean);
+}
+['#p1','#p2'].forEach(s=>$(s).addEventListener('input',passwordOk));
+
+function show(text, ok) {
+  const msg = $('#msg');
+  msg.textContent = text;
+  msg.className = ok ? 'msg ok' : 'msg err';
+}
+
+$('#f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = $('#email').value.trim();
+  const code = $('#code').value.trim();
+  const btn = $('#submit');
+  $('#msg').style.display = 'none';
+
+  if (!email || !/^\d{6}$/.test(code)) { show('Enter your email and the 6-digit code.', false); return; }
+  if (!passwordOk()) { show('Please meet all password requirements.', false); return; }
+
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  try {
+    const vRes = await fetch('/api/password-reset/verify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code }),
+    });
+    const vData = await vRes.json().catch(() => ({}));
+    if (!vRes.ok) throw new Error(vData.error || 'Verification failed');
+    if (!vData.token) throw new Error('Verification token missing');
+
+    btn.textContent = 'Saving…';
+    const rRes = await fetch('/api/password-reset/reset', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: vData.token, newPassword: $('#p1').value }),
+    });
+    const rData = await rRes.json().catch(() => ({}));
+    if (!rRes.ok) throw new Error(rData.error || 'Could not reset password');
+
+    sessionStorage.removeItem('portalResetEmail');
+    location.href = '/portal/login/?reset=1';
+  } catch (err) {
+    show(err.message || 'Could not reset password', false);
+    btn.disabled = false; btn.textContent = 'Verify & reset password';
+  }
+});
+</script>
+</body>
+</html>
