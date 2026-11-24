@@ -66,7 +66,7 @@ export async function sendPortalCodeEmail(env, to, code, purpose = 'reset') {
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
       console.error(`portal code email: provider returned ${res.status}`, detail.slice(0, 500));
-      return { sent: false, reason: 'provider_error', devCode };
+      return { sent: false, reason: 'provider_error', status: res.status, detail: detail.slice(0, 500), devCode };
     }
     return { sent: true, devCode };
   } catch (e) {
