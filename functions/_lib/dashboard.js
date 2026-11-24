@@ -1,7 +1,7 @@
-// Portal dashboard data layer — reads/writes the REAL D1 database (showcase-db).
+// Portal dashboard data layer — reads/writes the REAL D1 database (cyndi-logistics).
 //
-// Existing tables: users(id,email,display_name,...), orders(order_no,user_id,customer_name,
-// customer_email,items_json,total,status,events_json,created_at,updated_at).
+// Live schema: customers(id,email,display_name,...), orders(order_no,customer_id,customer_name,
+// customer_email,items_json,item_count,total,status,created_at,status_updated_at).
 // The dashboard needs projects (shortlist -> mockup -> order) and an order->project link,
 // which the legacy schema does not have. We add them idempotently at runtime:
 //   client_projects          (new table)
@@ -42,6 +42,8 @@ export async function ensureDashboardSchema(db) {
 
 const now = () => new Date().toISOString();
 const day = (v) => String(v || '').slice(0, 10);
+const uid = (user) => String(user?.id ?? '');
+const uname = (user) => user?.display_name || user?.displayName || user?.email || 'Cyndi client';
 
 function parseJson(raw, fallback) {
   try {
@@ -51,22 +53,15 @@ function parseJson(raw, fallback) {
     return fallback;
   }
 }
-
-function arrayOf(value) {
-  return Array.isArray(value) ? value : [];
-}
-
-function text(value, max = 500) {
-  return typeof value === 'string' ? value.trim().slice(0, max) : '';
-}
-
+function arrayOf(value) { return Array.isArray(value) ? value : []; }
+function text(value, max = 500) { return typeof value === 'string' ? value.trim().slice(0, max) : ''; }
 function int(value, fallback = 0) {
   const n = Number.parseInt(value, 10);
   return Number.isFinite(n) ? n : fallback;
 }
 
 // Frontend order items are arrays: [name, sku, size, qty].
-// D1 keeps a snapshot with电商 fields; map both shapes defensively.
+// D1 keeps a snapshot with shop fields; map both shapes defensively.
 function shapeOrderItems(raw) {
   return arrayOf(parseJson(raw, [])).map((it) => {
     if (Array.isArray(it)) {
@@ -77,13 +72,9 @@ function shapeOrderItems(raw) {
     return [String(it?.name || 'Product'), String(sku), String(size), int(it?.quantity, 1)];
   });
 }
-
-function units(items) {
-  return items.reduce((sum, it) => sum + int(it[3], 0), 0);
-}
+function units(items) { return items.reduce((sum, it) => sum + int(it[3], 0), 0); }
 
 function orderNoForProject(db, projectNo) {
-  // ORD-26-001-01 = order 01 of project PRJ-26-001.
   return (async () => {
     const suffix = String(projectNo || '').split('-').pop();
     const prefix = `ORD-26-${suffix}-`;
@@ -97,29 +88,16 @@ function orderNoForProject(db, projectNo) {
   })();
 }
 
-function projectNoForUser(db, userId) {
-  return (async () => {
-    const rows = await db.prepare(
-      'SELECT project_no FROM client_projects WHERE user_id = ?1'
-    ).bind(userId).all();
-    let seq = 0;
-    for (const r of rows.results || []) {
-      const n = int(String(r.project_no || '').split('-').pop(), 0);
-      if (n > seq) seq = n;
-    }
-    return `PRJ-26-${String(seq + 1).padStart(3, '0')}`;
-  })();
-}
-
-// First visit only: if BOTH tables are empty for this user, seed the demo program into D1.
+// First visit only: if BOTH tables are empty for this customer, seed the demo program into D1.
 // If the account already has real orders we never inject fake ones.
 async function seedIfEmpty(db, user) {
+  const id = uid(user);
   const projects = await db.prepare(
     'SELECT project_no FROM client_projects WHERE user_id = ?1 LIMIT 1'
-  ).bind(user.id).first();
+  ).bind(id).first();
   const orders = await db.prepare(
-    'SELECT order_no FROM orders WHERE user_id = ?1 LIMIT 1'
-  ).bind(user.id).first();
+    'SELECT order_no FROM orders WHERE customer_id = ?1 LIMIT 1'
+  ).bind(Number(id)).first();
   if (projects || orders) return;
 
   const ts = now();
@@ -144,7 +122,7 @@ async function seedIfEmpty(db, user) {
     await db.prepare(`INSERT OR IGNORE INTO client_projects
       (project_no,user_id,title,created_by,created_at,stage,status,shortlist_json,mockups_json,updated_at)
       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)`).bind(
-      no, user.id, title, user.display_name || user.email, ts, stage, status,
+      no, id, title, uname(user), ts, stage, status,
       JSON.stringify(shortlist), JSON.stringify(mockups), ts
     ).run();
   }
@@ -157,26 +135,27 @@ async function seedIfEmpty(db, user) {
   for (const [no, project, createdAt, items] of realOrders) {
     const stamp = `${createdAt}T09:00:00.000Z`;
     await db.prepare(`INSERT OR IGNORE INTO orders
-      (order_no,user_id,customer_name,customer_email,items_json,total,status,events_json,created_at,updated_at,project_no)
-      VALUES (?1,?2,?3,?4,?5,?6,'confirmed','[]',?7,?7,?8)`).bind(
-      no, user.id, user.display_name || 'Cyndi client', user.email,
+      (order_no,customer_id,customer_name,customer_email,items_json,item_count,total,status,created_at,status_updated_at,project_no)
+      VALUES (?1,?2,?3,?4,?5,?6,0,'confirmed',?7,?7,?8)`).bind(
+      no, Number(id), uname(user), user.email,
       JSON.stringify(items.map((it) => ({ name: it[0], sku: it[1], size: it[2], quantity: it[3] }))),
-      0, stamp, project
+      units(items), stamp, project
     ).run();
   }
 }
 
-// One read assembles every section of the dashboard from D1.
+// One read assembles every dashboard section from real D1 rows.
 export async function loadDashboard(db, user) {
   await ensureDashboardSchema(db);
   await seedIfEmpty(db, user);
 
+  const id = uid(user);
   const pRes = await db.prepare(
     'SELECT * FROM client_projects WHERE user_id = ?1 ORDER BY created_at DESC'
-  ).bind(user.id).all();
+  ).bind(id).all();
   const oRes = await db.prepare(
-    'SELECT * FROM orders WHERE user_id = ?1 ORDER BY created_at DESC LIMIT 200'
-  ).bind(user.id).all();
+    'SELECT * FROM orders WHERE customer_id = ?1 ORDER BY created_at DESC LIMIT 200'
+  ).bind(Number(id)).all();
 
   const orders = (oRes.results || []).map((r) => ({
     id: r.order_no,
@@ -211,7 +190,7 @@ export async function loadDashboard(db, user) {
   }
 
   return {
-    user: { id: user.id, email: user.email, displayName: user.display_name },
+    user: { id: user.id, email: user.email, displayName: user.displayName || user.display_name },
     projects,
     orders,
     inventory: [...stock.values()].sort((a, b) => b.onHand - a.onHand),
@@ -232,12 +211,12 @@ export async function loadDashboard(db, user) {
 async function getProject(db, user, projectNo) {
   const r = await db.prepare(
     'SELECT * FROM client_projects WHERE project_no = ?1 AND user_id = ?2'
-  ).bind(projectNo, user.id).first();
+  ).bind(projectNo, uid(user)).first();
   if (!r) throw Object.assign(new Error('Project not found'), { status: 404 });
   return r;
 }
 
-// POST /api/portal/dashboard/  — all interactive actions, one authenticated endpoint.
+// POST /api/portal/dashboard/ — every dashboard action, written back to D1.
 export async function mutateDashboard(db, user, body) {
   await ensureDashboardSchema(db);
   const action = text(body?.action, 40);
@@ -251,7 +230,7 @@ export async function mutateDashboard(db, user, body) {
     return db.prepare(`UPDATE client_projects SET stage=?1,status=?2,shortlist_json=?3,mockups_json=?4,updated_at=?5
       WHERE project_no=?6 AND user_id=?7`).bind(
       patch.stage ?? int(row.stage, 1), patch.status ?? row.status,
-      JSON.stringify(shortlist), JSON.stringify(mockups), ts, projectNo, user.id
+      JSON.stringify(shortlist), JSON.stringify(mockups), ts, projectNo, uid(user)
     ).run();
   };
 
@@ -308,10 +287,10 @@ export async function mutateDashboard(db, user, body) {
       const orderNo = await orderNoForProject(db, projectNo);
       const snapshot = items.map((it) => ({ name: it[0], sku: it[1], size: it[2], quantity: it[3] }));
       await db.prepare(`INSERT INTO orders
-        (order_no,user_id,customer_name,customer_email,items_json,total,status,events_json,created_at,updated_at,project_no)
-        VALUES (?1,?2,?3,?4,?5,?6,'confirmed','[]',?7,?7,?8)`).bind(
-        orderNo, user.id, user.display_name || user.email, user.email,
-        JSON.stringify(snapshot), 0, ts, projectNo
+        (order_no,customer_id,customer_name,customer_email,items_json,item_count,total,status,created_at,status_updated_at,project_no)
+        VALUES (?1,?2,?3,?4,?5,?6,0,'confirmed',?7,?7,?8)`).bind(
+        orderNo, Number(uid(user)), uname(user), user.email,
+        JSON.stringify(snapshot), units(items), ts, projectNo
       ).run();
       await save({ status: 'completed' });
       return { ok: true, orderNo, message: `${orderNo} created · ${units(items)} pcs added to Inventory` };
@@ -321,5 +300,4 @@ export async function mutateDashboard(db, user, body) {
   }
 }
 
-// Used by the seeded demo data and by future "New Order" actions.
-export { orderNoForProject, projectNoForUser };
+export { orderNoForProject };
