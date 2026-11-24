@@ -126,7 +126,7 @@ tr:last-child td{border-bottom:0}
   <div class="info">ID logic — <b>PRJ-26-001</b> is the project number; <b>ORD-26-001-01</b> means order 01 of project 001. Every order belongs to one project, while a project may have no order or several orders.</div>
   <h2 class="section-title">Current Projects</h2>
   <div id="activeProjects"></div>
-  <h2 class="section-title">Past Projects <span class="pill green" style="vertical-align:middle;margin-left:6px">Completed</span></h2>
+  <h2 class="section-title">Past Projects</h2>
   <div id="pastProjects"></div>
 </section>
 
@@ -278,7 +278,7 @@ function projectCard(p){
       return '<div class="act '+(cur?'current':'')+'"><b>0'+(i+1)+' '+l+'</b><span>'+text+'</span>'+(cur?'<button class="btn small" onclick="'+fn+'(\''+p.id+'\')">'+text+'</button>':fin?'<span class="pill green">Done</span>':'<span class="pill">Pending</span>')+'</div>';
     }).join('');
   }
-  return '<div class="pcard '+(done?'past':'')+'"><div class="phead"><h3>'+p.name+'</h3><span class="pid">'+p.id+'</span>'+(done?'<span class="pill green">Completed</span>':'<span class="pill orange">In progress</span>')+'</div><div class="pmeta">Created by <b>'+p.creator+'</b> · '+p.created+'</div><div class="pbody"><div class="progress">'+prog+'</div><div class="acts3">'+acts+'</div></div></div>';
+  return '<div class="pcard '+(done?'past':'')+'"><div class="phead"><h3>'+p.name+'</h3><span class="pid">'+p.id+'</span></div><div class="pmeta">Created by <b>'+p.creator+'</b> · '+p.created+'</div><div class="pbody"><div class="progress">'+prog+'</div><div class="acts3">'+acts+'</div></div></div>';
 }
 function renderProjects(){
   $('activeProjects').innerHTML=projects.filter(p=>!p.done).map(projectCard).join('')||'<div class="section"><div class="body" style="color:var(--muted)">No current projects.</div></div>';
