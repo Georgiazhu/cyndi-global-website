@@ -112,7 +112,7 @@ export default function CyndiNavbar() {
         {/* Logo — scroll-collapse: the wordmark folds into the mark on scroll (Anthropic-style),
             then unfolds when back at the top. */}
         <a href="/#top" aria-label="Cyndi Global home" className="flex items-center shrink-0 overflow-hidden">
-          <img src="/cyndi-logo-mark.png" alt="" className="h-8 w-auto shrink-0" />
+          <img src="/cyndi-logo-mark-v5.png" alt="" className="h-8 w-auto shrink-0" />
           <span
             className="inline-flex items-center overflow-hidden whitespace-nowrap motion-reduce:transition-none transition-[max-width,opacity,transform] duration-[450ms] ease-[cubic-bezier(.65,0,.35,1)]"
             style={{
@@ -122,7 +122,7 @@ export default function CyndiNavbar() {
               transformOrigin: 'left center',
             }}
           >
-            <img src="/cyndi-logo-word.png" alt="" className="h-8 w-auto" />
+            <img src="/cyndi-logo-word-v5.png" alt="" className="h-8 w-auto" />
           </span>
         </a>
 
