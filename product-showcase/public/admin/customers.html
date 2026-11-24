@@ -54,6 +54,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
     <a href="/admin/products.html">Products</a>
     <a href="/admin/orders.html">Orders</a>
     <a href="/admin/customers.html" class="on" aria-current="page">Customers</a>
+    <a href="/admin/portal-projects.html">Portal Projects</a>
     <a href="/admin/showcase.html">Showcase</a>
     <a href="/admin/inventory.html">Inventory</a>
     <a href="/admin/logistics.html">Shipping</a>
@@ -93,7 +94,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
       <table>
         <thead><tr>
           <th scope="col">Email</th><th scope="col">Username</th><th scope="col" class="hide-sm">Name</th>
-          <th scope="col">Client</th><th scope="col">Showcase</th><th scope="col">Status</th><th scope="col" class="num hide-sm">Orders</th>
+          <th scope="col">Client</th><th scope="col">Showcase</th><th scope="col">Access level</th><th scope="col">Status</th><th scope="col" class="num hide-sm">Orders</th>
         </tr></thead>
         <tbody id="rows"></tbody>
       </table>
@@ -129,6 +130,12 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
         <select id="fStatus"><option value="active">Active</option><option value="disabled">Disabled</option></select></div>
     </div>
     <div class="field"><label class="inline"><input id="fShowcase" type="checkbox"> Showcase access</label></div>
+    <div class="grid2">
+      <div class="field"><label for="fRole">Access level</label>
+        <select id="fRole"><option value="viewer">Viewer — browse only</option><option value="senior">Senior — query + download</option></select></div>
+      <div class="field" style="display:flex;align-items:flex-end;padding-bottom:4px">
+        <label class="inline"><input id="fRequireSetup" type="checkbox"> Require customer to set password on first sign-in</label></div>
+    </div>
     <div class="field" id="fPasswordWrap">
       <label for="fPassword">Initial password (leave empty to generate a temporary one)</label>
       <input id="fPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password">
@@ -250,7 +257,7 @@ async function load(){
 }
 function renderRows(){
   const tb=$('rows');clear(tb);
-  if(!state.customers.length){tb.appendChild(h('tr',null,h('td',{colspan:'7',class:'empty',text:'No customers match.'})));return;}
+  if(!state.customers.length){tb.appendChild(h('tr',null,h('td',{colspan:'8',class:'empty',text:'No customers match.'})));return;}
   for(const c of state.customers){
     const tr=h('tr',{tabindex:'0',class:state.open&&state.open.id===c.id?'sel':null,'aria-label':'Edit customer '+c.email},
       h('td',{text:c.email}),
@@ -258,6 +265,7 @@ function renderRows(){
       h('td',{class:'hide-sm',text:c.displayName||'—'}),
       h('td',{text:c.clientCode||'—'}),
       h('td',null,c.showcaseAccess?h('span',{class:'pill sc',text:'Yes'}):h('span',{class:'sub',text:'No'})),
+      h('td',null,h('span',{class:'pill '+(c.portalRole==='senior'?'sc':''),text:c.portalRole==='senior'?'Senior':'Viewer'})),
       h('td',null,statusPill(c.status)),
       h('td',{class:'num hide-sm',text:String(c.orderCount)}));
     tr.addEventListener('click',()=>openCustomer(c,tr));
@@ -298,6 +306,7 @@ function openCustomer(c,fromEl){
   $('dSub').textContent='Customer #'+c.id+' · created '+fmtDate(c.createdAt)+' · '+c.orderCount+' order'+(c.orderCount===1?'':'s');
   $('fEmail').value=c.email;$('fUsername').value=c.username||'';$('fDisplay').value=c.displayName||'';
   fillClientSelect(c.clientId);$('fStatus').value=c.status;$('fShowcase').checked=!!c.showcaseAccess;
+  $('fRole').value=c.portalRole==='senior'?'senior':'viewer';$('fRequireSetup').checked=false;
   $('fStatusWrap').classList.remove('hidden');$('fPasswordWrap').classList.add('hidden');$('fPassword').value='';
   $('resetBox').classList.remove('hidden');$('rPassword').value='';$('pwState').textContent=pwText(c);
   $('fSave').textContent='Save changes';
@@ -309,7 +318,8 @@ function openNew(){
   $('dTitle').textContent='New customer';
   $('dSub').textContent='Creates a sign-in account for the shop and (optionally) the Showcase.';
   $('fEmail').value='';$('fUsername').value='';$('fDisplay').value='';fillClientSelect(null);
-  $('fShowcase').checked=false;$('fStatusWrap').classList.add('hidden');
+  $('fShowcase').checked=false;$('fRole').value='viewer';$('fRequireSetup').checked=true;
+  $('fStatusWrap').classList.add('hidden');
   $('fPasswordWrap').classList.remove('hidden');$('fPassword').value='';
   $('resetBox').classList.add('hidden');$('fSave').textContent='Create customer';
   openDrawer($('newCustomer'));
@@ -327,7 +337,8 @@ $('custForm').addEventListener('submit',async e=>{
   e.preventDefault();hide($('dMsg'));
   const clientVal=$('fClient').value;
   const common={email:$('fEmail').value.trim(),username:$('fUsername').value.trim()||null,
-    displayName:$('fDisplay').value.trim()||null,clientId:clientVal?Number(clientVal):null,showcaseAccess:$('fShowcase').checked};
+    displayName:$('fDisplay').value.trim()||null,clientId:clientVal?Number(clientVal):null,
+    showcaseAccess:$('fShowcase').checked,portalRole:$('fRole').value};
   const btn=$('fSave');btn.disabled=true;
   try{
     if(state.open){
@@ -338,7 +349,7 @@ $('custForm').addEventListener('submit',async e=>{
       openCustomer(b.customer,null);show($('dMsg'),'Saved');
     }else{
       const pw=$('fPassword').value;
-      const b=await post(Object.assign({action:'createCustomer'},common,pw?{password:pw}:{}));
+      const b=await post(Object.assign({action:'createCustomer',requirePasswordSetup:$('fRequireSetup').checked},common,pw?{password:pw}:{}));
       $('fPassword').value='';
       openCustomer(b.customer,null);
       show($('dMsg'),'Customer created');showSecret(b.temporaryPassword);
@@ -353,7 +364,7 @@ $('rBtn').addEventListener('click',async()=>{
   if(!confirm('Reset the password for '+c.email+'?'))return;
   resetDrawerMsgs();$('rBtn').disabled=true;
   try{
-    const b=await post(Object.assign({action:'resetPassword',id:c.id},pw?{password:pw}:{}));
+    const b=await post(Object.assign({action:'resetPassword',id:c.id,requirePasswordSetup:true},pw?{password:pw}:{}));
     $('rPassword').value='';
     openCustomer(b.customer,null);
     show($('dMsg'),'Password reset');showSecret(b.temporaryPassword);

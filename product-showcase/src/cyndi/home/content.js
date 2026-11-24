@@ -1,5 +1,5 @@
 // All homepage copy lives here. Items marked PLACEHOLDER need real data from the client.
-export const PORTAL_LOGIN_URL = '#portal-login' // PLACEHOLDER until the OIDC portal exists
+export const PORTAL_LOGIN_URL = '/portal/login/'
 export const QUOTE_URL = '#quote'
 
 export const nav = [

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Sign in | Cyndi Global Portal</title>
+<style>
+:root{--ink:#1c1917;--oat:#8C7B66;--bg:#F5F1EA;--line:#e4ddd1;--muted:#6b6258}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+.topbar{height:70px;display:flex;align-items:center;justify-content:space-between;padding:0 6%;border-bottom:1px solid var(--line);background:#fff}
+.topbar img{height:30px;width:auto;display:block}
+.topbar .side{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--oat)}
+.wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:48px 20px}
+.card{width:100%;max-width:440px}
+.brand{text-align:center;margin-bottom:30px}
+.brand .kicker{font-size:11px;letter-spacing:.28em;color:var(--oat);font-weight:700}
+.brand h1{font-size:30px;font-weight:800;letter-spacing:-.03em;margin:8px 0 6px}
+.brand p{font-size:13px;color:var(--muted)}
+.form{background:#fff;border:1px solid var(--line);border-radius:14px;padding:30px;box-shadow:0 16px 40px rgba(28,25,23,.06)}
+.field{margin-bottom:18px}
+.field label{display:block;font-size:12px;font-weight:600;color:#57534e;margin-bottom:7px}
+.field label span{font-weight:400;color:#a0988c}
+.field input{width:100%;padding:13px 14px;border:1px solid #ddd5c7;border-radius:9px;font-size:14px;color:var(--ink);outline:none;transition:.15s}
+.field input:focus{border-color:var(--oat);box-shadow:0 0 0 3px rgba(140,123,102,.16)}
+.btn{width:100%;padding:14px;border:0;border-radius:9px;background:var(--ink);color:#fff;font-weight:700;font-size:14px;cursor:pointer;transition:.15s}
+.btn:hover{background:#000}.btn:disabled{opacity:.55;cursor:default}
+.msg{margin-bottom:16px;padding:11px 13px;border-radius:8px;font-size:13px;display:none}
+.msg.err{display:block;background:#fff1eb;color:#9a3d22}
+.links{display:flex;justify-content:space-between;margin-top:16px;font-size:12px;color:var(--oat)}
+.links a{color:#6b5c48;text-decoration:none;border-bottom:1px solid #c9b8a0}
+.fine{margin-top:26px;text-align:center;font-size:11px;color:#9a9186;line-height:1.8}
+.foot{padding:18px;text-align:center;font-size:11px;color:#a99b88}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/"><img src="/cyndi-logo-full-v5.png" alt="Cyndi Global"></a>
+  <span class="side">Confidential portal</span>
+</div>
+<div class="wrap">
+  <div class="card">
+    <div class="brand">
+      <div class="kicker">CUSTOMER PORTAL</div>
+      <h1>Cyndi Global</h1>
+      <p>Sign in to your project workspace</p>
+    </div>
+    <form class="form" id="f">
+      <div id="msg" class="msg" role="alert"></div>
+      <div class="field">
+        <label for="email">Work email <span>— your company email address</span></label>
+        <input id="email" type="email" autocomplete="username" placeholder="you@company.com" required>
+      </div>
+      <div class="field">
+        <label for="pw">Password</label>
+        <input id="pw" type="password" autocomplete="current-password" placeholder="••••••••" required>
+      </div>
+      <button class="btn" id="submit" type="submit">Sign in</button>
+      <div class="links"><a href="#">Forgot password?</a><span>Need access? Contact your admin</span></div>
+    </form>
+    <div class="fine">Confidential — for authorised recipients only.<br>Accounts are created by Cyndi Global administrators.</div>
+  </div>
+</div>
+<div class="foot">© Cyndi Global Limited</div>
+<script>
+const $ = (s) => document.querySelector(s);
+$('#f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('#submit'), msg = $('#msg');
+  btn.disabled = true; btn.textContent = 'Signing in…'; msg.style.display = 'none';
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: $('#email').value.trim(), password: $('#pw').value }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Sign-in failed');
+    const u = data.user || {};
+    if (u.mustChangePassword) location.href = '/portal/setup-password/';
+    else location.href = '/portal/';
+  } catch (err) {
+    msg.textContent = err.message || 'Sign-in failed'; msg.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Sign in';
+  }
+});
+</script>
+</body>
+</html>

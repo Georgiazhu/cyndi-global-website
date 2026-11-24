@@ -14,7 +14,7 @@ export default function BrandHero() {
         </p>
         <div className="mt-9 flex flex-wrap items-center gap-4">
           <a href="#quote" className="rounded-full bg-white px-8 py-4 text-sm font-semibold text-ink shadow-sm transition-colors hover:bg-white/80">Get a quote</a>
-          <a href="#portal-login" className="text-sm font-semibold text-ink/70 underline-offset-4 transition-colors hover:text-ink hover:underline">Portal login</a>
+          <a href="/portal/login/" className="text-sm font-semibold text-ink/70 underline-offset-4 transition-colors hover:text-ink hover:underline">Portal login</a>
         </div>
       </div>
     </section>

@@ -11,7 +11,7 @@ export default function BrandFooter() {
             <a href="mailto:info@cyndiglobal.com" className="mt-3 inline-block text-sm text-white/70 transition-colors hover:text-oat">info@cyndiglobal.com</a>
           </div>
           <div className="flex flex-col gap-3 text-sm sm:flex-row sm:gap-14">
-            <a href="#portal-login" className="text-white/70 transition-colors hover:text-oat">Portal login</a>
+            <a href="/portal/login/" className="text-white/70 transition-colors hover:text-oat">Portal login</a>
             <a href="mailto:info@cyndiglobal.com" className="text-white/70 transition-colors hover:text-oat">Get a quote</a>
             <a href="/catalog/logistics.html" className="text-white/70 transition-colors hover:text-oat">Track a shipment</a>
           </div>

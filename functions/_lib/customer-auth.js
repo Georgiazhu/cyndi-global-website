@@ -9,6 +9,7 @@
 //   password_salt 同步存 saltHex，仅为满足 NOT NULL）。兼容旧格式 SHA-256(password + salt) hex，
 //   旧格式登录成功后自动升级。password_hash = '!' 表示"没有可用密码"（只能由管理员重置）。
 import { SHOWCASE_ORDERS_WHERE } from './orders.js';
+import { ensurePortalSchema } from './portal.js';
 
 const encoder = new TextEncoder();
 
@@ -143,14 +144,17 @@ export const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 export const USERNAME_RE = /^[A-Za-z0-9._-]{2,40}$/;
 
 const CUSTOMER_COLUMNS = `c.id, c.email, c.username, c.display_name, c.status, c.client_id, c.showcase_access,
+  c.portal_role, c.must_change_password,
   c.password_hash, c.password_salt, cl.code AS client_code, cl.name AS client_name, cl.status AS client_status`;
 const CUSTOMER_FROM = 'FROM customers c LEFT JOIN clients cl ON cl.id = c.client_id';
 
 export async function loadCustomerById(db, id) {
+  await ensurePortalSchema(db); // 保证 portal_role / must_change_password 列存在
   return db.prepare(`SELECT ${CUSTOMER_COLUMNS} ${CUSTOMER_FROM} WHERE c.id = ?1`).bind(id).first();
 }
 
 async function loadCustomerByIdentifier(db, identifier) {
+  await ensurePortalSchema(db);
   // 邮箱大小写不敏感（库里统一存小写），用户名精确匹配
   return db.prepare(`SELECT ${CUSTOMER_COLUMNS} ${CUSTOMER_FROM} WHERE lower(c.email) = ?1 OR c.username = ?2 LIMIT 1`)
     .bind(identifier.toLowerCase(), identifier).first();
@@ -158,10 +162,14 @@ async function loadCustomerByIdentifier(db, identifier) {
 
 // 公开给前端的用户信息（永不含密码字段）
 export function publicUser(row) {
+  const role = row.portal_role === 'senior' || Number(row.showcase_access) === 1 ? 'senior' : 'viewer';
   return {
     email: row.email,
     username: row.username || null,
     displayName: row.display_name || row.username || String(row.email || '').split('@')[0],
+    clientName: row.client_name || null,
+    role,
+    mustChangePassword: Number(row.must_change_password) === 1 || passwordFormat(row.password_hash) === 'none',
   };
 }
 

@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>My Project | Cyndi Global Portal</title>
+<style>
+:root{--ink:#1c1917;--oat:#8C7B66;--bg:#F5F1EA;--line:#e4ddd1;--muted:#6b6258;--paper:#fff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif}
+.topbar{height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 6%;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:10}
+.topbar a.logo img{height:30px;width:auto;display:block}
+.topbar .user{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--muted)}
+.badge{padding:4px 10px;border-radius:20px;font-size:10.5px;font-weight:800;letter-spacing:.06em}
+.badge.sr{background:#e6eee4;color:#3f7a52}.badge.vw{background:#ece8e0;color:#6b5c48}
+.linkbtn{background:none;border:0;cursor:pointer;font-size:12px;color:#6b5c48;text-decoration:underline;text-underline-offset:3px}
+.wrap{max-width:1180px;margin:0 auto;padding:38px 24px 70px}
+.hello{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;margin-bottom:26px}
+.hello h1{font-size:30px;font-weight:800;letter-spacing:-.03em;margin:0}
+.hello p{margin:6px 0 0;font-size:13px;color:var(--muted)}
+.quote-btn{display:inline-block;padding:11px 20px;border-radius:9px;background:var(--ink);color:#fff;font-size:13px;font-weight:700;text-decoration:none}
+.project{background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:0 16px 46px rgba(28,25,23,.05);overflow:hidden}
+.pj-head{padding:28px 34px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
+.pj-head .kick{font-size:10.5px;letter-spacing:.24em;color:var(--oat);font-weight:800;text-transform:uppercase}
+.pj-head h2{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:6px 0 0}
+.pj-head .meta{font-size:12px;color:var(--muted);text-align:right;line-height:1.7}
+.overall{display:flex;align-items:center;gap:12px}
+.overall .track{width:150px;height:8px;background:#ece8e0;border-radius:6px;overflow:hidden}
+.overall .fill{height:100%;background:var(--oat);width:0;transition:width .8s ease}
+.overall .pct{font-size:20px;font-weight:800;color:var(--oat);font-variant-numeric:tabular-nums}
+.stages{padding:8px 34px 6px}
+.stage{display:grid;grid-template-columns:52px 1fr 120px;gap:20px;align-items:center;padding:26px 0;border-bottom:1px solid #f0ebe2}
+.stage:last-child{border-bottom:0}
+.icon{width:52px;height:52px;border-radius:13px;background:var(--bg);display:grid;place-items:center;color:var(--oat)}
+.icon svg{width:26px;height:26px}
+.stage h3{font-size:16px;font-weight:800;margin:0 0 3px}
+.stage .desc{font-size:12px;color:var(--muted);margin:0 0 12px}
+.bar{height:10px;background:#ece8e0;border-radius:7px;overflow:hidden;position:relative}
+.bar .fill{height:100%;width:0;border-radius:7px;transition:width 1s cubic-bezier(.2,.7,.2,1)}
+.fill.s1{background:#b9a98f}.fill.s2{background:#9c8768}.fill.s3{background:var(--ink)}
+.stage .side{text-align:right}
+.stage .num{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.stage .state{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--oat);margin-top:3px;font-weight:700}
+.note{font-size:11.5px;color:var(--muted);margin-top:9px;font-style:italic}
+.pj-foot{padding:20px 34px;background:#faf7f2;border-top:1px solid var(--line);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.action{padding:10px 16px;border-radius:8px;font-size:12.5px;font-weight:700;text-decoration:none;cursor:pointer;border:1px solid var(--ink)}
+.action.primary{background:var(--ink);color:#fff}.action.ghost{background:#fff;color:var(--ink)}
+.action.locked{background:#f0ece5;color:#a99b88;border-color:#e4ddd1;cursor:not-allowed}
+.lock-note{font-size:11.5px;color:var(--oat);margin-left:auto}
+.empty{padding:60px 30px;text-align:center;color:var(--muted)}
+.load{display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--oat);letter-spacing:.2em;font-size:12px;text-transform:uppercase}
+@media(max-width:720px){.stage{grid-template-columns:44px 1fr;gap:14px}.stage .side{grid-column:2;text-align:left;display:flex;align-items:baseline;gap:10px}.icon{width:44px;height:44px}.stages,.pj-head,.pj-foot{padding-left:20px;padding-right:20px}.hello h1{font-size:25px}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="logo" href="/"><img src="/cyndi-logo-full-v5.png" alt="Cyndi Global"></a>
+  <div class="user">
+    <span id="email"></span>
+    <span id="role" class="badge vw">VIEWER</span>
+    <button class="linkbtn" id="logout">Sign out</button>
+  </div>
+</div>
+<div class="wrap">
+  <div id="root" class="load">Loading your project…</div>
+</div>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ICONS = {
+  showcase: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M8 21h8M12 18v3"/></svg>',
+  mockup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 4v10l-7 4-7-4V7z"/><path d="M5 7l7 4 7-4M12 11v10"/></svg>',
+  order: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg>',
+};
+const STAGE_META = {
+  showcase: { title: 'Showcase', desc: 'Product selection & catalogue curation' },
+  mockup:   { title: 'Mockup',   desc: 'Artwork, samples & approval' },
+  order:    { title: 'Order',    desc: 'Production & fulfilment' },
+};
+let USER = null;
+
+function stageHTML(key, st) {
+  const m = STAGE_META[key];
+  const state = st.pct >= 100 ? 'Complete' : st.pct > 0 ? 'In progress' : 'Not started';
+  return `<div class="stage">
+    <div class="icon">${ICONS[key]}</div>
+    <div>
+      <h3>${m.title}</h3>
+      <p class="desc">${m.desc}</p>
+      <div class="bar"><div class="fill ${key==='showcase'?'s1':key==='mockup'?'s2':'s3'}" data-pct="${st.pct}"></div></div>
+      ${st.note ? `<div class="note">${esc(st.note)}</div>` : ''}
+    </div>
+    <div class="side"><div class="num">${st.pct}%</div><div class="state">${state}</div></div>
+  </div>`;
+}
+
+function render(project) {
+  const stages = project.stages || {};
+  const sh = stages.showcase || {pct:0,note:''}, mu = stages.mockup || {pct:0,note:''}, or = stages.order || {pct:0,note:''};
+  const overall = Math.round((sh.pct + mu.pct + or.pct) / 3);
+  const senior = USER?.role === 'senior';
+  const actions = senior
+    ? `<a class="action primary" href="/showcase/">Browse showcase</a>
+       <button class="action ghost" id="dlMenu">Download product specs</button>`
+    : `<button class="action locked" disabled>Downloads unavailable</button>
+       <span class="lock-note">Read-only access — contact your admin for download permission.</span>`;
+  $('#root').className = '';
+  $('#root').innerHTML = `
+    <div class="hello">
+      <div><h1>My Project</h1><p>Track your SWAG program from selection to delivery.</p></div>
+      <a class="quote-btn" href="mailto:projects@cyndiglobal.com">Contact project team</a>
+    </div>
+    <div class="project">
+      <div class="pj-head">
+        <div><div class="kick">Active project</div><h2>${esc(project.title)}</h2></div>
+        <div>
+          <div class="meta">${USER?.clientName ? esc(USER.clientName) + '<br>' : ''}Updated ${project.updatedAt ? esc(new Date(project.updatedAt).toLocaleDateString()) : '—'}</div>
+          <div class="overall" style="margin-top:8px;justify-content:flex-end">
+            <div class="track"><div class="fill" id="ov" style="width:0"></div></div>
+            <div class="pct">${overall}%</div>
+          </div>
+        </div>
+      </div>
+      <div class="stages">
+        ${stageHTML('showcase', sh)}
+        ${stageHTML('mockup', mu)}
+        ${stageHTML('order', or)}
+      </div>
+      <div class="pj-foot">${actions}</div>
+    </div>`;
+  // animate bars
+  requestAnimationFrame(() => setTimeout(() => {
+    document.querySelectorAll('.bar .fill').forEach((el) => { el.style.width = el.dataset.pct + '%'; });
+    $('#ov').style.width = overall + '%';
+  }, 60));
+  if (senior) $('#dlMenu').addEventListener('click', () => { location.href = '/showcase/'; });
+}
+
+async function boot() {
+  try {
+    const me = await fetch('/api/me', { cache:'no-store' }).then(r => r.json());
+    if (!me.user) { location.href = '/portal/login/'; return; }
+    USER = me.user;
+    $('#email').textContent = me.user.email || '';
+    const rb = $('#role');
+    rb.textContent = me.user.role === 'senior' ? 'SENIOR' : 'VIEWER';
+    rb.className = 'badge ' + (me.user.role === 'senior' ? 'sr' : 'vw');
+    if (me.user.mustChangePassword) { location.href = '/portal/setup-password/'; return; }
+    const d = await fetch('/api/portal/project', { cache:'no-store' }).then(r => r.json());
+    if (!d.project) throw new Error(d.error || 'Could not load project');
+    render(d.project);
+  } catch (e) {
+    $('#root').className = 'empty';
+    $('#root').textContent = 'Could not load your project. Please try again.';
+  }
+}
+$('#logout').addEventListener('click', async () => {
+  await fetch('/api/logout', { method:'POST' }).catch(()=>{});
+  location.href = '/portal/login/';
+});
+boot();
+</script>
+</body>
+</html>

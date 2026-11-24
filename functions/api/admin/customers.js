@@ -1,5 +1,6 @@
 import { getAdminSecret, json, readSession } from '../../_lib/auth.js';
 import { EMAIL_RE, USERNAME_RE, hashPassword, passwordFormat } from '../../_lib/customer-auth.js';
+import { ensurePortalSchema } from '../../_lib/portal.js';
 
 /**
  * /api/admin/customers — admin management of customer accounts (shop + Showcase) and clients.
@@ -51,6 +52,7 @@ function temporaryPassword() {
 }
 
 const CUSTOMER_SELECT = `SELECT c.id, c.email, c.username, c.display_name, c.status, c.client_id, c.showcase_access,
+         c.portal_role, c.must_change_password,
          c.created_at, c.password_hash, cl.code AS client_code, cl.name AS client_name, cl.status AS client_status,
          (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id) AS order_count
   FROM customers c LEFT JOIN clients cl ON cl.id = c.client_id`;
@@ -67,6 +69,8 @@ function rowToCustomer(r) {
     clientName: r.client_name || null,
     clientStatus: r.client_status || null,
     showcaseAccess: Number(r.showcase_access) === 1,
+    portalRole: r.portal_role === 'senior' ? 'senior' : 'viewer',
+    mustChangePassword: Number(r.must_change_password) === 1,
     createdAt: r.created_at,
     orderCount: Number(r.order_count || 0),
     // Only the format, never the hash: 'pbkdf2' | 'legacy' | 'none'
@@ -101,6 +105,7 @@ async function loadClient(db, id) {
 export async function onRequestGet({ request, env }) {
   if (!env.DB) return reply({ error: 'Database binding is not configured' }, 503);
   if (!await requireAdmin(request, env)) return reply({ error: 'Unauthorized' }, 401);
+  await ensurePortalSchema(env.DB);
 
   const params = new URL(request.url).searchParams;
   try {
@@ -226,6 +231,13 @@ function normStatus(raw) {
   return raw;
 }
 
+const PORTAL_ROLES = ['senior', 'viewer'];
+function normPortalRole(raw) {
+  if (raw === undefined) return undefined;
+  if (!PORTAL_ROLES.includes(raw)) throw new InputError('portalRole must be senior or viewer');
+  return raw;
+}
+
 function normPassword(raw) {
   if (raw === undefined || raw === null || raw === '') return { password: temporaryPassword(), generated: true };
   if (typeof raw !== 'string') throw new InputError('Password must be text');
@@ -282,14 +294,17 @@ const actions = {
     const displayName = textField(body.displayName, 'Display name', 60) ?? null;
     const clientId = (await normClientId(env.DB, body.clientId)) ?? null;
     const showcaseAccess = normBool(body.showcaseAccess, 'showcaseAccess') ?? 0;
+    const portalRole = normPortalRole(body.portalRole) ?? (showcaseAccess ? 'senior' : 'viewer');
+    const requireSetup = body.requirePasswordSetup === true;
     const { password, generated } = normPassword(body.password);
     const rec = await hashPassword(password, env);
     const res = await env.DB.prepare(
-      `INSERT INTO customers (email, password_hash, password_salt, display_name, status, created_at, client_id, showcase_access, username)
-       VALUES (?1, ?2, ?3, ?4, 'active', ?5, ?6, ?7, ?8)`
-    ).bind(email, rec.hash, rec.salt, displayName, now(), clientId, showcaseAccess, username).run();
+      `INSERT INTO customers (email, password_hash, password_salt, display_name, status, created_at, client_id, showcase_access, username, portal_role, must_change_password)
+       VALUES (?1, ?2, ?3, ?4, 'active', ?5, ?6, ?7, ?8, ?9, ?10)`
+    ).bind(email, rec.hash, rec.salt, displayName, now(), clientId, showcaseAccess, username, portalRole, requireSetup ? 1 : 0).run();
     const out = { customer: await loadCustomer(env.DB, res.meta?.last_row_id) };
-    if (generated) out.temporaryPassword = password;
+    // 需求：管理员可留空密码 → 生成临时密码并强制客户首次自设。临时密码只返回这一次。
+    if (generated || requireSetup) out.temporaryPassword = password;
     return out;
   },
 
@@ -308,6 +323,8 @@ const actions = {
     if (clientId !== undefined) set('client_id', clientId);
     const showcaseAccess = normBool(body.showcaseAccess, 'showcaseAccess');
     if (showcaseAccess !== undefined) set('showcase_access', showcaseAccess);
+    const portalRole = normPortalRole(body.portalRole);
+    if (portalRole !== undefined) set('portal_role', portalRole);
     const status = normStatus(body.status);
     if (status !== undefined) set('status', status);
     if (!sets.length) throw new InputError('Nothing to update');
@@ -318,11 +335,13 @@ const actions = {
   async resetPassword(env, body) {
     const id = requireId(body.id);
     if (!await loadCustomer(env.DB, id)) throw new InputError('Customer not found', 404);
+    const requireSetup = body.requirePasswordSetup === true;
     const { password, generated } = normPassword(body.password);
     const rec = await hashPassword(password, env);
-    await env.DB.prepare('UPDATE customers SET password_hash = ?2, password_salt = ?3 WHERE id = ?1').bind(id, rec.hash, rec.salt).run();
+    await env.DB.prepare('UPDATE customers SET password_hash = ?2, password_salt = ?3, must_change_password = ?4 WHERE id = ?1')
+      .bind(id, rec.hash, rec.salt, requireSetup ? 1 : 0).run();
     const out = { customer: await loadCustomer(env.DB, id) };
-    if (generated) out.temporaryPassword = password;
+    if (generated || requireSetup) out.temporaryPassword = password;
     return out;
   },
 };

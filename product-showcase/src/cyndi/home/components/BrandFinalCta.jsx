@@ -8,7 +8,7 @@ export default function BrandFinalCta() {
         <h2 className="mx-auto max-w-4xl text-4xl font-bold leading-tight tracking-tight md:text-6xl">Let's build your global swag program.</h2>
         <div className="mt-10 flex flex-wrap justify-center gap-3">
           <a href="mailto:info@cyndiglobal.com" className="rounded-full bg-white px-8 py-4 text-sm font-semibold text-oat shadow-sm transition-colors hover:bg-white/90">Get a quote</a>
-          <a href="#portal-login" className="rounded-full border border-white/70 px-8 py-4 text-sm font-semibold text-white transition-colors hover:bg-white/10">Portal login</a>
+          <a href="/portal/login/" className="rounded-full border border-white/70 px-8 py-4 text-sm font-semibold text-white transition-colors hover:bg-white/10">Portal login</a>
         </div>
       </div>
     </section>
