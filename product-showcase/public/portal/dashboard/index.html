@@ -82,6 +82,7 @@ button{cursor:pointer}
 .section{border:1px solid var(--line);border-radius:12px;background:#fff;margin-bottom:16px;overflow:hidden}
 .section>h2{font-size:13px;font-weight:600;padding:12px 16px;border-bottom:1px solid var(--line)}
 .section .body{padding:16px}
+.section .body.tight{padding:0}
 table{width:100%;border-collapse:collapse;font-size:11px}
 th{background:var(--band);text-align:left;font-size:10px;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--line)}
 td{padding:11px 12px;border-bottom:1px solid #EFEFEF;vertical-align:middle}
@@ -155,7 +156,7 @@ tr:last-child td{border-bottom:0}
 
 <!-- ORDERS -->
 <section class="view" id="view-orders">
-  <div class="band"><h1>Orders</h1><div class="meta">Every order belongs to one project; a project may have no order, or several orders.</div></div>
+  <div class="band"><h1>Orders</h1><div class="meta" id="ordersMeta">Every order belongs to one project; a project may have no order, or several orders.</div></div>
   <div class="info" id="idInfo"></div>
   <div class="section"><h2>Order pool</h2><div class="body tight"><table><thead><tr><th>Order ID</th><th>Project</th><th>Items</th><th>Units</th><th>Created</th><th>Status</th></tr></thead><tbody id="orderRows"></tbody></table></div></div>
 </section>
@@ -182,38 +183,75 @@ tr:last-child td{border-bottom:0}
 <div class="toast" id="toast"></div>
 
 <script>
-const projects=[
- {id:'PRJ-26-001',name:'Q4 Onboarding Kit',creator:'Mia Chen',created:'2026-11-02',stage:1,done:false,
-  shortlist:[['Heavyweight Hoodie','CW-HOOD-01',38],['Embroidered Cap','KP-CAP-02',14],['Insulated Bottle','BT-BTL-08',22]],
-  mockups:['Left chest embroidery · Hoodie','Centre print · Tote']},
- {id:'PRJ-26-002',name:'Global Sales Summit 2027',creator:'Daniel Wu',created:'2026-11-08',stage:2,done:false,
-  shortlist:[['Recycled Tote Bag','BG-TP-12',18]],
-  mockups:['Front logo · Tote','Sleeve print · Tote']},
- {id:'PRJ-26-003',name:'APAC Employee Care Package',creator:'Sofia Tan',created:'2026-11-14',stage:3,done:false,
-  shortlist:[['Insulated Bottle','BT-BTL-08',22]],
-  mockups:['Laser engraving · Bottle']},
- {id:'PRJ-26-004',name:'Brand Refresh Merch Drop',creator:'Mia Chen',created:'2026-09-21',stage:3,done:true,
-  shortlist:[['Organic Cotton Tee','CW-TEE-04',26],['Recycled Tote Bag','BG-TP-12',18]],
-  mockups:['Front print · Tee']},
- {id:'PRJ-26-005',name:'EMEA Client Gifts',creator:'Alex Lin',created:'2026-08-05',stage:3,done:true,
-  shortlist:[['Insulated Bottle','BT-BTL-08',22]],mockups:['Deboss · Bottle']}
-];
-let orders=[
- {id:'ORD-26-004-01',project:'PRJ-26-004',created:'2026-10-18',items:[['Organic Cotton Tee','CW-TEE-04','M',600],['Recycled Tote Bag','BG-TP-12','OS',320]]},
- {id:'ORD-26-005-01',project:'PRJ-26-005',created:'2026-09-02',items:[['Insulated Bottle','BT-BTL-08','OS',280]]}
-];
-let inventory=[
- {sku:'CW-HOOD-01',name:'Heavyweight Hoodie',size:'S–XXL',onHand:1240},
- {sku:'CW-TEE-04',name:'Organic Cotton Tee',size:'S–XXL',onHand:860},
- {sku:'BG-TP-12',name:'Recycled Tote Bag',size:'OS',onHand:320},
- {sku:'BT-BTL-08',name:'Insulated Bottle',size:'OS',onHand:540},
- {sku:'KP-CAP-02',name:'Embroidered Cap',size:'OS',onHand:90}
-];
-const showcases=[['Cyndi Design | Global Onboarding','74','04/08/2026'],['Brand Refresh | Holiday Event','73','04/02/2026'],['EMEA Client Gifts | Swag','143','03/25/2026']];
-const portals=['New Hire Kits (/newhire-welcome)','Employee Swag (/employeeswag)','Client Gifts (/clientgifts)','EMEA Portal (/emea)'];
+// Preview data is only used when the page is opened outside the portal (file:// or API unavailable).
+// Inside the portal every section below comes from GET /api/portal/dashboard/ (real D1 rows).
+const DEMO={
+ projects:[
+  {id:'PRJ-26-001',name:'Q4 Onboarding Kit',creator:'Mia Chen',created:'2026-11-02',stage:1,done:false,
+   shortlist:[['Heavyweight Hoodie','CW-HOOD-01',38],['Embroidered Cap','KP-CAP-02',14],['Insulated Bottle','BT-BTL-08',22]],
+   mockups:['Left chest embroidery · Hoodie','Centre print · Tote']},
+  {id:'PRJ-26-002',name:'Global Sales Summit 2027',creator:'Daniel Wu',created:'2026-11-08',stage:2,done:false,
+   shortlist:[['Recycled Tote Bag','BG-TP-12',18]],mockups:['Front logo · Tote','Sleeve print · Tote']},
+  {id:'PRJ-26-003',name:'APAC Employee Care Package',creator:'Sofia Tan',created:'2026-11-14',stage:3,done:false,
+   shortlist:[['Insulated Bottle','BT-BTL-08',22]],mockups:['Laser engraving · Bottle']},
+  {id:'PRJ-26-004',name:'Brand Refresh Merch Drop',creator:'Mia Chen',created:'2026-09-21',stage:3,done:true,
+   shortlist:[['Organic Cotton Tee','CW-TEE-04',26],['Recycled Tote Bag','BG-TP-12',18]],mockups:['Front print · Tee']},
+  {id:'PRJ-26-005',name:'EMEA Client Gifts',creator:'Alex Lin',created:'2026-08-05',stage:3,done:true,
+   shortlist:[['Insulated Bottle','BT-BTL-08',22]],mockups:['Deboss · Bottle']}
+ ],
+ orders:[
+  {id:'ORD-26-004-01',project:'PRJ-26-004',created:'2026-10-18',status:'confirmed',
+   items:[['Organic Cotton Tee','CW-TEE-04','M',600],['Recycled Tote Bag','BG-TP-12','OS',320]]},
+  {id:'ORD-26-005-01',project:'PRJ-26-005',created:'2026-09-02',status:'confirmed',
+   items:[['Insulated Bottle','BT-BTL-08','OS',280]]}
+ ],
+ inventory:[
+  {sku:'CW-HOOD-01',name:'Heavyweight Hoodie',size:'S–XXL',onHand:1240,source:'Preview'},
+  {sku:'CW-TEE-04',name:'Organic Cotton Tee',size:'S–XXL',onHand:860,source:'Preview'},
+  {sku:'BG-TP-12',name:'Recycled Tote Bag',size:'OS',onHand:320,source:'Preview'},
+  {sku:'BT-BTL-08',name:'Insulated Bottle',size:'OS',onHand:540,source:'Preview'},
+  {sku:'KP-CAP-02',name:'Embroidered Cap',size:'OS',onHand:90,source:'Preview'}
+ ],
+ showcases:[['Cyndi Design | Global Onboarding','74','04/08/2026'],['Brand Refresh | Holiday Event','73','04/02/2026'],['EMEA Client Gifts | Swag','143','03/25/2026']],
+ portals:['New Hire Kits (/newhire-welcome)','Employee Swag (/employeeswag)','Client Gifts (/clientgifts)','EMEA Portal (/emea)']
+};
+let projects=[],orders=[],inventory=[],showcases=[],portals=[],currentProject=null,live=false;
 const labels=['Shortlist','Mockup','Order'];
-let currentProject=null;
 const $ = id=>document.getElementById(id);
+
+function apply(d){
+  projects=d.projects||[];orders=d.orders||[];inventory=d.inventory||[];
+  showcases=d.showcases||DEMO.showcases;portals=d.portals||DEMO.portals;
+  live=!!d.user;
+  $('ordersMeta').textContent=(live?'Live D1 data · ':'Preview data · ')+'Every order belongs to one project; a project may have no order, or several orders.';
+  renderAll();
+}
+async function load(){
+  try{
+    const r=await fetch('/api/portal/dashboard/',{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    if(d.error)throw new Error(d.error);
+    apply(d);
+  }catch(e){
+    if(location.protocol!=='file:')console.warn('Dashboard API unavailable, showing preview data:',e.message);
+    apply(DEMO);
+  }
+}
+async function post(body){
+  const r=await fetch('/api/portal/dashboard/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||d.error)throw new Error(d.error||('HTTP '+r.status));
+  return d;
+}
+async function act(body,after){
+  try{
+    const res=await post(body);
+    await load();
+    if(after)after();
+    toast(res.message||'Saved');
+  }catch(e){toast('Error: '+e.message);}
+}
 
 function setView(v){
   document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+v));
@@ -227,7 +265,7 @@ function projectCard(p){
   const prog=labels.map((l,i)=>'<div class="pstep '+(i<p.stage?'done':'')+'"><span class="dot">'+(i<p.stage?'✓':'')+'</span><span class="lbl">'+l+'</span></div>').join('');
   let acts='';
   if(done){
-    acts='<div class="act"><b>01 Shortlist</b><span>Completed</span><span class="pill green">Done</span></div><div class="act"><b>02 Mockup</b><span>Completed</span><span class="pill green">Done</span></div><div class="act current"><b>03 Order</b><span>'+orders.filter(o=>o.project===p.id).length+' order(s) created</span><button class="btn line small" onclick="openOrderForm(\''+p.id+'\')">New Order</button></div>';
+    acts='<div class="act"><b>01 Shortlist</b><span>Completed</span><span class="pill green">Done</span></div><div class="act"><b>02 Mockup</b><span>Completed</span><span class="pill green">Done</span></div><div class="act current"><b>03 Order</b><span>'+p.orderCount+' order(s) created</span><button class="btn line small" onclick="openOrderForm(\''+p.id+'\')">New Order</button></div>';
   }else{
     acts=labels.map((l,i)=>{
       const cur=i+1===p.stage, fin=i+1<p.stage;
@@ -239,46 +277,35 @@ function projectCard(p){
   return '<div class="pcard '+(done?'past':'')+'"><div class="phead"><h3>'+p.name+'</h3><span class="pid">'+p.id+'</span>'+(done?'<span class="pill green">Completed</span>':'<span class="pill orange">In progress</span>')+'</div><div class="pmeta">Created by <b>'+p.creator+'</b> · '+p.created+'</div><div class="pbody"><div class="progress">'+prog+'</div><div class="acts3">'+acts+'</div></div></div>';
 }
 function renderProjects(){
-  $('activeProjects').innerHTML=projects.filter(p=>!p.done).map(projectCard).join('');
-  $('pastProjects').innerHTML=projects.filter(p=>p.done).map(projectCard).join('');
+  $('activeProjects').innerHTML=projects.filter(p=>!p.done).map(projectCard).join('')||'<div class="section"><div class="body" style="color:var(--muted)">No current projects.</div></div>';
+  $('pastProjects').innerHTML=projects.filter(p=>p.done).map(projectCard).join('')||'<div class="section"><div class="body" style="color:var(--muted)">No completed projects yet.</div></div>';
 }
 function openShortlist(id){
-  currentProject=id;const p=projects.find(x=>x.id===id);
+  currentProject=id;const p=projects.find(x=>x.id===id);if(!p)return;
   $('slMeta').innerHTML='<b>'+p.name+'</b> · '+p.id+' · '+p.shortlist.length+' products';
-  $('slRows').innerHTML=p.shortlist.map((s,i)=>'<tr><td><span class="thumb">'+s[1].slice(0,2)+'</span></td><td><b>'+s[0]+'</b></td><td>'+s[1]+'</td><td>$'+s[2]+'</td><td><button class="link-btn" onclick="removeShortlist('+i+')">Remove</button></td></tr>').join('')||'<tr><td colspan="5" style="color:var(--muted)">No products in shortlist.</td></tr>';
+  $('slRows').innerHTML=p.shortlist.map((s,i)=>'<tr><td><span class="thumb">'+String(s[1]).slice(0,2)+'</span></td><td><b>'+s[0]+'</b></td><td>'+s[1]+'</td><td>$'+s[2]+'</td><td><button class="link-btn" onclick="removeShortlist('+i+')">Remove</button></td></tr>').join('')||'<tr><td colspan="5" style="color:var(--muted)">No products in shortlist.</td></tr>';
   setView('shortlist');
 }
-function removeShortlist(i){
-  const p=projects.find(x=>x.id===currentProject);p.shortlist.splice(i,1);openShortlist(currentProject);toast('Product removed from shortlist');
-}
-function confirmShortlist(){
-  const p=projects.find(x=>x.id===currentProject);if(!p.shortlist.length){toast('Add at least one product');return;}
-  p.stage=2;renderProjects();setView('projects');toast('Shortlist confirmed · Cyndi is preparing mockups');
-}
+function removeShortlist(i){act({action:'removeShortlist',projectNo:currentProject,index:i},()=>openShortlist(currentProject));}
+function confirmShortlist(){act({action:'confirmShortlist',projectNo:currentProject},()=>setView('projects'));}
 function openMockup(id){
-  currentProject=id;const p=projects.find(x=>x.id===id);
+  currentProject=id;const p=projects.find(x=>x.id===id);if(!p)return;
   $('mkMeta').innerHTML='<b>'+p.name+'</b> · '+p.id+' · '+p.mockups.length+' design(s)';
   $('mkRows').innerHTML=p.mockups.map((m,i)=>'<tr><td><span class="thumb">MK</span></td><td><b>'+m+'</b></td><td><input data-mk="'+i+'" placeholder="Reason, e.g. logo too small" /></td><td><button class="link-btn" onclick="removeMockup('+i+')">Remove with reason</button></td></tr>').join('')||'<tr><td colspan="4" style="color:var(--muted)">No designs to review.</td></tr>';
   $('mkFile').value='';$('mkFileName').textContent='';setView('mockup');
 }
-function removeMockup(i){
-  const p=projects.find(x=>x.id===currentProject),reason=document.querySelector('[data-mk="'+i+'"]')?.value||'no reason given';
-  p.mockups.splice(i,1);openMockup(currentProject);toast('Design removed · reason: '+reason);
-}
+function removeMockup(i){act({action:'removeMockup',projectNo:currentProject,index:i,reason:document.querySelector('[data-mk="'+i+'"]')?.value||''},()=>openMockup(currentProject));}
 function uploadMockup(){
   const f=$('mkFile').files[0];if(!f){toast('Choose a file first');return;}
-  const p=projects.find(x=>x.id===currentProject);p.mockups.push(f.name+' · uploaded by you');openMockup(currentProject);toast('Mockup uploaded for review');
+  act({action:'uploadMockup',projectNo:currentProject,fileName:f.name},()=>openMockup(currentProject));
 }
 function sendBackMockup(){toast('Mockup sent back to Cyndi with your notes');}
-function confirmMockup(){
-  const p=projects.find(x=>x.id===currentProject);p.stage=3;renderProjects();openOrderForm(currentProject);toast('Mockup confirmed · choose sizes and quantities');
-}
+function confirmMockup(){act({action:'confirmMockup',projectNo:currentProject},()=>openOrderForm(currentProject));}
 function openOrderForm(id){
-  currentProject=id;const p=projects.find(x=>x.id===id);
-  const existing=orders.filter(o=>o.project===id).length;
-  $('ofMeta').innerHTML='<b>'+p.name+'</b> · '+p.id+' · this will be order #'+(existing+1);
-  $('ofNote').textContent='New order ID: '+nextOrderId(id);
-  $('ofRows').innerHTML=p.shortlist.map((s,i)=>'<tr><td><span class="thumb">'+s[1].slice(0,2)+'</span></td><td><b>'+s[0]+'</b></td><td>'+s[1]+'</td><td><div class="field"><select data-size="'+i+'">'+(s[1]==='KP-CAP-02'||s[1]==='BG-TP-12'||s[1]==='BT-BTL-08'?['OS']:['S','M','L','XL','XXL']).map(x=>'<option>'+x+'</option>').join('')+'</select></div></td><td><div class="field"><input type="number" min="1" value="24" data-qty="'+i+'" /></div></td></tr>').join('');
+  currentProject=id;const p=projects.find(x=>x.id===id);if(!p)return;
+  $('ofMeta').innerHTML='<b>'+p.name+'</b> · '+p.id+' · this will be order #'+(p.orderCount+1);
+  $('ofNote').textContent='New order ID: '+nextOrderId(p.id);
+  $('ofRows').innerHTML=p.shortlist.map((s,i)=>'<tr><td><span class="thumb">'+String(s[1]).slice(0,2)+'</span></td><td><b>'+s[0]+'</b></td><td>'+s[1]+'</td><td><div class="field"><select data-size="'+i+'">'+(['KP-CAP-02','BG-TP-12','BT-BTL-08'].includes(s[1])?['OS']:['S','M','L','XL','XXL']).map(x=>'<option>'+x+'</option>').join('')+'</select></div></td><td><div class="field"><input type="number" min="1" value="24" data-qty="'+i+'" /></div></td></tr>').join('');
   setView('orderform');
 }
 function nextOrderId(pid){
@@ -286,24 +313,21 @@ function nextOrderId(pid){
   return 'ORD-26-'+num+'-'+String(seq).padStart(2,'0');
 }
 function confirmOrder(){
-  const p=projects.find(x=>x.id===currentProject);
-  const items=p.shortlist.map((s,i)=>[s[0],s[1],document.querySelector('[data-size="'+i+'"]').value,Number(document.querySelector('[data-qty="'+i+'"]').value)||1]);
-  const id=nextOrderId(p.id),units=items.reduce((a,b)=>a+b[3],0);
-  orders.unshift({id,project:p.id,created:'2026-11-25',items});
-  items.forEach(it=>{const r=inventory.find(x=>x.sku===it[1]);if(r)r.onHand+=it[3];else inventory.push({sku:it[1],name:it[0],size:it[2],onHand:it[3]});});
-  p.done=true;p.stage=3;renderAll();setView('orders');toast(id+' created · '+units+' pcs added to Inventory');
+  const p=projects.find(x=>x.id===currentProject);if(!p)return;
+  const items=p.shortlist.map((s,i)=>({size:document.querySelector('[data-size="'+i+'"]').value,qty:Number(document.querySelector('[data-qty="'+i+'"]').value)||1}));
+  act({action:'confirmOrder',projectNo:p.id,items},()=>setView('orders'));
 }
 function renderOrders(){
-  $('orderRows').innerHTML=orders.map(o=>'<tr><td><b>'+o.id+'</b></td><td>'+o.project+'</td><td>'+o.items.map(i=>i[0]+' ('+i[2]+' × '+i[3]+')').join('<br>')+'</td><td><b>'+o.items.reduce((a,b)=>a+b[3],0)+'</b></td><td>'+o.created+'</td><td><span class="pill green">Confirmed</span></td></tr>').join('');
-  const withOrders=new Set(orders.map(o=>o.project)).size;
+  $('orderRows').innerHTML=orders.map(o=>'<tr><td><b>'+o.id+'</b></td><td>'+(o.project||'—')+'</td><td>'+o.items.map(i=>i[0]+' ('+i[2]+' × '+i[3]+')').join('<br>')+'</td><td><b>'+o.items.reduce((a,b)=>a+b[3],0)+'</b></td><td>'+o.created+'</td><td><span class="pill green">'+(o.status||'Confirmed')+'</span></td></tr>').join('')||'<tr><td colspan="6" style="color:var(--muted)">No orders yet.</td></tr>';
+  const withOrders=new Set(orders.filter(o=>o.project).map(o=>o.project)).size;
   $('idInfo').innerHTML=orders.length+' orders · '+withOrders+' projects with orders · '+(projects.length-withOrders)+' projects without an order. Order ID = project number + sequence, so one project can create multiple orders.';
 }
-function renderInventory(){$('invRows').innerHTML=inventory.map(r=>'<tr><td><b>'+r.sku+'</b></td><td>'+r.name+'</td><td>'+r.size+'</td><td><b>'+r.onHand.toLocaleString()+'</b></td><td>Confirmed orders</td></tr>').join('');}
+function renderInventory(){$('invRows').innerHTML=inventory.map(r=>'<tr><td><b>'+r.sku+'</b></td><td>'+r.name+'</td><td>'+r.size+'</td><td><b>'+r.onHand.toLocaleString()+'</b></td><td>'+(r.source||'Confirmed orders')+'</td></tr>').join('')||'<tr><td colspan="5" style="color:var(--muted)">No stock yet.</td></tr>';}
 function renderShowcase(){$('scRows').innerHTML=showcases.map(s=>'<tr><td><span class="thumb">SC</span></td><td><b>'+s[0]+'</b></td><td><span class="pill orange">Products '+s[1]+'</span></td><td>'+s[2]+'</td><td><button class="link-btn" onclick="toast(\'Showcase opened\')">View</button></td></tr>').join('');}
 function renderPortals(){$('portalRows').innerHTML=portals.map(p=>'<div style="padding:12px 0;border-bottom:1px solid #EFEFEF"><b>'+p+'</b><div style="margin-top:4px"><button class="link-btn" onclick="toast(\'Portal opened\')">View portal</button> &nbsp; <button class="link-btn" onclick="toast(\'Portal editing\')">Edit portal</button></div></div>').join('');}
 let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2600);}
 function renderAll(){renderProjects();renderOrders();renderInventory();renderShowcase();renderPortals();}
-renderAll();
+load();
 </script>
 <script>
 /* Portal session guard: this dashboard is only available after sign-in. */
