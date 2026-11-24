@@ -11,35 +11,35 @@ export const CODE_TTL_MS = 15 * 60 * 1000;
 export const TOKEN_TTL_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 
-function toBase64Url(bytes) {
+export function toBase64Url(bytes) {
   let binary = '';
   bytes.forEach((b) => { binary += String.fromCharCode(b); });
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-function fromBase64Url(value) {
+export function fromBase64Url(value) {
   const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((value.length + 3) % 4);
   return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
 }
 
-async function sha256Hex(value) {
+export async function sha256Hex(value) {
   const digest = await crypto.subtle.digest('SHA-256', encoder.encode(value));
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-function safeEqual(a, b) {
+export function safeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
 }
 
-async function sign(value, secret) {
+export async function sign(value, secret) {
   const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   return toBase64Url(new Uint8Array(await crypto.subtle.sign('HMAC', key, encoder.encode(value))));
 }
 
-function randomHex(bytes = 16) {
+export function randomHex(bytes = 16) {
   return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 

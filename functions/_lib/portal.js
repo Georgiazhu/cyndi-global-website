@@ -49,6 +49,20 @@ export async function ensurePortalSchema(db) {
     )`).run();
     try { await db.prepare(`CREATE INDEX IF NOT EXISTS idx_portal_resets_customer ON portal_password_resets(customer_id, id DESC)`).run(); } catch {}
     try { await db.prepare(`CREATE INDEX IF NOT EXISTS idx_portal_resets_email ON portal_password_resets(email, created_at DESC)`).run(); } catch {}
+
+    // Public self-registration codes: any valid email may request one; no approval gate.
+    await db.prepare(`CREATE TABLE IF NOT EXISTS portal_registrations (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      email         TEXT NOT NULL,
+      code_hash     TEXT NOT NULL,
+      salt          TEXT NOT NULL,
+      attempts      INTEGER NOT NULL DEFAULT 0,
+      expires_at    TEXT NOT NULL,
+      used_at       TEXT,
+      registered_at TEXT,
+      created_at    TEXT NOT NULL
+    )`).run();
+    try { await db.prepare(`CREATE INDEX IF NOT EXISTS idx_portal_registrations_email ON portal_registrations(email, id DESC)`).run(); } catch {}
   })().catch((e) => { schemaReady = null; throw e; });
   return schemaReady;
 }

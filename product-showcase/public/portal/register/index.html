@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Create account | Cyndi Global Portal</title>
+<style>
+:root{--ink:#1c1917;--oat:#8C7B66;--bg:#F5F1EA;--line:#e4ddd1;--muted:#6b6258}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+.topbar{height:70px;display:flex;align-items:center;justify-content:space-between;padding:0 6%;border-bottom:1px solid var(--line);background:#fff}
+.topbar img{height:30px;width:auto;display:block}
+.topbar .side{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--oat)}
+.wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:48px 20px}
+.card{width:100%;max-width:440px}
+.brand{text-align:center;margin-bottom:30px}
+.brand .kicker{font-size:11px;letter-spacing:.28em;color:var(--oat);font-weight:700}
+.brand .brand-logo{width:190px;height:auto;max-width:80%;display:block;margin:8px auto 10px}
+.brand p{font-size:13px;color:var(--muted)}
+.form{background:#fff;border:1px solid var(--line);border-radius:14px;padding:30px;box-shadow:0 16px 40px rgba(28,25,23,.06)}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;font-weight:600;color:#57534e;margin-bottom:7px}
+.field input{width:100%;padding:13px 14px;border:1px solid #ddd5c7;border-radius:9px;font-size:14px;color:var(--ink);outline:none;transition:.15s}
+.field input:focus{border-color:var(--oat);box-shadow:0 0 0 3px rgba(140,123,102,.16)}
+.code{letter-spacing:.32em;font-size:18px;text-align:center}
+.req{margin:2px 0 18px;padding:12px 14px;background:var(--bg);border-radius:8px;font-size:11.5px;color:var(--muted);line-height:1.9}
+.req b{color:#6b5c48}.req .ok{color:#3f7a52}
+.btn{width:100%;padding:14px;border:0;border-radius:9px;background:var(--ink);color:#fff;font-weight:700;font-size:14px;cursor:pointer;transition:.15s}
+.btn:hover{background:#000}.btn:disabled{opacity:.55;cursor:default}
+.msg{margin-bottom:16px;padding:11px 13px;border-radius:8px;font-size:13px;line-height:1.6}
+.msg.err{background:#fff1eb;color:#9a3d22}
+.msg.ok{background:#edf7ef;color:#3f7a52}
+.hint{margin-top:16px;font-size:12px;color:var(--muted);text-align:center;line-height:1.8}
+.hint a{color:#6b5c48;text-decoration:none;border-bottom:1px solid #c9b8a0}
+.fine{margin-top:24px;text-align:center;font-size:11px;color:#9a9186;line-height:1.8}
+.foot{padding:18px;text-align:center;font-size:11px;color:#a99b88}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/"><img src="/cyndi-logo-full-v5.png" alt="Cyndi Global"></a>
+  <span class="side">Confidential portal</span>
+</div>
+<div class="wrap">
+  <div class="card">
+    <div class="brand">
+      <div class="kicker">CUSTOMER PORTAL</div>
+      <img class="brand-logo" src="/cyndi-logo-full-v5.png" alt="Cyndi Global">
+      <p id="subtitle">Create your portal account</p>
+    </div>
+
+    <form class="form" id="step1">
+      <div id="msg1" class="msg" hidden></div>
+      <div class="field">
+        <label for="email">Work email</label>
+        <input id="email" type="email" autocomplete="email" placeholder="you@company.com" required>
+      </div>
+      <button class="btn" id="btn1" type="submit">Send verification code</button>
+      <div class="hint">Already have an account? <a href="/portal/login/">Sign in</a></div>
+    </form>
+
+    <form class="form" id="step2" hidden>
+      <div id="msg2" class="msg" hidden></div>
+      <div class="field">
+        <label for="email2">Email</label>
+        <input id="email2" type="email" readonly>
+      </div>
+      <div class="field">
+        <label for="code">6-digit verification code</label>
+        <input id="code" class="code" inputmode="numeric" maxlength="6" placeholder="000000" required>
+      </div>
+      <div class="field">
+        <label for="displayName">Your name <span style="font-weight:400;color:#a0988c">(optional)</span></label>
+        <input id="displayName" type="text" maxlength="60" placeholder="Your name">
+      </div>
+      <div class="field">
+        <label for="p1">Create password</label>
+        <input id="p1" type="password" autocomplete="new-password" placeholder="At least 8 characters" required>
+      </div>
+      <div class="field">
+        <label for="p2">Confirm password</label>
+        <input id="p2" type="password" autocomplete="new-password" placeholder="Re-enter your password" required>
+      </div>
+      <div class="req">
+        <b>Password requirements</b><br>
+        <span id="r8">○</span> At least 8 characters &nbsp; <span id="ru">○</span> One uppercase letter<br>
+        <span id="rn">○</span> One number &nbsp; <span id="rm">○</span> Match confirmation
+      </div>
+      <button class="btn" id="btn2" type="submit">Create account &amp; continue</button>
+      <div class="hint"><a href="#" id="resend">Send a new code</a> &nbsp;·&nbsp; <a href="/portal/login/">Sign in</a></div>
+    </form>
+    <div class="fine">Any valid email address is accepted. No approval or domain restriction at this stage.</div>
+  </div>
+</div>
+<div class="foot">© Cyndi Global Limited</div>
+<script>
+const $ = (s) => document.querySelector(s);
+const email = $('#email'), email2 = $('#email2'), code = $('#code');
+const msg1 = $('#msg1'), msg2 = $('#msg2');
+
+function show(el, text, ok) {
+  el.textContent = text;
+  el.className = ok ? 'msg ok' : 'msg err';
+  el.hidden = false;
+}
+function hide(el) { el.hidden = true; }
+
+function mark(id, ok) { const e=$(id); e.textContent = ok?'✓':'○'; e.className = ok?'ok':''; return ok; }
+function passwordOk() {
+  const a=$('#p1').value, b=$('#p2').value;
+  return [
+    mark('#r8', a.length>=8),
+    mark('#ru', /[A-Z]/.test(a)),
+    mark('#rn', /[0-9]/.test(a)),
+    mark('#rm', a.length>0 && a===b),
+  ].every(Boolean);
+}
+['#p1','#p2'].forEach(s=>$(s).addEventListener('input',passwordOk));
+
+function goStep2(value) {
+  email2.value = value;
+  hide($('#step1'));
+  $('#step2').hidden = false;
+  $('#subtitle').textContent = 'Verify email & choose a password';
+  code.focus();
+}
+
+$('#step1').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const value = email.value.trim();
+  const btn = $('#btn1');
+  if (!value) { show(msg1, 'Please enter your email address.', false); return; }
+  hide(msg1); btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    const res = await fetch('/api/portal/register/request', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: value }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not send code');
+    sessionStorage.setItem('portalRegisterEmail', value);
+    show(msg1, data.devCode ? `Dev code: ${data.devCode}` : 'Verification code sent. Enter it below to continue.', true);
+    btn.textContent = 'Continue';
+    btn.type = 'button';
+    btn.onclick = () => goStep2(value);
+  } catch (err) {
+    show(msg1, err.message || 'Could not send code', false);
+    btn.disabled = false; btn.textContent = 'Send verification code';
+  }
+});
+
+$('#resend').addEventListener('click', async (e) => {
+  e.preventDefault();
+  const value = email2.value;
+  const link = $('#resend');
+  link.textContent = 'Sending…';
+  try {
+    await fetch('/api/portal/register/request', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: value }),
+    });
+    link.textContent = 'Send a new code';
+    show(msg2, 'A new code has been sent.', true);
+  } catch {
+    link.textContent = 'Send a new code';
+    show(msg2, 'Could not send a new code. Please try again.', false);
+  }
+});
+
+$('#step2').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  hide(msg2);
+  const value = email2.value.trim();
+  if (!/^\d{6}$/.test(code.value.trim())) { show(msg2, 'Enter the 6-digit code.', false); return; }
+  if (!passwordOk()) { show(msg2, 'Please meet all password requirements.', false); return; }
+
+  const btn = $('#btn2');
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  try {
+    const vRes = await fetch('/api/portal/register/verify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: value, code: code.value.trim() }),
+    });
+    const vData = await vRes.json().catch(() => ({}));
+    if (!vRes.ok) throw new Error(vData.error || 'Verification failed');
+    if (!vData.token) throw new Error('Verification token missing');
+
+    btn.textContent = 'Creating account…';
+    const cRes = await fetch('/api/portal/register/complete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: vData.token, password: $('#p1').value, displayName: $('#displayName').value.trim() }),
+    });
+    const cData = await cRes.json().catch(() => ({}));
+    if (!cRes.ok) throw new Error(cData.error || 'Could not create account');
+
+    sessionStorage.removeItem('portalRegisterEmail');
+    location.href = '/portal/';
+  } catch (err) {
+    show(msg2, err.message || 'Could not create account', false);
+    btn.disabled = false; btn.textContent = 'Create account & continue';
+  }
+});
+</script>
+</body>
+</html>
