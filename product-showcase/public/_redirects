@@ -1,0 +1,3 @@
+# Legacy simulated portal page removed; send old bookmarks to the live dashboard.
+/portal/ /portal/dashboard/ 301
+/portal /portal/dashboard/ 301
