@@ -125,6 +125,17 @@ function goStep2(value) {
   code.focus();
 }
 
+// Resume an in-progress registration after a page reload so the code already
+// in the user's inbox can still be used.
+(function restoreRegistration() {
+  const saved = sessionStorage.getItem('portalRegisterEmail');
+  if (saved) {
+    email.value = saved;
+    goStep2(saved);
+    show(msg2, 'Enter the verification code sent to your email.', true);
+  }
+})();
+
 $('#step1').addEventListener('submit', async (e) => {
   e.preventDefault();
   const value = email.value.trim();
@@ -140,9 +151,8 @@ $('#step1').addEventListener('submit', async (e) => {
     if (!res.ok) throw new Error(data.error || 'Could not send code');
     sessionStorage.setItem('portalRegisterEmail', value);
     show(msg1, data.devCode ? `Dev code: ${data.devCode}` : 'Verification code sent. Enter it below to continue.', true);
-    btn.textContent = 'Continue';
-    btn.type = 'button';
-    btn.onclick = () => goStep2(value);
+    btn.disabled = false;
+    goStep2(value);
   } catch (err) {
     show(msg1, err.message || 'Could not send code', false);
     btn.disabled = false; btn.textContent = 'Send verification code';
