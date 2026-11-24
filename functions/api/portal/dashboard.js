@@ -1,9 +1,9 @@
 // GET  /api/portal/dashboard/  — projects, orders, inventory from the real D1 database.
 // POST /api/portal/dashboard/  — shortlist / mockup / order actions, written back to D1.
 // Uses the same customer session as /api/me and /api/login (cookie: customer_session).
-import { corsHeaders, json } from '../../../_lib/auth.js';
-import { NOT_CONFIGURED_ERROR, readCustomerSession } from '../../../_lib/customer-auth.js';
-import { loadDashboard, mutateDashboard } from '../../../_lib/dashboard.js';
+import { corsHeaders, json } from '../../_lib/auth.js';
+import { NOT_CONFIGURED_ERROR, readCustomerSession } from '../../_lib/customer-auth.js';
+import { loadDashboard, mutateDashboard } from '../../_lib/dashboard.js';
 
 async function session(request, env) {
   const cors = { ...corsHeaders(request), 'Cache-Control': 'private, no-store', Vary: 'Cookie' };
