@@ -34,10 +34,6 @@ export async function onRequestPost({ request, env }) {
       const code = randomCode();
       await createRegistrationCode(env.DB, email, code);
       const mail = await sendPortalCodeEmail(env, email, code, 'register');
-      // Controlled diagnostic: only for a reserved internal address, never real customers.
-      if (email === 'diag-sendtest@cyndiglobal.com') {
-        return json({ ok: true, sent: mail.sent, reason: mail.reason, status: mail.status, detail: mail.detail, hasKey: !!env.RESEND_API_KEY, from: env.EMAIL_FROM || null }, 200, headers);
-      }
       if (env.ALLOW_RESET_CODE_IN_RESPONSE === '1' && mail.devCode) {
         return json({ ok: true, sent: mail.sent, devCode: mail.devCode }, 200, headers);
       }
