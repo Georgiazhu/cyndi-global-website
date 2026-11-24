@@ -204,7 +204,7 @@ $('#step2').addEventListener('submit', async (e) => {
     if (!cRes.ok) throw new Error(cData.error || 'Could not create account');
 
     sessionStorage.removeItem('portalRegisterEmail');
-    location.href = '/portal/';
+    location.href = '/portal/dashboard/';
   } catch (err) {
     show(msg2, err.message || 'Could not create account', false);
     btn.disabled = false; btn.textContent = 'Create account & continue';

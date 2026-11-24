@@ -92,7 +92,7 @@ $('#f').addEventListener('submit', async (e) => {
     });
     const d = await res.json().catch(()=>({}));
     if (!res.ok) throw new Error(d.error || 'Could not set password');
-    location.href='/portal/';
+    location.href='/portal/dashboard/';
   } catch(err) {
     msg.textContent=err.message||'Could not set password'; msg.style.display='block';
     btn.disabled=false; btn.textContent='Create password & continue';
