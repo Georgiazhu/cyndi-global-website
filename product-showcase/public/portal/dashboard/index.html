@@ -89,11 +89,13 @@ a.logo:hover{opacity:.82}
 .progress{display:flex;align-items:flex-start;padding-top:4px}
 .pstep{display:flex;flex-direction:column;align-items:center;gap:5px;width:74px;text-align:center;position:relative}
 .pstep .dot{width:18px;height:18px;border-radius:50%;background:#DCD6CE;color:#fff;display:grid;place-items:center;font-size:10.5px;font-weight:700;position:relative;z-index:2}
-.pstep.done .dot{background:var(--accent)}
+.pstep.done .dot{background:var(--green)}
+.pstep.current .dot{background:var(--accent)}
 .pstep .lbl{font-size:10.5px;color:var(--muted)}
-.pstep.done .lbl{color:var(--accent);font-weight:700}
+.pstep.done .lbl{color:var(--green);font-weight:700}
+.pstep.current .lbl{color:var(--accent);font-weight:700}
 .pstep:not(:last-child):after{content:"";position:absolute;top:9px;left:56px;width:38px;height:2px;background:#EAE5DE;z-index:1}
-.pstep.done:not(:last-child):after{background:var(--accent)}
+.pstep.done:not(:last-child):after{background:var(--green)}
 .acts3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .act{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#FCFBF9;min-height:70px;text-align:left;font-family:inherit;cursor:pointer;transition:border-color .16s ease,background .16s ease,transform .16s ease,box-shadow .16s ease}
 .act:hover{border-color:var(--accent);background:var(--accent-soft);transform:translateY(-1px);box-shadow:0 3px 10px rgba(168,94,44,.12)}
@@ -382,7 +384,10 @@ function toggleNewProject(force){
 
 function projectCard(p){
   const done=p.done;
-  const prog=labels.map((l,i)=>'<div class="pstep '+(i<p.stage?'done':'')+'"><span class="dot">'+(i<p.stage?'✓':'')+'</span><span class="lbl">'+l+'</span></div>').join('');
+  const prog=labels.map((l,i)=>{
+    const fin=done || i < p.stage-1, cur=!done && i===p.stage-1;
+    return '<div class="pstep '+(fin?'done':cur?'current':'')+'"><span class="dot">'+(fin?'✓':'')+'</span><span class="lbl">'+l+'</span></div>';
+  }).join('');
   // Every stage is viewable regardless of status — status is only a badge,
   // never a lock. Done / Current / Open all open the same detail views.
   const acts=labels.map((l,i)=>{
