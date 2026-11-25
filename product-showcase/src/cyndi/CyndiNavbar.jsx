@@ -399,7 +399,6 @@ function SimpleMega({ items }) {
                   {it.children.map((child) => (
                     <a key={child.title} href={child.href || '#'}
                       className="group flex items-center gap-2 py-2 px-3 rounded-lg text-[13px] text-stone-600 transition-all duration-200 hover:text-[#b7410e] hover:bg-white hover:shadow-sm active:scale-[0.98]">
-                      <span className="w-1.5 h-1.5 rounded-full bg-stone-300 group-hover:bg-oat transition-colors shrink-0" />
                       <span className="font-medium">{child.title}</span>
                       {child.blurb && <em className="not-italic text-[11px] text-stone-400 ml-auto">{child.blurb}</em>}
                     </a>

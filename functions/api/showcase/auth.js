@@ -6,20 +6,20 @@ import {
   clearLegacyShowcaseCookie,
   createCustomerSession,
   customerSessionsConfigured,
-  hasShowcaseAccess,
   jsonWithCookies,
   publicUser,
   readCustomerSession,
   sessionCookie,
 } from '../../_lib/customer-auth.js';
-import { NO_SHOWCASE_ACCESS } from './auth-lib.js';
 
 /**
- * /api/showcase/auth — Showcase sign-in, backed by the shop's customer accounts.
- *  POST   { username | email | identifier, password } -> same login as /api/login, plus
- *         showcase access is required. Sets the customer_session cookie.
+ * /api/showcase/auth — Showcase sign-in, backed by the same customer accounts as the Portal.
+ *  POST   { username | email | identifier, password } -> same login as /api/login.
  *  GET    -> { authenticated, user:{username,email,displayName}, showcaseAccess }
  *  DELETE -> clears the customer cookie (and the legacy showcase_gate_session cookie).
+ *
+ * Any signed-in Portal user can view the showcase, so no extra showcase-only password
+ * or showcase_access flag is required here.
  */
 
 const PRIVATE = { 'Cache-Control': 'private, no-store', Vary: 'Cookie' };
@@ -36,10 +36,6 @@ export async function onRequestPost({ request, env }) {
   // Wrong credentials (whether or not the account exists) always look the same.
   if (result.status === 'invalid') return json({ error: 'Incorrect email/username or password' }, 401, PRIVATE);
   if (result.status === 'disabled') return json({ error: 'Account is disabled' }, 403, PRIVATE);
-  // Correct credentials but no access: say so, and do not sign the user in.
-  if (!hasShowcaseAccess(result.customer)) {
-    return json({ error: NO_SHOWCASE_ACCESS, showcaseAccess: false }, 403, PRIVATE);
-  }
 
   const token = await createCustomerSession(env, result.customer.id);
   return jsonWithCookies(
@@ -58,7 +54,7 @@ export async function onRequestGet({ request, env }) {
   return json({
     authenticated: true,
     user: publicUser(session.customer),
-    showcaseAccess: hasShowcaseAccess(session.customer),
+    showcaseAccess: true,
   }, 200, PRIVATE);
 }
 
