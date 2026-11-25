@@ -37,13 +37,13 @@ async function fixture() {
       items_json TEXT, item_count INTEGER, total REAL, status TEXT, created_at TEXT, status_updated_at TEXT);
     CREATE TABLE showcase_categories (id TEXT PRIMARY KEY, name TEXT NOT NULL, sort INTEGER DEFAULT 0, updated_at TEXT NOT NULL);
     CREATE TABLE showcase_products (id TEXT PRIMARY KEY, category_id TEXT NOT NULL, sku TEXT, name TEXT,
-      image TEXT, pricing_json TEXT, sort INTEGER DEFAULT 0, updated_at TEXT NOT NULL);
+      image TEXT, colors_json TEXT, sizes_json TEXT, pricing_json TEXT, sort INTEGER DEFAULT 0, updated_at TEXT NOT NULL);
     INSERT INTO customers VALUES (1,'alice@example.com','Alice','alice','active'),(2,'bob@example.com','Bob','bob','active');
     INSERT INTO showcase_categories VALUES ('apparel','Apparel',10,'2026-01-01');
     INSERT INTO showcase_products VALUES
-      ('p1','apparel','HD-01','Hoodie','', '[{"price":38}]',10,'2026-01-01'),
-      ('p2','apparel','CP-02','Cap','',   '[{"price":14}]',20,'2026-01-01'),
-      ('p3','apparel','BT-08','Bottle','','[{"price":22}]',30,'2026-01-01');
+      ('p1','apparel','HD-01','Hoodie','','[{"name":"Black"}]','["S","M"]','[{"price":38}]',10,'2026-01-01'),
+      ('p2','apparel','CP-02','Cap','','[{"name":"Navy"}]','["OS"]','[{"price":14}]',20,'2026-01-01'),
+      ('p3','apparel','BT-08','Bottle','','[{"name":"Steel"}]','["OS"]','[{"price":22}]',30,'2026-01-01');
   `);
   const db = d1(sqlite);
   await ensureDashboardSchema(db);
@@ -89,6 +89,25 @@ test('customer pool curates the showcase and gates shortlist picks', async () =>
   const afterClient = (await loadDashboard(db, alice)).projects.find((p) => p.id === clientProject.projectNo);
   assert.equal(afterClient.shortlist[0][1], 'BT-08');
   assert.match(afterClient.latest.detail, /added from your showcase/);
+  assert.deepEqual(dash.showcase[0].colors, [{ name: 'Black' }]);
+  assert.deepEqual(dash.showcase[0].sizes, ['S', 'M']);
+
+  // Order lines can duplicate one shortlist product with different colour/size.
+  await mutateDashboard(db, alice, { action: 'confirmShortlist', projectNo: clientProject.projectNo });
+  await mutateDashboard(db, alice, { action: 'confirmMockup', projectNo: clientProject.projectNo });
+  const order = await mutateDashboard(db, alice, {
+    action: 'confirmOrder', projectNo: clientProject.projectNo,
+    items: [
+      { productIndex: 0, color: 'Steel', size: 'OS', qty: 12 },
+      { productIndex: 0, color: 'Black', size: 'OS', qty: 8 },
+    ],
+  });
+  const afterOrder = await loadDashboard(db, alice);
+  const placed = afterOrder.orders.find((o) => o.id === order.orderNo);
+  assert.deepEqual(placed.items.map((it) => [it[1], it[2], it[3], it[4]]), [
+    ['BT-08', 'OS', 12, 'Steel'], ['BT-08', 'OS', 8, 'Black'],
+  ]);
+  assert.equal(afterOrder.inventory.find((r) => r.sku === 'BT-08' && r.color === 'Steel').onHand, 12);
 
   // Reset restores the full catalogue for this customer only.
   await db.prepare('DELETE FROM client_showcase_pools WHERE customer_id = ?1').bind('1').run();

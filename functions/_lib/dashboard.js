@@ -73,16 +73,22 @@ function int(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-// Frontend order items are arrays: [name, sku, size, qty].
+// Frontend order items are arrays: [name, sku, size, qty, color].
 // D1 keeps a snapshot with shop fields; map both shapes defensively.
 function shapeOrderItems(raw) {
   return arrayOf(parseJson(raw, [])).map((it) => {
     if (Array.isArray(it)) {
-      return [String(it[0] || 'Product'), String(it[1] || 'ITEM'), String(it[2] || 'OS'), int(it[3], 1)];
+      return [
+        String(it[0] || 'Product'), String(it[1] || 'ITEM'), String(it[2] || 'OS'),
+        int(it[3], 1), String(it[4] || it?.color || ''),
+      ];
     }
     const sku = it?.sku || it?.stockSku || it?.id || 'ITEM';
     const size = it?.selectedSize || it?.size || 'OS';
-    return [String(it?.name || 'Product'), String(sku), String(size), int(it?.quantity, 1)];
+    return [
+      String(it?.name || 'Product'), String(sku), String(size),
+      int(it?.quantity, 1), String(it?.color || ''),
+    ];
   });
 }
 function units(items) { return items.reduce((sum, it) => sum + int(it[3], 0), 0); }
@@ -164,7 +170,8 @@ async function showcaseForDashboard(db, customerId) {
     const pool = await getCustomerPool(db, customerId);
     const cats = await db.prepare('SELECT id, name FROM showcase_categories ORDER BY sort ASC, name ASC').all();
     const prods = await db.prepare(
-      'SELECT id, category_id, sku, name, image, pricing_json FROM showcase_products ORDER BY sort ASC, name ASC'
+      `SELECT id, category_id, sku, name, image, colors_json, sizes_json, pricing_json
+       FROM showcase_products ORDER BY sort ASC, name ASC`
     ).all();
     const names = new Map((cats.results || []).map((c) => [c.id, c.name]));
     const list = (prods.results || []).map((p) => {
@@ -176,6 +183,8 @@ async function showcaseForDashboard(db, customerId) {
       return {
         id: String(p.id), sku: p.sku || String(p.id), name: p.name,
         image: p.image || '', price, category: names.get(p.category_id) || '',
+        colors: arrayOf(parseJson(p.colors_json, [])),
+        sizes: arrayOf(parseJson(p.sizes_json, [])),
       };
     });
     return filterByPool(list, pool);
@@ -236,8 +245,11 @@ export async function loadDashboard(db, user) {
   const stock = new Map();
   for (const o of orders) {
     for (const it of o.items) {
-      const key = `${it[1]}::${it[2]}`;
-      const row = stock.get(key) || { sku: it[1], name: it[0], size: it[2], onHand: 0, source: 'Confirmed orders' };
+      const color = it[4] || '';
+      const key = `${it[1]}::${it[2]}::${color}`;
+      const row = stock.get(key) || {
+        sku: it[1], name: it[0], color, size: it[2], onHand: 0, source: 'Confirmed orders',
+      };
       row.onHand += int(it[3], 0);
       stock.set(key, row);
     }
@@ -363,7 +375,7 @@ export async function mutateDashboard(db, user, body) {
     case 'confirmMockup': {
       await save({ stage: 3 });
       await logActivity(db, projectNo, uname(user), 'mockup_confirmed', 'Client approved the mockup · ready for order', 'client');
-      return { ok: true, message: 'Mockup confirmed · choose sizes and quantities' };
+      return { ok: true, message: 'Mockup confirmed · choose colors, sizes and quantities' };
     }
     case 'confirmOrder': {
       if (int(row.stage, 1) < 3) throw Object.assign(new Error('Mockup is not confirmed yet'), { status: 409 });
@@ -371,16 +383,24 @@ export async function mutateDashboard(db, user, body) {
       if (!selections.length) throw Object.assign(new Error('No items to order'), { status: 400 });
       const shortlist = arrayOf(parseJson(row.shortlist_json, []));
       const items = selections.map((sel, i) => {
-        const src = shortlist[i] || ['Product', 'ITEM', 0];
+        // A line can duplicate a shortlist product (different colour/size), so
+        // the client sends productIndex explicitly. Legacy clients fall back to
+        // the old one-line-per-shortlist-item mapping.
+        const requested = sel?.productIndex !== undefined ? int(sel.productIndex, -1) : i;
+        const index = requested >= 0 && requested < shortlist.length ? requested : i;
+        const src = shortlist[index] || ['Product', 'ITEM', 0];
         return [
           String(src[0] || 'Product'),
           String(src[1] || 'ITEM'),
-          String(sel.size || 'OS').slice(0, 20),
-          Math.max(1, int(sel.qty, 1)),
+          String(text(sel?.size, 20) || 'OS'),
+          Math.max(1, int(sel?.qty, 1)),
+          String(text(sel?.color, 40)),
         ];
       });
       const orderNo = await orderNoForProject(db, projectNo);
-      const snapshot = items.map((it) => ({ name: it[0], sku: it[1], size: it[2], quantity: it[3] }));
+      const snapshot = items.map((it) => ({
+        name: it[0], sku: it[1], size: it[2], quantity: it[3], color: it[4],
+      }));
       await db.prepare(`INSERT INTO orders
         (order_no,customer_id,customer_name,customer_email,items_json,item_count,total,status,created_at,status_updated_at,project_no)
         VALUES (?1,?2,?3,?4,?5,?6,0,'confirmed',?7,?7,?8)`).bind(
@@ -545,14 +565,19 @@ export async function adminCreateOrder(db, projectNo, items, adminName) {
   if (!selections.length) throw Object.assign(new Error('No items to order'), { status: 400 });
   const shortlist = arrayOf(parseJson(row.shortlist_json, []));
   const mapped = selections.map((sel, i) => {
-    const src = shortlist[i] || ['Product', 'ITEM', 0];
+    const requested = sel?.productIndex !== undefined ? int(sel.productIndex, -1) : i;
+    const index = requested >= 0 && requested < shortlist.length ? requested : i;
+    const src = shortlist[index] || ['Product', 'ITEM', 0];
     return [
       String(src[0] || 'Product'), String(src[1] || 'ITEM'),
       String(text(sel?.size, 20) || 'OS'), Math.max(1, int(sel?.qty, 1)),
+      String(text(sel?.color, 40)),
     ];
   });
   const orderNo = await orderNoForProject(db, projectNo);
-  const snapshot = mapped.map((it) => ({ name: it[0], sku: it[1], size: it[2], quantity: it[3] }));
+  const snapshot = mapped.map((it) => ({
+    name: it[0], sku: it[1], size: it[2], quantity: it[3], color: it[4],
+  }));
   const ts = now();
   const customerId = Number(uid({ id: row.user_id })) || 0;
   await db.prepare(`INSERT INTO orders

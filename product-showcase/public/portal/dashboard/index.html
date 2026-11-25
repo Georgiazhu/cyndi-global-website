@@ -102,6 +102,8 @@ tr:last-child td{border-bottom:0}
 .field label{display:block;font-size:10px;color:var(--muted);margin-bottom:4px}
 .field select,.field input,.field textarea{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:#fff;outline:none}
 .field textarea{min-height:56px;resize:vertical}
+.of-actions{white-space:nowrap}
+.of-actions .link-btn{display:block;margin-top:6px}
 .upload{border:1px dashed var(--line);border-radius:10px;padding:14px;text-align:center;font-size:11px;color:var(--muted);margin-top:10px}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--ink);color:#fff;padding:9px 18px;border-radius:999px;font-size:11px;opacity:0;pointer-events:none;transition:.2s;z-index:99}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -165,8 +167,8 @@ tr:last-child td{border-bottom:0}
 <!-- GO TO ORDER -->
 <section class="view" id="view-orderform">
   <div class="band"><h1>Go To Order</h1><div class="meta" id="ofMeta"></div></div>
-  <div class="info">Choose sizes and quantities. Confirming creates an order in the <b>Orders</b> pool and adds the items to <b>Inventory</b>.</div>
-  <div class="section"><h2>Order items</h2><div class="body tight"><table><thead><tr><th></th><th>Product</th><th>SKU</th><th>Size</th><th>Quantity</th></tr></thead><tbody id="ofRows"></tbody></table></div></div>
+  <div class="info">Choose color, size and quantity for each line. Use <b>+ Add row</b> to order the same product in another variant. Confirming creates an order in the <b>Orders</b> pool and adds the items to <b>Inventory</b>.</div>
+  <div class="section"><h2>Order items</h2><div class="body tight"><table><thead><tr><th></th><th>Product</th><th>SKU</th><th>Color</th><th>Size</th><th>Quantity</th><th></th></tr></thead><tbody id="ofRows"></tbody></table></div></div>
   <div class="footbar"><button class="btn" onclick="confirmOrder()">Confirm Order</button><span class="note" id="ofNote"></span></div>
 </section>
 
@@ -186,7 +188,7 @@ tr:last-child td{border-bottom:0}
 <!-- INVENTORY -->
 <section class="view" id="view-inventory">
   <div class="band"><h1>Inventory</h1><div class="meta">Confirmed orders add stock here. Outbound shipments reduce it.</div></div>
-  <div class="section"><h2>Stock on hand</h2><div class="body tight"><table><thead><tr><th>SKU</th><th>Product</th><th>Size</th><th>On hand</th><th>Source</th></tr></thead><tbody id="invRows"></tbody></table></div></div>
+  <div class="section"><h2>Stock on hand</h2><div class="body tight"><table><thead><tr><th>SKU</th><th>Product</th><th>Color</th><th>Size</th><th>On hand</th><th>Source</th></tr></thead><tbody id="invRows"></tbody></table></div></div>
 </section>
 
 </div>
@@ -224,17 +226,43 @@ const DEMO={
  ],
  showcases:[['Cyndi Design | Global Onboarding','74','04/08/2026'],['Brand Refresh | Holiday Event','73','04/02/2026'],['EMEA Client Gifts | Swag','143','03/25/2026']],
  showcase:[
-  {id:'hoodie',sku:'CW-HOOD-01',name:'Heavyweight Hoodie',image:'',price:38,category:'Apparel'},
-  {id:'cap',sku:'KP-CAP-02',name:'Embroidered Cap',image:'',price:14,category:'Headwear'},
-  {id:'bottle',sku:'BT-BTL-08',name:'Insulated Bottle',image:'',price:22,category:'Accessories'},
-  {id:'tote',sku:'BG-TP-12',name:'Recycled Tote Bag',image:'',price:18,category:'Bags'}
+  {id:'hoodie',sku:'CW-HOOD-01',name:'Heavyweight Hoodie',image:'',price:38,category:'Apparel',colors:[{name:'Black'},{name:'Navy'},{name:'Heather Grey'}],sizes:['S','M','L','XL','XXL']},
+  {id:'cap',sku:'KP-CAP-02',name:'Embroidered Cap',image:'',price:14,category:'Headwear',colors:[{name:'Black'},{name:'Navy'}],sizes:['OS']},
+  {id:'bottle',sku:'BT-BTL-08',name:'Insulated Bottle',image:'',price:22,category:'Accessories',colors:[{name:'Black'},{name:'Stainless'}],sizes:['OS']},
+  {id:'tote',sku:'BG-TP-12',name:'Recycled Tote Bag',image:'',price:18,category:'Bags',colors:[{name:'Natural'},{name:'Black'}],sizes:['OS']}
  ],
  portals:['New Hire Kits (/newhire-welcome)','Employee Swag (/employeeswag)','Client Gifts (/clientgifts)','EMEA Portal (/emea)']
 };
-let projects=[],orders=[],inventory=[],showcases=[],showcase=[],portals=[],currentProject=null,live=false;
+let projects=[],orders=[],inventory=[],showcases=[],showcase=[],portals=[],currentProject=null,live=false,orderLines=[],lineSeq=0;
 const labels=['Shortlist','Mockup','Order'];
 const $ = id=>document.getElementById(id);
 const esc = s => String(s==null?'':s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// Showcase option helpers — the order form uses the same colour/size data
+// that the customer sees on the product detail page.
+function optionNames(list){
+  return (Array.isArray(list)?list:[]).map(x=>typeof x==='string'?x:(x?.name||x?.color||x?.label||'')).filter(Boolean);
+}
+function showcaseForSku(sku){
+  return showcase.find(x=>String(x.sku)===String(sku))||null;
+}
+function colorOptionsFor(sku){
+  const sc=showcaseForSku(sku);
+  const names=optionNames(sc?.colors);
+  return names.length?names:['Standard'];
+}
+function sizeOptionsFor(sku){
+  const sc=showcaseForSku(sku);
+  const names=optionNames(sc?.sizes);
+  if(names.length)return names;
+  return ['KP-CAP-02','BG-TP-12','BT-BTL-08'].includes(String(sku))?['OS']:['S','M','L','XL','XXL'];
+}
+function newOrderLine(productIndex){
+  const s=(projects.find(x=>x.id===currentProject)?.shortlist||[])[productIndex]||[];
+  const sku=s[1]||'';
+  const colors=colorOptionsFor(sku), sizes=sizeOptionsFor(sku);
+  return {id:'line'+(++lineSeq),productIndex,color:colors[0],size:sizes[0],qty:24};
+}
 
 function apply(d){
   projects=d.projects||[];orders=d.orders||[];inventory=d.inventory||[];
@@ -353,8 +381,46 @@ function openOrderForm(id){
   currentProject=id;const p=projects.find(x=>x.id===id);if(!p)return;
   $('ofMeta').innerHTML='<b>'+p.name+'</b> · '+p.id+' · this will be order #'+(p.orderCount+1);
   $('ofNote').textContent='New order ID: '+nextOrderId(p.id);
-  $('ofRows').innerHTML=p.shortlist.map((s,i)=>'<tr><td><span class="thumb">'+String(s[1]).slice(0,2)+'</span></td><td><b>'+s[0]+'</b></td><td>'+s[1]+'</td><td><div class="field"><select data-size="'+i+'">'+(['KP-CAP-02','BG-TP-12','BT-BTL-08'].includes(s[1])?['OS']:['S','M','L','XL','XXL']).map(x=>'<option>'+x+'</option>').join('')+'</select></div></td><td><div class="field"><input type="number" min="1" value="24" data-qty="'+i+'" /></div></td></tr>').join('');
+  orderLines=p.shortlist.map((_,i)=>newOrderLine(i));
+  renderOrderLines();
   setView('orderform');
+}
+function renderOrderLines(){
+  const p=projects.find(x=>x.id===currentProject);
+  if(!p){$('ofRows').innerHTML='';return;}
+  $('ofRows').innerHTML=orderLines.map((ln)=>{
+    const s=p.shortlist[ln.productIndex]||[];
+    const sc=showcaseForSku(s[1]);
+    const image=s[3]||sc?.image||'';
+    const name=s[0]||sc?.name||'Product';
+    const sku=s[1]||sc?.sku||'ITEM';
+    const colors=colorOptionsFor(sku),sizes=sizeOptionsFor(sku);
+    const select=(field,values,current)=>'<select onchange="updateOrderLine(\''+ln.id+'\',\''+field+'\',this.value)">'+values.map(v=>'<option'+(String(v)===String(current)?' selected':'')+'>'+esc(v)+'</option>').join('')+'</select>';
+    return '<tr>'
+      +'<td>'+(image?'<img class="thumb" src="'+esc(image)+'" alt="">':'<span class="thumb">'+esc(String(sku).slice(0,2))+'</span>')+'</td>'
+      +'<td><b>'+esc(name)+'</b></td>'
+      +'<td>'+esc(sku)+'</td>'
+      +'<td><div class="field">'+select('color',colors,ln.color)+'</div></td>'
+      +'<td><div class="field">'+select('size',sizes,ln.size)+'</div></td>'
+      +'<td><div class="field"><input type="number" min="1" value="'+Number(ln.qty)+'" oninput="updateOrderLine(\''+ln.id+'\',\'qty\',this.value)" /></div></td>'
+      +'<td class="of-actions"><button class="link-btn" onclick="addOrderLine(\''+ln.id+'\')">+ Add row</button>'
+      +(orderLines.length>1?'<button class="link-btn" onclick="removeOrderLine(\''+ln.id+'\')">Remove</button>':'')+'</td>'
+      +'</tr>';
+  }).join('')||'<tr><td colspan="7" style="color:var(--muted)">No products in this shortlist.</td></tr>';
+}
+function updateOrderLine(id,field,value){
+  const ln=orderLines.find(x=>x.id===id);if(!ln)return;
+  ln[field]=field==='qty'?Math.max(1,Number.parseInt(value,10)||1):value;
+}
+function addOrderLine(id){
+  const i=orderLines.findIndex(x=>x.id===id);if(i<0)return;
+  orderLines.splice(i+1,0,newOrderLine(orderLines[i].productIndex));
+  renderOrderLines();
+}
+function removeOrderLine(id){
+  if(orderLines.length<=1){toast('Keep at least one order line');return;}
+  orderLines=orderLines.filter(x=>x.id!==id);
+  renderOrderLines();
 }
 function nextOrderId(pid){
   const num=pid.split('-').pop(),seq=orders.filter(o=>o.project===pid).length+1;
@@ -362,15 +428,16 @@ function nextOrderId(pid){
 }
 function confirmOrder(){
   const p=projects.find(x=>x.id===currentProject);if(!p)return;
-  const items=p.shortlist.map((s,i)=>({size:document.querySelector('[data-size="'+i+'"]').value,qty:Number(document.querySelector('[data-qty="'+i+'"]').value)||1}));
+  if(!orderLines.length){toast('Add at least one product to the order');return;}
+  const items=orderLines.map(ln=>({productIndex:ln.productIndex,color:ln.color,size:ln.size,qty:Number(ln.qty)||1}));
   act({action:'confirmOrder',projectNo:p.id,items},()=>setView('orders'));
 }
 function renderOrders(){
-  $('orderRows').innerHTML=orders.map(o=>'<tr><td><b>'+o.id+'</b></td><td>'+(o.project||'—')+'</td><td>'+o.items.map(i=>i[0]+' ('+i[2]+' × '+i[3]+')').join('<br>')+'</td><td><b>'+o.items.reduce((a,b)=>a+b[3],0)+'</b></td><td>'+o.created+'</td><td><span class="pill green">'+(o.status||'Confirmed')+'</span></td></tr>').join('')||'<tr><td colspan="6" style="color:var(--muted)">No orders yet.</td></tr>';
+  $('orderRows').innerHTML=orders.map(o=>'<tr><td><b>'+o.id+'</b></td><td>'+(o.project||'—')+'</td><td>'+o.items.map(i=>esc(i[0])+' ('+esc(i[4]?i[4]+' · ':'')+esc(i[2])+' × '+i[3]+')').join('<br>')+'</td><td><b>'+o.items.reduce((a,b)=>a+b[3],0)+'</b></td><td>'+o.created+'</td><td><span class="pill green">'+(o.status||'Confirmed')+'</span></td></tr>').join('')||'<tr><td colspan="6" style="color:var(--muted)">No orders yet.</td></tr>';
   const withOrders=new Set(orders.filter(o=>o.project).map(o=>o.project)).size;
   $('idInfo').innerHTML=orders.length+' orders · '+withOrders+' projects with orders · '+(projects.length-withOrders)+' projects without an order. Order ID = project number + sequence, so one project can create multiple orders.';
 }
-function renderInventory(){$('invRows').innerHTML=inventory.map(r=>'<tr><td><b>'+r.sku+'</b></td><td>'+r.name+'</td><td>'+r.size+'</td><td><b>'+r.onHand.toLocaleString()+'</b></td><td>'+(r.source||'Confirmed orders')+'</td></tr>').join('')||'<tr><td colspan="5" style="color:var(--muted)">No stock yet.</td></tr>';}
+function renderInventory(){$('invRows').innerHTML=inventory.map(r=>'<tr><td><b>'+esc(r.sku)+'</b></td><td>'+esc(r.name)+'</td><td>'+esc(r.color||'—')+'</td><td>'+esc(r.size)+'</td><td><b>'+r.onHand.toLocaleString()+'</b></td><td>'+esc(r.source||'Confirmed orders')+'</td></tr>').join('')||'<tr><td colspan="6" style="color:var(--muted)">No stock yet.</td></tr>';}
 function renderPortals(){$('portalRows').innerHTML=portals.map(p=>'<div style="padding:12px 0;border-bottom:1px solid #EFEFEF"><b>'+p+'</b><div style="margin-top:4px"><button class="link-btn" onclick="toast(\'Portal opened\')">View portal</button> &nbsp; <button class="link-btn" onclick="toast(\'Portal editing\')">Edit portal</button></div></div>').join('');}
 let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2600);}
 function renderAll(){renderProjects();renderOrders();renderInventory();renderPortals();}
