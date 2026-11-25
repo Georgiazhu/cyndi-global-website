@@ -326,8 +326,10 @@ function renderPortals(){$('portalRows').innerHTML=portals.map(p=>'<div style="p
 let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2600);}
 function renderAll(){renderProjects();renderOrders();renderInventory();renderPortals();}
 load();
-// Old /portal/dashboard/?view=showcase bookmarks now open the standalone showcase page.
-(function(){if(new URLSearchParams(location.search).get('view')==='showcase')location.replace('/showcase/');})();
+// Deep links from the showcase header: /portal/dashboard/?view=orders|portals|inventory.
+(function(){const v=new URLSearchParams(location.search).get('view');
+  if(v==='showcase'){location.replace('/showcase/');return;}
+  if(v && document.getElementById('view-'+v))setView(v);})();
 </script>
 <script>
 /* Portal session guard: this dashboard is only available after sign-in. */
