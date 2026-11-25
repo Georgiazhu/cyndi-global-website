@@ -167,6 +167,7 @@ tr:last-child td{border-bottom:0}
       <div class="body" id="newProjectBody" hidden>
         <div class="field"><label>Project name</label><input id="npTitle" placeholder="e.g. Q1 Onboarding Kit" /></div>
         <div class="field" style="margin-top:8px"><label>Brief (optional)</label><textarea id="npBrief" placeholder="Categories, quantities, event date…"></textarea></div>
+        <div class="field" style="margin-top:8px"><label>Delivery City</label><input id="npCity" placeholder="e.g. Singapore" /></div>
         <button class="btn small" id="npCreateBtn" style="margin-top:10px" onclick="createProject()">Create project</button>
         <span class="note" style="margin-left:10px">A new project starts empty — pick its shortlist from your Showcase.</span>
         <div class="np-error hidden" id="npError"></div>
@@ -407,7 +408,8 @@ function projectCard(p){
     const detail=esc(p.latest.detail||p.latest.action.replace(/_/g,' '));
     latest='<div class="latest"><span class="newdot"></span><b>Latest action</b> · '+esc(who)+' — '+detail+' <span class="when">'+esc((p.latest.at||'').slice(0,16).replace('T',' '))+'</span></div>';
   }
-  return '<div class="pcard '+(done?'past':'')+'"><div class="phead"><h3>'+p.name+'</h3><span class="pid">'+p.id+'</span></div><div class="pmeta">Created by <b>'+p.creator+'</b> · '+p.created+'</div>'+latest+'<div class="pbody"><div class="progress">'+prog+'</div><div class="acts3">'+acts+'</div></div></div>';
+  const city=p.deliveryCity?' · Delivery City: <b>'+esc(p.deliveryCity)+'</b>':'';
+  return '<div class="pcard '+(done?'past':'')+'"><div class="phead"><h3>'+p.name+'</h3><span class="pid">'+p.id+'</span></div><div class="pmeta">Created by <b>'+p.creator+'</b> · '+p.created+city+'</div>'+latest+'<div class="pbody"><div class="progress">'+prog+'</div><div class="acts3">'+acts+'</div></div></div>';
 }
 function renderProjects(){
   $('activeProjects').innerHTML=projects.filter(p=>!p.done).map(projectCard).join('')||'<div class="section"><div class="body" style="color:var(--muted)">No current projects.</div></div>';
@@ -422,7 +424,7 @@ function highlightProject(id){
   setTimeout(()=>card.classList.remove('flash'),2400);
 }
 async function createProject(){
-  const title=($('npTitle').value||'').trim(),brief=($('npBrief').value||'').trim();
+  const title=($('npTitle').value||'').trim(),brief=($('npBrief').value||'').trim(),deliveryCity=($('npCity').value||'').trim();
   const err=$('npError'),btn=$('npCreateBtn');
   if(err){err.textContent='';err.classList.add('hidden');}
   if(!title){
@@ -433,8 +435,8 @@ async function createProject(){
   const label=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='Creating…';}
   try{
-    const r=await post({action:'createProject',title,brief});
-    $('npTitle').value='';$('npBrief').value='';
+    const r=await post({action:'createProject',title,brief,deliveryCity});
+    $('npTitle').value='';$('npBrief').value='';$('npCity').value='';
     await load();
     toggleNewProject(false);
     setView('projects');

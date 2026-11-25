@@ -9,6 +9,7 @@ import {
 import {
   ensureDashboardSchema, loadDashboard, mutateDashboard,
   adminCreateProject, adminPublishShortlist, adminPublishMockups, adminUpdateOrderPricing,
+  adminUpdateProject, listAdminProjects,
 } from '../functions/_lib/dashboard.js';
 
 // Minimal D1-compatible wrapper over node:sqlite so the real SQL runs in tests.
@@ -124,4 +125,19 @@ test('customer pool curates the showcase and gates shortlist picks', async () =>
   // Reset restores the full catalogue for this customer only.
   await db.prepare('DELETE FROM client_showcase_pools WHERE customer_id = ?1').bind('1').run();
   assert.equal((await loadDashboard(db, alice)).showcase.length, 3);
+
+  // Delivery City is stored on the project, returned to client/admin, and editable.
+  const clientCity = await mutateDashboard(db, alice, {
+    action: 'createProject', title: 'Delivery test', brief: 'event', deliveryCity: 'Singapore',
+  });
+  assert.equal((await loadDashboard(db, alice)).projects.find((p) => p.id === clientCity.projectNo).deliveryCity, 'Singapore');
+  const rawCity = await db.prepare('SELECT delivery_city FROM client_projects WHERE project_no = ?1').bind(clientCity.projectNo).first();
+  assert.equal(rawCity.delivery_city, 'Singapore');
+
+  const adminCity = await adminCreateProject(
+    db, { id: 1, email: alice.email }, { title: 'Admin delivery', deliveryCity: 'London' }, 'Cyndi Global',
+  );
+  assert.equal((await listAdminProjects(db)).find((p) => p.id === adminCity.projectNo).deliveryCity, 'London');
+  await adminUpdateProject(db, adminCity.projectNo, { deliveryCity: 'Dubai' }, 'Cyndi Global');
+  assert.equal((await loadDashboard(db, alice)).projects.find((p) => p.id === adminCity.projectNo).deliveryCity, 'Dubai');
 });

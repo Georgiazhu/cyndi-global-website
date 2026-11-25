@@ -72,6 +72,8 @@ th{font-size:10.5px;text-transform:uppercase;color:var(--muted)}
         <select id="newCust"></select>
         <label>Project title</label>
         <input id="newTitle" placeholder="e.g. Q1 Onboarding Kit">
+        <label>Delivery City</label>
+        <input id="newCity" placeholder="e.g. Singapore">
         <label>Brief (optional)</label>
         <textarea id="newBrief" placeholder="Categories, quantities, event date…"></textarea>
         <div style="margin-top:12px"><button id="createBtn">Create project</button></div>
@@ -226,7 +228,7 @@ function renderDetail(){
   const feed=p.activity.slice(0,12).map(a=>'<li><b>'+esc(a.action.replace(/_/g,' '))+'</b> — '+esc(a.detail)+' <span class="t">· '+esc(a.actor)+' · '+esc((a.at||'').slice(0,16).replace('T',' '))+'</span></li>').join('')||'<li class="hint">No activity yet.</li>';
   $('detail').innerHTML=
    '<div class="card">'+stageBar(p)+
-     '<div class="row" style="justify-content:space-between"><div><h2 style="margin:0">'+esc(p.title)+' <span class="hint">'+esc(p.id)+'</span></h2><div class="hint">'+esc(p.customerName||p.customerEmail)+' · created '+esc(p.created)+'</div></div>'+
+     '<div class="row" style="justify-content:space-between"><div><h2 style="margin:0">'+esc(p.title)+' <span class="hint">'+esc(p.id)+'</span></h2><div class="hint">'+esc(p.customerName||p.customerEmail)+' · created '+esc(p.created)+(p.deliveryCity?' · Delivery City: '+esc(p.deliveryCity):'')+'</div></div>'+
      '<div class="row"><button class="line sm" data-act="rename">Rename</button><button class="danger sm" data-act="delete">Delete</button></div></div>'+
      (p.brief?'<p class="hint" style="margin-top:10px">'+esc(p.brief)+'</p>':'')+
    '</div>'+
@@ -351,9 +353,9 @@ async function saveOrderPricing(p,orderNo){
 async function rename(p){const name=window.prompt('Project title',p.title);if(!name||name===p.title)return;try{await post({action:'updateProject',projectNo:p.id,title:name});await refresh();msg('Renamed',true)}catch(e){msg(e.message,false)}}
 async function del(p){if(!window.confirm('Delete '+p.id+'? This cannot be undone.'))return;try{await post({action:'deleteProject',projectNo:p.id});state.current=null;await refresh();msg('Project deleted',true)}catch(e){msg(e.message,false)}}
 $('createBtn').addEventListener('click',async()=>{
-  const customerId=Number($('newCust').value)||0,title=($('newTitle').value||'').trim(),brief=($('newBrief').value||'').trim();
+  const customerId=Number($('newCust').value)||0,title=($('newTitle').value||'').trim(),brief=($('newBrief').value||'').trim(),deliveryCity=($('newCity').value||'').trim();
   if(!customerId){msg('Choose a customer',false);return}
-  try{const r=await post({action:'createProject',customerId,title,brief});$('newTitle').value='';$('newBrief').value='';state.current=r.projectNo;state.tab=1;state.poolCust=String(customerId);await refresh(state.poolCust);msg('Project '+r.projectNo+' created · pick its shortlist from this customer\'s showcase',true)}catch(e){msg(e.message,false)}
+  try{const r=await post({action:'createProject',customerId,title,brief,deliveryCity});$('newTitle').value='';$('newBrief').value='';$('newCity').value='';state.current=r.projectNo;state.tab=1;state.poolCust=String(customerId);await refresh(state.poolCust);msg('Project '+r.projectNo+' created · pick its shortlist from this customer\'s showcase',true)}catch(e){msg(e.message,false)}
 });
 $('poolCust').addEventListener('change',()=>{
   if(state.poolDraft?.dirty&&!window.confirm('Discard unsaved showcase changes for this customer?')){$('poolCust').value=state.poolCust;return}

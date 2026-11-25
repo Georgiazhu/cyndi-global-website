@@ -28,17 +28,25 @@ export async function ensureDashboardSchema(db) {
         shortlist_json  TEXT NOT NULL DEFAULT '[]',
         mockups_json    TEXT NOT NULL DEFAULT '[]',
         brief           TEXT NOT NULL DEFAULT '',
+        delivery_city   TEXT NOT NULL DEFAULT '',
         updated_at      TEXT NOT NULL
       )`).run();
       try {
         await db.prepare('CREATE INDEX IF NOT EXISTS idx_client_projects_user ON client_projects(user_id, created_at DESC)').run();
       } catch {}
-      // Existing installs created before `brief` existed — add it defensively.
+      // Existing installs created before `brief` / `delivery_city` existed — add them defensively.
       try {
         await db.prepare("ALTER TABLE client_projects ADD COLUMN brief TEXT NOT NULL DEFAULT ''").run();
       } catch (e) {
         if (!/duplicate column|already exists/i.test(e?.message || '')) {
           console.error('dashboard schema (client_projects.brief):', e?.message);
+        }
+      }
+      try {
+        await db.prepare("ALTER TABLE client_projects ADD COLUMN delivery_city TEXT NOT NULL DEFAULT ''").run();
+      } catch (e) {
+        if (!/duplicate column|already exists/i.test(e?.message || '')) {
+          console.error('dashboard schema (client_projects.delivery_city):', e?.message);
         }
       }
       try {
@@ -262,6 +270,7 @@ export async function loadDashboard(db, user) {
     created: day(r.created_at),
     updated: day(r.updated_at),
     brief: text(r.brief, 600),
+    deliveryCity: text(r.delivery_city, 120),
     stage: int(r.stage, 1),
     done: r.status === 'completed',
     status: r.status || 'active',
@@ -324,12 +333,13 @@ export async function mutateDashboard(db, user, body) {
   if (action === 'createProject') {
     const title = text(body?.title, 160) || 'New SWAG Project';
     const brief = text(body?.brief, 600);
+    const deliveryCity = text(body?.deliveryCity ?? body?.delivery_city, 120);
     const no = await nextProjectNo(db);
     const at = now();
     await db.prepare(`INSERT INTO client_projects
-      (project_no,user_id,title,created_by,created_at,stage,status,shortlist_json,mockups_json,brief,updated_at)
-      VALUES (?1,?2,?3,?4,?5,1,'active','[]','[]',?6,?7)`).bind(
-      no, uid(user), title, uname(user), at, brief, at
+      (project_no,user_id,title,created_by,created_at,stage,status,shortlist_json,mockups_json,brief,delivery_city,updated_at)
+      VALUES (?1,?2,?3,?4,?5,1,'active','[]','[]',?6,?7,?8)`).bind(
+      no, uid(user), title, uname(user), at, brief, deliveryCity, at
     ).run();
     await logActivity(db, no, uname(user), 'project_created', `Client created project ${title}`, 'client');
     return { ok: true, projectNo: no, message: `${no} created · pick products from your showcase` };
@@ -516,6 +526,7 @@ export async function listAdminProjects(db) {
     created: day(r.created_at),
     updated: day(r.updated_at),
     brief: text(r.brief, 600),
+    deliveryCity: text(r.delivery_city, 120),
     stage: int(r.stage, 1),
     status: r.status || 'active',
     done: r.status === 'completed',
@@ -532,12 +543,13 @@ export async function adminCreateProject(db, customer, data, adminName) {
   await ensureDashboardSchema(db);
   const title = text(data?.title, 160) || 'New SWAG Project';
   const brief = text(data?.brief, 600);
+  const deliveryCity = text(data?.deliveryCity ?? data?.delivery_city, 120);
   const projectNo = await nextProjectNo(db);
   const ts = now();
   await db.prepare(`INSERT INTO client_projects
-    (project_no,user_id,title,created_by,created_at,stage,status,shortlist_json,mockups_json,brief,updated_at)
-    VALUES (?1,?2,?3,?4,?5,1,'active','[]','[]',?6,?7)`).bind(
-    projectNo, String(customer.id), title, adminName, ts, brief, ts
+    (project_no,user_id,title,created_by,created_at,stage,status,shortlist_json,mockups_json,brief,delivery_city,updated_at)
+    VALUES (?1,?2,?3,?4,?5,1,'active','[]','[]',?6,?7,?8)`).bind(
+    projectNo, String(customer.id), title, adminName, ts, brief, deliveryCity, ts
   ).run();
   await logActivity(db, projectNo, adminName, 'project_created', `Project created for ${customer.email || 'customer'}`, 'admin');
   return { ok: true, projectNo };
@@ -636,10 +648,12 @@ export async function adminUpdateProject(db, projectNo, data, adminName) {
   await ensureDashboardSchema(db);
   const title = text(data?.title, 160);
   const brief = text(data?.brief, 600);
-  if (!title && !brief) return { ok: true };
+  const deliveryCity = text(data?.deliveryCity ?? data?.delivery_city, 120);
+  if (!title && !brief && !deliveryCity) return { ok: true };
   const sets = [], binds = [];
   if (title) { sets.push('title=?'); binds.push(title); }
   if (brief) { sets.push('brief=?'); binds.push(brief); }
+  if (deliveryCity) { sets.push('delivery_city=?'); binds.push(deliveryCity); }
   sets.push('updated_at=?'); binds.push(now());
   binds.push(projectNo);
   const res = await db.prepare(`UPDATE client_projects SET ${sets.join(',')} WHERE project_no=?`).bind(...binds).run();
