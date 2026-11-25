@@ -10,6 +10,7 @@
 // No existing row is modified unless the customer explicitly confirms a shortlist/mockup/order.
 
 import { logActivity, listActivity } from './project-activity.js';
+import { getCustomerPool, filterByPool } from './client-showcase.js';
 
 let schemaPromise = null;
 
@@ -156,6 +157,34 @@ async function seedIfEmpty(db, user) {
   }
 }
 
+// The client's showcase = their curated slice of the global product catalogue.
+// These are the ONLY products a client may pick into a project shortlist.
+async function showcaseForDashboard(db, customerId) {
+  try {
+    const pool = await getCustomerPool(db, customerId);
+    const cats = await db.prepare('SELECT id, name FROM showcase_categories ORDER BY sort ASC, name ASC').all();
+    const prods = await db.prepare(
+      'SELECT id, category_id, sku, name, image, pricing_json FROM showcase_products ORDER BY sort ASC, name ASC'
+    ).all();
+    const names = new Map((cats.results || []).map((c) => [c.id, c.name]));
+    const list = (prods.results || []).map((p) => {
+      let price = 0;
+      try {
+        const arr = JSON.parse(p.pricing_json || '[]');
+        if (Array.isArray(arr) && arr.length) price = Number(arr[0].price) || 0;
+      } catch {}
+      return {
+        id: String(p.id), sku: p.sku || String(p.id), name: p.name,
+        image: p.image || '', price, category: names.get(p.category_id) || '',
+      };
+    });
+    return filterByPool(list, pool);
+  } catch (e) {
+    console.error('dashboard showcase:', e?.message);
+    return [];
+  }
+}
+
 // One read assembles every dashboard section from real D1 rows.
 export async function loadDashboard(db, user) {
   await ensureDashboardSchema(db);
@@ -217,6 +246,7 @@ export async function loadDashboard(db, user) {
   return {
     user: { id: user.id, email: user.email, displayName: user.displayName || user.display_name },
     projects,
+    showcase: await showcaseForDashboard(db, id),
     orders,
     inventory: [...stock.values()].sort((a, b) => b.onHand - a.onHand),
     showcases: [
@@ -245,6 +275,23 @@ async function getProject(db, user, projectNo) {
 export async function mutateDashboard(db, user, body) {
   await ensureDashboardSchema(db);
   const action = text(body?.action, 40);
+
+  // Clients can start a project themselves; it starts empty and the first step
+  // is picking products from their own showcase pool.
+  if (action === 'createProject') {
+    const title = text(body?.title, 160) || 'New SWAG Project';
+    const brief = text(body?.brief, 600);
+    const no = await nextProjectNo(db);
+    const at = now();
+    await db.prepare(`INSERT INTO client_projects
+      (project_no,user_id,title,created_by,created_at,stage,status,shortlist_json,mockups_json,brief,updated_at)
+      VALUES (?1,?2,?3,?4,?5,1,'active','[]','[]',?6,?7)`).bind(
+      no, uid(user), title, uname(user), at, brief, at
+    ).run();
+    await logActivity(db, no, uname(user), 'project_created', `Client created project ${title}`, 'client');
+    return { ok: true, projectNo: no, message: `${no} created · pick products from your showcase` };
+  }
+
   const projectNo = text(body?.projectNo, 40);
   const row = await getProject(db, user, projectNo);
   const ts = now();
@@ -260,6 +307,27 @@ export async function mutateDashboard(db, user, body) {
   };
 
   switch (action) {
+    case 'addShortlist': {
+      const ids = (Array.isArray(body?.productIds) ? body.productIds : [body?.productId])
+        .map((x) => text(x, 80)).filter(Boolean);
+      if (!ids.length) throw Object.assign(new Error('Choose a product first'), { status: 400 });
+      const pool = await showcaseForDashboard(db, uid(user));
+      const list = arrayOf(parseJson(row.shortlist_json, []));
+      const picked = [];
+      for (const id of ids) {
+        const item = pool.find((x) => x.id === id);
+        if (!item) throw Object.assign(new Error('That product is not in your showcase'), { status: 403 });
+        if (list.some((s) => String(s[1]) === String(item.sku))) continue;
+        list.push([item.name, item.sku, item.price, item.image]);
+        picked.push(item.name);
+      }
+      if (picked.length) {
+        await save({ shortlist: list });
+        await logActivity(db, projectNo, uname(user), 'shortlist_item_added',
+          `${picked.length} product${picked.length === 1 ? '' : 's'} added from your showcase: ${picked.join(', ')}`, 'client');
+      }
+      return { ok: true, added: picked.length, message: picked.length ? `${picked.length} product(s) added to the shortlist` : 'Already in the shortlist' };
+    }
     case 'removeShortlist': {
       const list = arrayOf(parseJson(row.shortlist_json, []));
       const i = int(body?.index, -1);

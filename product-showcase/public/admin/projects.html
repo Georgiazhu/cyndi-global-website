@@ -60,7 +60,7 @@ th{font-size:10.5px;text-transform:uppercase;color:var(--muted)}
 </header>
 <main>
   <h1>Projects</h1>
-  <p class="sub" style="margin-bottom:18px">Manage the projects your clients see in their dashboard. Every project moves through <b>Shortlist → Mockup → Order</b>. Upload in each stage, confirm to push it to the client, and they will see the latest action in their portal.</p>
+  <p class="sub" style="margin-bottom:18px">Each customer has a <b>Showcase</b> — the selection pool of products Cyndi has curated for that company. A project's <b>Shortlist</b> is picked from that pool (by Cyndi or by the client), then moves through <b>Shortlist → Mockup → Order</b>. Confirm a stage to push it to the client's dashboard.</p>
   <div id="msg" class="msg" role="status"></div>
   <div class="grid">
     <!-- LEFT: customer + project list -->
@@ -76,6 +76,15 @@ th{font-size:10.5px;text-transform:uppercase;color:var(--muted)}
         <div style="margin-top:12px"><button id="createBtn">Create project</button></div>
       </div>
       <div class="card">
+        <h2>Customer showcase <span class="hint">— their selection pool</span></h2>
+        <div class="hint" style="margin-bottom:8px">Add new products or remove ones that don't fit this client's taste. Shortlists can only be picked from this pool.</div>
+        <label>Customer</label>
+        <select id="poolCust"></select>
+        <div class="row" style="margin-top:10px"><button class="line sm" id="poolAll">Select all</button><button class="line sm" id="poolNone">Clear</button><span class="hint" id="poolState"></span></div>
+        <div class="picker" id="poolPicker" style="margin-top:8px;max-height:250px"></div>
+        <div class="row" style="margin-top:10px"><button class="primary" id="poolSave">Save showcase</button><button class="line" id="poolReset">Use full catalogue</button></div>
+      </div>
+      <div class="card">
         <h2>Projects <span class="hint" id="pCount"></span></h2>
         <div id="projList"></div>
       </div>
@@ -87,7 +96,7 @@ th{font-size:10.5px;text-transform:uppercase;color:var(--muted)}
 <script src="/admin/admin-auth.js"></script>
 <script>
 const API='/api/admin/projects';
-let state={projects:[],customers:[],showcase:{categories:[],products:[]},current:null,tab:1};
+let state={projects:[],customers:[],showcase:{categories:[],products:[]},catalog:{categories:[],products:[]},pool:null,poolCustomerId:'',poolCust:'',poolDraft:null,current:null,tab:1};
 const $=id=>document.getElementById(id);
 function msg(t,ok){const e=$('msg');e.textContent=t;e.className='msg '+(ok?'ok':'err')}
 async function api(url,opts){const r=await fetch(url,Object.assign({credentials:'same-origin',headers:{'Accept':'application/json'}},opts||{}));const b=await r.json().catch(()=>({}));if(r.status===401){AdminAuth.requireLogin();throw new Error('Please sign in')}if(!r.ok)throw new Error(b.error||'Request failed');return b}
@@ -95,9 +104,51 @@ const post=b=>api(API,{method:'POST',headers:{'Content-Type':'application/json',
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 function renderCustomers(){
-  const sel=$('newCust');const cur=sel.value;
+  const sel=$('newCust'),cur=sel.value;
   sel.innerHTML=state.customers.map(c=>'<option value="'+c.id+'">'+esc(c.name)+' · '+esc(c.email)+'</option>').join('');
   if(cur)sel.value=cur;
+  const ps=$('poolCust'),pcur=state.poolCust||ps.value;
+  ps.innerHTML=state.customers.map(c=>'<option value="'+c.id+'">'+esc(c.name)+' · '+esc(c.email)+'</option>').join('');
+  if(pcur)ps.value=pcur;
+}
+function poolCount(){return state.poolDraft?state.poolDraft.ids.size:0}
+function setPoolState(){
+  const n=poolCount(),total=state.catalog.products.length;
+  $('poolState').textContent=state.pool===null?('Full catalogue · '+total+' products'):(n+' of '+total+' products in pool');
+}
+function renderPool(){
+  const custId=String(Number($('poolCust').value)||0);
+  if(!state.poolDraft||state.poolDraft.cust!==custId){
+    const ids=state.pool===null?state.catalog.products.map(p=>String(p.id)):state.pool.map(String);
+    state.poolDraft={cust:custId,ids:new Set(ids)};
+  }
+  setPoolState();
+  $('poolPicker').innerHTML=state.catalog.products.map(x=>'<label class="it"><input type="checkbox" data-pool-pid="'+esc(x.id)+'" '+(state.poolDraft.ids.has(String(x.id))?'checked':'')+'><img src="'+esc(x.image)+'" alt=""><span class="nm"><b>'+esc(x.name)+'</b><br><span class="hint">'+esc(x.sku)+'</span></span><span class="pr">$'+esc(x.price)+'</span></label>').join('')||'<div class="empty">No catalogue products yet — add them in <a href="/admin/showcase.html">Showcase</a>.</div>';
+  document.querySelectorAll('[data-pool-pid]').forEach(cb=>cb.addEventListener('change',()=>{
+    if(cb.checked)state.poolDraft.ids.add(cb.dataset.poolPid);else state.poolDraft.ids.delete(cb.dataset.poolPid);
+    setPoolState();
+  }));
+}
+async function savePool(){
+  const customerId=Number($('poolCust').value)||0;
+  if(!customerId){msg('Choose a customer',false);return}
+  try{
+    await post({action:'saveCustomerShowcase',customerId,productIds:[...state.poolDraft.ids]});
+    state.poolCust=String(customerId);
+    await refresh(state.poolCust);
+    msg('Showcase updated for this customer — their shortlist picker now uses this pool',true);
+  }catch(e){msg(e.message,false)}
+}
+async function resetPool(){
+  const customerId=Number($('poolCust').value)||0;
+  if(!customerId){msg('Choose a customer',false);return}
+  if(!window.confirm('Let this customer see the full catalogue again?'))return;
+  try{
+    await post({action:'resetCustomerShowcase',customerId});
+    state.poolCust=String(customerId);
+    await refresh(state.poolCust);
+    msg('Customer showcase reset to full catalogue',true);
+  }catch(e){msg(e.message,false)}
 }
 function renderList(){
   $('pCount').textContent='('+state.projects.length+')';
@@ -105,7 +156,12 @@ function renderList(){
     const label=p.latest?('<span class="who">↳ '+esc(p.latest.action.replace(/_/g,' '))+' · '+esc((p.latest.at||'').slice(0,10))+'</span>'):'';
     return '<div class="proj '+(state.current===p.id?'on':'')+'" data-id="'+esc(p.id)+'"><b>'+esc(p.title)+' <span class="pill '+('s'+p.stage)+(p.done?' done':'')+'">'+(p.done?'Done':['Shortlist','Mockup','Order'][p.stage-1])+'</span></b><div class="who">'+esc(p.customerName||p.customerEmail||'—')+' · '+esc(p.id)+'</div>'+label+'</div>';
   }).join(''):'<div class="empty">No projects yet.</div>';
-  document.querySelectorAll('.proj').forEach(el=>el.addEventListener('click',()=>{state.current=el.dataset.id;state.tab=1;renderList();renderDetail()}));
+  document.querySelectorAll('.proj').forEach(el=>el.addEventListener('click',()=>{
+    const p=state.projects.find(x=>x.id===el.dataset.id);
+    state.current=el.dataset.id;state.tab=1;
+    if(p&&p.customerId){state.poolCust=String(p.customerId);$('poolCust').value=state.poolCust}
+    refresh(state.poolCust);
+  }));
 }
 function stageBar(p){return '<div class="stagebar">'+['Shortlist','Mockup','Order'].map((s,i)=>'<div class="'+((i+1===p.stage&&!p.done)?'on':((i+1<p.stage||p.done)?'done':''))+'">'+(i+1)+' · '+s+'</div>').join('')+'</div>'}
 
@@ -131,9 +187,10 @@ function renderTab(p){
     const picked=new Set(p.shortlist.map(s=>String(s[1])));
     const cats=state.showcase.categories.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join('');
     const rows=p.shortlist.map((s,i)=>'<tr><td>'+(s[3]?'<img class="thumb" src="'+esc(s[3])+'">':'')+'</td><td><b>'+esc(s[0])+'</b></td><td>'+esc(s[1])+'</td><td>$'+esc(s[2])+'</td><td><button class="line sm" data-rm="'+i+'">Remove</button></td></tr>').join('')||'<tr><td colspan="5" class="empty">Shortlist is empty. Pick curated showcase products below.</td></tr>';
-    box.innerHTML='<h3>Curated shortlist (a project-specific selection from the showcase)</h3><table><thead><tr><th></th><th>Product</th><th>SKU</th><th>Price</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    const cust=state.customers.find(c=>String(c.id)===String(p.customerId));
+    box.innerHTML='<h3>Curated shortlist (a project-specific selection from this customer\'s showcase)</h3><table><thead><tr><th></th><th>Product</th><th>SKU</th><th>Price</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'+
       '<div class="row" style="margin-top:10px"><button id="saveSL" class="line">Save draft</button><button id="pushSL" class="primary">Confirm & push to client</button><span class="hint">Pushing sets the stage to Mockup and notifies the client.</span></div>'+
-      '<h3>Pick from showcase</h3><div class="row"><select id="catFilter" style="max-width:220px"><option value="">All categories</option>'+cats+'</select><input id="prodSearch" placeholder="Search name or SKU" style="max-width:260px"></div>'+
+      '<h3>Pick from '+(cust?esc(cust.name):'customer')+'\'s showcase</h3><div class="hint">Only products in this customer\'s curated pool are listed here. Adjust the pool on the left to add or remove options.</div><div class="row"><select id="catFilter" style="max-width:220px"><option value="">All categories</option>'+cats+'</select><input id="prodSearch" placeholder="Search name or SKU" style="max-width:260px"></div>'+
       '<div class="picker" id="picker" style="margin-top:8px"></div>';
     const drawPicker=()=>{
       const q=($('prodSearch').value||'').toLowerCase(),cat=$('catFilter').value;
@@ -167,7 +224,19 @@ function renderTab(p){
   }
 }
 function feedHtml(p){return (p.activity.slice(0,12).map(a=>'<li><b>'+esc(a.action.replace(/_/g,' '))+'</b> — '+esc(a.detail)+' <span class="t">· '+esc(a.actor)+' · '+esc((a.at||'').slice(0,16).replace('T',' '))+'</span></li>').join('')||'<li class="hint">No activity yet.</li>')}
-async function refresh(){const d=await api(API);state.projects=d.projects;state.customers=d.customers;state.showcase=d.showcase||{categories:[],products:[]};renderCustomers();renderList();renderDetail()}
+async function refresh(custId){
+  const id=custId||state.poolCust||'';
+  const d=await api(API+(id?'?customerId='+encodeURIComponent(id):''));
+  state.projects=d.projects;state.customers=d.customers;
+  state.showcase=d.showcase||{categories:[],products:[]};
+  state.catalog=d.catalog||state.showcase;
+  state.pool=d.pool===undefined?null:d.pool;
+  state.poolCustomerId=d.poolCustomerId||'';
+  if(id)state.poolCust=String(id);
+  if(!state.poolCust&&state.customers.length)state.poolCust=String(state.customers[0].id);
+  state.poolDraft=null;
+  renderCustomers();renderPool();renderList();renderDetail();
+}
 async function saveShortlist(p,confirm){
   try{const r=await post({action:'publishShortlist',projectNo:p.id,products:p.shortlist.map(s=>({name:s[0],sku:s[1],price:s[2],image:s[3]||''})),confirm});await refresh();msg(confirm?'Shortlist pushed to client':'Shortlist draft saved',true)}
   catch(e){msg(e.message,false)}
@@ -192,9 +261,14 @@ async function del(p){if(!window.confirm('Delete '+p.id+'? This cannot be undone
 $('createBtn').addEventListener('click',async()=>{
   const customerId=Number($('newCust').value)||0,title=($('newTitle').value||'').trim(),brief=($('newBrief').value||'').trim();
   if(!customerId){msg('Choose a customer',false);return}
-  try{const r=await post({action:'createProject',customerId,title,brief});$('newTitle').value='';$('newBrief').value='';state.current=r.projectNo;state.tab=1;await refresh();msg('Project '+r.projectNo+' created',true)}catch(e){msg(e.message,false)}
+  try{const r=await post({action:'createProject',customerId,title,brief});$('newTitle').value='';$('newBrief').value='';state.current=r.projectNo;state.tab=1;state.poolCust=String(customerId);await refresh(state.poolCust);msg('Project '+r.projectNo+' created · pick its shortlist from this customer\'s showcase',true)}catch(e){msg(e.message,false)}
 });
-AdminAuth.require({onReady:refresh});
+$('poolCust').addEventListener('change',()=>{state.poolCust=$('poolCust').value;state.poolDraft=null;refresh(state.poolCust)});
+$('poolAll').addEventListener('click',()=>{state.poolDraft.ids=new Set(state.catalog.products.map(p=>String(p.id)));setPoolState();document.querySelectorAll('[data-pool-pid]').forEach(cb=>cb.checked=true)});
+$('poolNone').addEventListener('click',()=>{state.poolDraft.ids=new Set();setPoolState();document.querySelectorAll('[data-pool-pid]').forEach(cb=>cb.checked=false)});
+$('poolSave').addEventListener('click',savePool);
+$('poolReset').addEventListener('click',resetPool);
+AdminAuth.require({onReady:()=>refresh()});
 </script>
 </body>
 </html>

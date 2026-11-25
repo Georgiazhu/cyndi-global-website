@@ -2,6 +2,7 @@ import { json } from '../_lib/auth.js';
 import { showcaseSeed } from '../_lib/showcaseSeed.js';
 import { requireShowcaseCustomer } from './showcase/auth-lib.js';
 import { invClassifyError } from '../_lib/inventory.js';
+import { getCustomerPool, filterByPool } from '../_lib/client-showcase.js';
 
 const parse = (raw, fallback) => {
   if (!raw) return fallback;
@@ -140,6 +141,10 @@ export async function onRequestGet({ request, env }) {
     await ensureSchema(env);
     await seedIfEmpty(env);
 
+    // This client's showcase is a curated pool carved out of the global catalogue.
+    // Customers without a saved pool keep seeing the whole catalogue (legacy behaviour).
+    const pool = await getCustomerPool(env.DB, gate.customer?.id ?? gate.customer?.user_id);
+
     const catRows = await env.DB.prepare(
       'SELECT id, name, sort FROM showcase_categories ORDER BY sort ASC, name ASC'
     ).all();
@@ -165,7 +170,7 @@ export async function onRequestGet({ request, env }) {
     }
 
     const byCategory = {};
-    for (const p of prodRows.results || []) {
+    for (const p of filterByPool(prodRows.results || [], pool)) {
       const stock = stockByProduct.get(p.id);
       (byCategory[p.category_id] ||= []).push({
         id: p.id,
@@ -194,7 +199,7 @@ export async function onRequestGet({ request, env }) {
       id: c.id,
       name: c.name,
       products: byCategory[c.id] || [],
-    }));
+    })).filter((c) => c.products.length > 0);
 
     let meta = null;
     const metaRow = await env.DB.prepare('SELECT data_json FROM showcase_meta WHERE id = 1').first();

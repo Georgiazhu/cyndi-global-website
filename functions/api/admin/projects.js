@@ -1,18 +1,22 @@
 // /api/admin/projects — Admin console for the customer-facing client_projects.
 //  GET  -> { projects, customers, showcase:{categories,products} }
 //  POST -> { action, ... } actions:
-//     createProject    { customerId, title, brief }
-//     publishShortlist { projectNo, products:[{name,sku,price,image}], confirm? }
-//     publishMockups   { projectNo, mockups:[{label,image}], confirm? }
-//     setStage         { projectNo, stage, status?, note? }
-//     createOrder      { projectNo, items:[{size,qty}] }
-//     deleteProject    { projectNo }
+//     createProject         { customerId, title, brief }
+//     saveCustomerShowcase  { customerId, productIds:[id,...] }
+//     publishShortlist      { projectNo, products:[{name,sku,price,image}], confirm? }
+//     publishMockups        { projectNo, mockups:[{label,image}], confirm? }
+//     setStage              { projectNo, stage, status?, note? }
+//     createOrder           { projectNo, items:[{size,qty}] }
+//     deleteProject         { projectNo }
 // Everything published here is written to the same rows the client portal reads.
 import { getAdminSecret, isAuthenticated, json, readSession } from '../../_lib/auth.js';
 import {
   listAdminProjects, adminCreateProject, adminPublishShortlist, adminPublishMockups,
   adminSetStage, adminCreateOrder, adminDeleteProject, adminUpdateProject,
 } from '../../_lib/dashboard.js';
+import {
+  getCustomerPool, setCustomerPool, filterByPool, ensureClientShowcaseSchema,
+} from '../../_lib/client-showcase.js';
 
 const NO_STORE = { 'Cache-Control': 'no-store', Vary: 'Cookie' };
 const reply = (data, status = 200) => json(data, status, NO_STORE);
@@ -36,7 +40,8 @@ async function customers(db) {
   }));
 }
 
-async function showcase(db) {
+/** The catalogue, narrowed to the products assigned to one customer's showcase. */
+async function showcase(db, customerId) {
   let categories = [], products = [];
   try {
     const c = await db.prepare('SELECT id, name, sort FROM showcase_categories ORDER BY sort ASC, name ASC').all();
@@ -53,6 +58,8 @@ async function showcase(db) {
       } catch {}
       return { id: x.id, categoryId: x.category_id, sku: x.sku || x.id, name: x.name, image: x.image || '', price };
     });
+    const pool = customerId ? await getCustomerPool(db, customerId) : null;
+    products = filterByPool(products, pool);
   } catch {}
   return { categories, products };
 }
@@ -61,10 +68,12 @@ export async function onRequestGet({ request, env }) {
   const g = await gate(request, env);
   if (g.error) return g.error;
   try {
-    const [projects, cust, sc] = await Promise.all([
-      listAdminProjects(env.DB), customers(env.DB), showcase(env.DB),
+    const customerId = new URL(request.url).searchParams.get('customerId') || '';
+    const [projects, cust, sc, catalog, pool] = await Promise.all([
+      listAdminProjects(env.DB), customers(env.DB), showcase(env.DB, customerId),
+      showcase(env.DB), customerId ? getCustomerPool(env.DB, customerId) : Promise.resolve(null),
     ]);
-    return reply({ projects, customers: cust, showcase: sc });
+    return reply({ projects, customers: cust, showcase: sc, catalog, pool, poolCustomerId: customerId });
   } catch (e) {
     console.error('admin projects GET:', e?.message);
     return reply({ error: 'Could not load projects' }, 500);
@@ -85,6 +94,22 @@ export async function onRequestPost({ request, env }) {
         const cust = await env.DB.prepare('SELECT id, email FROM customers WHERE id = ?1').bind(Number(body.customerId) || 0).first();
         if (!cust) return reply({ error: 'Customer not found' }, 404);
         out = await adminCreateProject(env.DB, cust, body, who);
+        break;
+      }
+      case 'saveCustomerShowcase': {
+        const customerId = Number(body.customerId) || 0;
+        if (!customerId) return reply({ error: 'customerId is required' }, 400);
+        const cust = await env.DB.prepare('SELECT id, email FROM customers WHERE id = ?1').bind(customerId).first();
+        if (!cust) return reply({ error: 'Customer not found' }, 404);
+        out = await setCustomerPool(env.DB, cust.id, body.productIds);
+        break;
+      }
+      case 'resetCustomerShowcase': {
+        const customerId = Number(body.customerId) || 0;
+        if (!customerId) return reply({ error: 'customerId is required' }, 400);
+        await ensureClientShowcaseSchema(env.DB);
+        await env.DB.prepare('DELETE FROM client_showcase_pools WHERE customer_id = ?1').bind(String(customerId)).run();
+        out = { ok: true, customerId: String(customerId) };
         break;
       }
       case 'publishShortlist': {
