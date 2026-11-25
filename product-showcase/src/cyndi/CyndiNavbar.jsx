@@ -241,7 +241,7 @@ function MobileMenu({ section, onToggle, onNavigate }) {
     <nav aria-label="Mobile menu" className="px-5 py-5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-400 mb-3">Platform</p>
       <div className="grid grid-cols-2 gap-2.5">
-        <a href="/showcase/" onClick={onNavigate}
+        <a href="/portal/login/?next=%2Fportal%2Fdashboard%2F%3Fview%3Dshowcase" onClick={onNavigate}
           className="rounded-xl border border-stone-200 bg-[#faf9f6] p-3.5 active:bg-stone-100 transition-colors">
           <span className="flex items-center justify-between gap-1">
             <strong className="text-[15px] font-semibold text-stone-900">Showcase</strong>
@@ -354,28 +354,44 @@ function SimpleMega({ items }) {
             )
           }
 
-          // Group header with children (e.g. Swag Platform > Showcase)
+          // Group header with children (e.g. Swag Platform > Showcase).
+          // When a group has its own href, the title itself navigates (e.g. to the
+          // shared portal login) and only the chevron toggles the child list.
+          const main = (
+            <>
+              <span className={iconChip(isOpen)}>
+                <Icon d={it.icon} className="w-5 h-5" />
+              </span>
+              <span className="flex flex-col gap-0.5 min-w-0 flex-1">
+                <strong className={`text-[15px] font-semibold flex items-center transition-colors ${isOpen ? 'text-[#b7410e]' : 'text-stone-900'}`}>
+                  {it.title}
+                </strong>
+                <em className="not-italic text-[12.5px] text-stone-500 leading-snug">{it.blurb}</em>
+              </span>
+            </>
+          )
           return (
             <div key={it.title}
               className={`rounded-xl transition-all duration-200 ${isOpen ? 'bg-[#fdf5ef]' : ''}`}
               onMouseEnter={() => setExpanded(it.title)}>
-              <button type="button" onClick={() => setExpanded(isOpen ? null : it.title)}
-                className="w-full flex items-center gap-3 p-2.5 text-left">
-                <span className={iconChip(isOpen)}>
-                  <Icon d={it.icon} className="w-5 h-5" />
-                </span>
-                <span className="flex flex-col gap-0.5 min-w-0 flex-1">
-                  <strong className={`text-[15px] font-semibold flex items-center gap-1.5 transition-colors ${isOpen ? 'text-[#b7410e]' : 'text-stone-900'}`}>
-                    {it.title}
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                      className={`text-stone-400 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}>
-                      <path d="m9 18 6-6-6-6" />
-                    </svg>
-                  </strong>
-                  <em className="not-italic text-[12.5px] text-stone-500 leading-snug">{it.blurb}</em>
-                </span>
-              </button>
+              <div className="flex items-center gap-1 p-2.5">
+                {it.href
+                  ? <a href={it.href} className="group flex items-center gap-3 min-w-0 flex-1 text-left">
+                      {main}
+                      <span className="text-oat text-lg leading-none opacity-0 -translate-x-2 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0">›</span>
+                    </a>
+                  : <button type="button" onClick={() => setExpanded(isOpen ? null : it.title)}
+                      className="flex items-center gap-3 min-w-0 flex-1 text-left">{main}</button>}
+                <button type="button" aria-label={`Toggle ${it.title} submenu`}
+                  onClick={() => setExpanded(isOpen ? null : it.title)}
+                  className="shrink-0 w-7 h-7 grid place-items-center rounded-lg text-stone-400 hover:bg-white hover:text-[#b7410e]">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    className={`transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}>
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
+                </button>
+              </div>
 
               {/* children list, animated open/close */}
               <div className={`overflow-hidden transition-all duration-200 ${isOpen ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'}`}>

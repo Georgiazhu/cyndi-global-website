@@ -89,13 +89,15 @@ export const serviceItems = [
     icon: 'M3 4h18v12H3z M8 20h8 M12 16v4',
     title: 'Swag Platform',
     blurb: 'Everything you need to manage swag well',
-    // Child of Swag Platform — the curated product proposal showcase
+    // One sign-in for the whole portal: Swag Platform opens the same login page as Portal Login.
+    href: '/portal/login/',
+    // Child of Swag Platform — the showcase now lives inside the signed-in dashboard.
     children: [
       {
         icon: 'M4 5h16v11H4z M8 20h8 M12 16v4',
         title: 'Showcase',
         blurb: 'Product proposals',
-        href: '/showcase/',
+        href: '/portal/login/?next=%2Fportal%2Fdashboard%2F%3Fview%3Dshowcase',
       },
     ],
   },

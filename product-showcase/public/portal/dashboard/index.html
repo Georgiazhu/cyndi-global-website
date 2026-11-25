@@ -101,7 +101,14 @@ tr:last-child td{border-bottom:0}
 .upload{border:1px dashed var(--line);border-radius:10px;padding:14px;text-align:center;font-size:11px;color:var(--muted);margin-top:10px}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--ink);color:#fff;padding:9px 18px;border-radius:999px;font-size:11px;opacity:0;pointer-events:none;transition:.2s;z-index:99}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-@media(max-width:960px){.pcard .pbody{grid-template-columns:1fr}.mainnav nav{gap:14px}}
+/* Showcase — the product proposal app runs inside this tab, using the portal session. */
+.scbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.scbar .hint{font-size:11px;color:var(--muted)}
+.scbar a{font-size:11px;font-weight:600;color:var(--accent);border-bottom:1px solid currentColor;padding-bottom:1px}
+.scbar a:hover{color:var(--accent-d)}
+#scFrame{width:100%;height:calc(100vh - 230px);min-height:760px;border:1px solid var(--line);border-radius:14px;background:#fff;display:block}
+@media(max-width:960px){.pcard .pbody{grid-template-columns:1fr}.mainnav nav{gap:14px}#scFrame{min-height:640px}}
+
 </style>
 </head>
 <body>
@@ -165,10 +172,14 @@ tr:last-child td{border-bottom:0}
   <div class="section"><h2>Order pool</h2><div class="body tight"><table><thead><tr><th>Order ID</th><th>Project</th><th>Items</th><th>Units</th><th>Created</th><th>Status</th></tr></thead><tbody id="orderRows"></tbody></table></div></div>
 </section>
 
-<!-- SHOWCASE -->
+<!-- SHOWCASE — the Swag Platform product proposals, now inside the signed-in dashboard -->
 <section class="view" id="view-showcase">
-  <div class="band"><h1>Showcase</h1><div class="meta">Curated product showcases. Review and start a project from any showcase.</div></div>
-  <div class="section"><h2>Product Showcases</h2><div class="body tight"><table><thead><tr><th></th><th>Showcase</th><th>Products</th><th>Date</th><th></th></tr></thead><tbody id="scRows"></tbody></table></div></div>
+  <div class="band"><h1>Showcase</h1><div class="meta">Curated product proposals from the Swag Platform. Browse products, build a cart and place orders with your portal account.</div></div>
+  <div class="scbar">
+    <span class="hint">Signed in as a portal user · the showcase uses the same account and session.</span>
+    <a href="/showcase/" target="_blank" rel="noopener">Open full showcase ↗</a>
+  </div>
+  <iframe id="scFrame" title="Cyndi Global product showcase" src="about:blank" loading="lazy"></iframe>
 </section>
 
 <!-- PORTALS -->
@@ -260,6 +271,11 @@ async function act(body,after){
 function setView(v){
   document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+v));
   document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===v));
+  // Load the showcase app on first open so it inherits the signed-in portal session.
+  if(v==='showcase'){
+    const f=$('scFrame');
+    if(f && (!f.src || f.src==='about:blank')) f.src='/showcase/';
+  }
   window.scrollTo(0,0);
 }
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
@@ -327,11 +343,12 @@ function renderOrders(){
   $('idInfo').innerHTML=orders.length+' orders · '+withOrders+' projects with orders · '+(projects.length-withOrders)+' projects without an order. Order ID = project number + sequence, so one project can create multiple orders.';
 }
 function renderInventory(){$('invRows').innerHTML=inventory.map(r=>'<tr><td><b>'+r.sku+'</b></td><td>'+r.name+'</td><td>'+r.size+'</td><td><b>'+r.onHand.toLocaleString()+'</b></td><td>'+(r.source||'Confirmed orders')+'</td></tr>').join('')||'<tr><td colspan="5" style="color:var(--muted)">No stock yet.</td></tr>';}
-function renderShowcase(){$('scRows').innerHTML=showcases.map(s=>'<tr><td><span class="thumb">SC</span></td><td><b>'+s[0]+'</b></td><td><span class="pill orange">Products '+s[1]+'</span></td><td>'+s[2]+'</td><td><button class="link-btn" onclick="toast(\'Showcase opened\')">View</button></td></tr>').join('');}
 function renderPortals(){$('portalRows').innerHTML=portals.map(p=>'<div style="padding:12px 0;border-bottom:1px solid #EFEFEF"><b>'+p+'</b><div style="margin-top:4px"><button class="link-btn" onclick="toast(\'Portal opened\')">View portal</button> &nbsp; <button class="link-btn" onclick="toast(\'Portal editing\')">Edit portal</button></div></div>').join('');}
 let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2600);}
-function renderAll(){renderProjects();renderOrders();renderInventory();renderShowcase();renderPortals();}
+function renderAll(){renderProjects();renderOrders();renderInventory();renderPortals();}
 load();
+// Deep link: /portal/dashboard/?view=showcase opens the Showcase tab directly.
+(function(){const v=new URLSearchParams(location.search).get('view');if(v && document.getElementById('view-'+v))setView(v);})();
 </script>
 <script>
 /* Portal session guard: this dashboard is only available after sign-in. */
