@@ -42,6 +42,9 @@ button{cursor:pointer}
 .band h1{font-size:22px;font-weight:600;margin-bottom:6px}
 .band .meta{font-size:11px;color:var(--muted);max-width:820px}
 .band .meta b{color:var(--ink)}
+.backbar{margin:0 0 14px}
+.back-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;color:var(--ink2);border-radius:999px;padding:6px 13px;font-size:11px;font-weight:600;transition:border-color .16s ease,background .16s ease,color .16s ease}
+.back-btn:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
 .section-title{font-size:15px;margin:26px 0 12px;font-weight:600}
 .hint{font-size:11px;color:var(--muted);margin:0 0 14px}
 
@@ -175,6 +178,7 @@ tr:last-child td{border-bottom:0}
 
 <!-- SHORTLIST -->
 <section class="view" id="view-shortlist">
+  <div class="backbar"><button type="button" class="back-btn" onclick="backToProjects()">← Back to Projects</button></div>
   <div class="band"><h1>Shortlist</h1><div class="meta" id="slMeta"></div></div>
   <div class="info">Your Shortlist is selected from <b>your Showcase</b> — the product pool Cyndi has curated for your company. Add products below, remove the ones you don't want, then confirm.</div>
   <div class="section"><h2>Selected products</h2><div class="body tight"><table><thead><tr><th></th><th>Product</th><th>SKU</th><th></th></tr></thead><tbody id="slRows"></tbody></table></div></div>
@@ -184,6 +188,7 @@ tr:last-child td{border-bottom:0}
 
 <!-- MOCKUP -->
 <section class="view" id="view-mockup">
+  <div class="backbar"><button type="button" class="back-btn" onclick="backToProjects()">← Back to Projects</button></div>
   <div class="band"><h1>Review Mockup</h1><div class="meta" id="mkMeta"></div></div>
   <div class="info">Remove designs you dislike and give a reason, or upload a mockup you want. Confirm to continue to Go To Order.</div>
   <div class="section"><h2>Designs for review</h2><div class="body tight"><table><thead><tr><th></th><th>Design</th><th>Reason for removal</th><th></th></tr></thead><tbody id="mkRows"></tbody></table></div></div>
@@ -200,6 +205,7 @@ tr:last-child td{border-bottom:0}
 
 <!-- GO TO ORDER -->
 <section class="view" id="view-orderform">
+  <div class="backbar"><button type="button" class="back-btn" onclick="backToProjects()">← Back to Projects</button></div>
   <div class="band"><h1>Go To Order</h1><div class="meta" id="ofMeta"></div></div>
   <div class="info">Choose color, size and quantity for each line. Use <b>+ Add row</b> to order the same product in another variant. Prices below use your Showcase tiers; Cyndi adds setup and per-piece decoration fees to the final order.</div>
   <div class="section"><h2>Order items</h2><div class="body tight"><table><thead><tr><th></th><th>Product</th><th>SKU</th><th>Color</th><th>Size</th><th>Quantity</th><th>Unit</th><th>Line total</th><th></th></tr></thead><tbody id="ofRows"></tbody></table></div></div>
@@ -208,6 +214,7 @@ tr:last-child td{border-bottom:0}
 
 <!-- ORDERS -->
 <section class="view" id="view-orders">
+  <div class="backbar"><button type="button" class="back-btn" onclick="backToProjects()">← Back to Projects</button></div>
   <div class="band"><h1>Orders</h1><div class="meta" id="ordersMeta">Every order belongs to one project; a project may have no order, or several orders.</div></div>
   <div class="info" id="idInfo"></div>
   <div class="section"><h2>Order pool</h2><div class="body tight"><table><thead><tr><th>Order ID</th><th>Project</th><th>Items</th><th>Units</th><th>Total</th><th>Created</th><th>Status</th></tr></thead><tbody id="orderRows"></tbody></table></div></div>
@@ -215,12 +222,14 @@ tr:last-child td{border-bottom:0}
 
 <!-- PORTALS -->
 <section class="view" id="view-portals">
+  <div class="backbar"><button type="button" class="back-btn" onclick="backToProjects()">← Back to Projects</button></div>
   <div class="band"><h1>Portals</h1><div class="meta">View and edit the portals in your program.</div></div>
   <div class="section"><h2>Your Portals</h2><div class="body" id="portalRows"></div></div>
 </section>
 
 <!-- INVENTORY -->
 <section class="view" id="view-inventory">
+  <div class="backbar"><button type="button" class="back-btn" onclick="backToProjects()">← Back to Projects</button></div>
   <div class="band"><h1>Inventory</h1><div class="meta">Confirmed orders add stock here. Outbound shipments reduce it.</div></div>
   <div class="section"><h2>Stock on hand</h2><div class="body tight"><table><thead><tr><th>SKU</th><th>Product</th><th>Color</th><th>Size</th><th>On hand</th><th>Source</th></tr></thead><tbody id="invRows"></tbody></table></div></div>
 </section>
@@ -347,6 +356,7 @@ function setView(v){
   window.scrollTo(0,0);
 }
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
+function backToProjects(){ setView('projects'); }
 
 function toggleNewProject(force){
   const body=$('newProjectBody'),btn=$('newProjectToggle'),icon=$('newProjectIcon');
