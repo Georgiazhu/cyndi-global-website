@@ -69,6 +69,12 @@
         <label for="code">6-digit verification code</label>
         <input id="code" class="code" inputmode="numeric" maxlength="6" placeholder="000000" required>
       </div>
+      <button class="btn" id="btn2" type="submit">Verify code</button>
+      <div class="hint"><a href="#" id="resend">Send a new code</a> &nbsp;·&nbsp; <a href="/portal/login/">Sign in</a></div>
+    </form>
+
+    <form class="form" id="step3" hidden>
+      <div id="msg3" class="msg" hidden></div>
       <div class="field">
         <label for="displayName">Your name <span style="font-weight:400;color:#a0988c">(optional)</span></label>
         <input id="displayName" type="text" maxlength="60" placeholder="Your name">
@@ -86,8 +92,8 @@
         <span id="r8">○</span> At least 8 characters &nbsp; <span id="ru">○</span> One uppercase letter<br>
         <span id="rn">○</span> One number &nbsp; <span id="rm">○</span> Match confirmation
       </div>
-      <button class="btn" id="btn2" type="submit">Create account &amp; continue</button>
-      <div class="hint"><a href="#" id="resend">Send a new code</a> &nbsp;·&nbsp; <a href="/portal/login/">Sign in</a></div>
+      <button class="btn" id="btn3" type="submit">Create account &amp; continue</button>
+      <div class="hint"><a href="/portal/login/">Back to sign in</a></div>
     </form>
     <div class="fine">Any valid email address is accepted. No approval or domain restriction at this stage.</div>
   </div>
@@ -96,7 +102,12 @@
 <script>
 const $ = (s) => document.querySelector(s);
 const email = $('#email'), email2 = $('#email2'), code = $('#code');
-const msg1 = $('#msg1'), msg2 = $('#msg2');
+const msg1 = $('#msg1'), msg2 = $('#msg2'), msg3 = $('#msg3');
+let verifyToken = '';
+
+// Safe same-origin next target so "create account" can resume the original page.
+const requestedNext = new URLSearchParams(location.search).get('next') || '';
+const nextUrl = requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : '/portal/dashboard/';
 
 function show(el, text, ok) {
   el.textContent = text;
@@ -117,22 +128,29 @@ function passwordOk() {
 }
 ['#p1','#p2'].forEach(s=>$(s).addEventListener('input',passwordOk));
 
-function goStep2(value) {
+function goStep2(value, note) {
   email2.value = value;
-  hide($('#step1'));
+  hide($('#step1')); hide($('#step3'));
   $('#step2').hidden = false;
-  $('#subtitle').textContent = 'Verify email & choose a password';
+  $('#subtitle').textContent = 'Verify your email';
+  if (note) show(msg2, note, true); else hide(msg2);
   code.focus();
+}
+function goStep3() {
+  hide($('#step1')); hide($('#step2'));
+  $('#step3').hidden = false;
+  $('#subtitle').textContent = 'Choose a password';
+  hide(msg3);
+  $('#p1').focus();
 }
 
 // Resume an in-progress registration after a page reload so the code already
-// in the user's inbox can still be used.
+// in the user's inbox can still be used (the code still needs verifying once).
 (function restoreRegistration() {
   const saved = sessionStorage.getItem('portalRegisterEmail');
   if (saved) {
     email.value = saved;
-    goStep2(saved);
-    show(msg2, 'Enter the verification code sent to your email.', true);
+    goStep2(saved, 'Enter the verification code sent to your email.');
   }
 })();
 
@@ -150,9 +168,8 @@ $('#step1').addEventListener('submit', async (e) => {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Could not send code');
     sessionStorage.setItem('portalRegisterEmail', value);
-    show(msg1, data.devCode ? `Dev code: ${data.devCode}` : 'Verification code sent. Enter it below to continue.', true);
-    btn.disabled = false;
-    goStep2(value);
+    btn.disabled = false; btn.textContent = 'Send verification code';
+    goStep2(value, data.devCode ? `Dev code: ${data.devCode}` : 'Verification code sent. Enter it below to continue.');
   } catch (err) {
     show(msg1, err.message || 'Could not send code', false);
     btn.disabled = false; btn.textContent = 'Send verification code';
@@ -165,48 +182,66 @@ $('#resend').addEventListener('click', async (e) => {
   const link = $('#resend');
   link.textContent = 'Sending…';
   try {
-    await fetch('/api/portal/register/request', {
+    const res = await fetch('/api/portal/register/request', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: value }),
     });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not send a new code');
     link.textContent = 'Send a new code';
-    show(msg2, 'A new code has been sent.', true);
-  } catch {
+    show(msg2, data.devCode ? `New dev code: ${data.devCode}` : 'A new code has been sent.', true);
+  } catch (err) {
     link.textContent = 'Send a new code';
-    show(msg2, 'Could not send a new code. Please try again.', false);
+    show(msg2, err.message || 'Could not send a new code. Please try again.', false);
   }
 });
 
+// Step 2 only verifies the email. Password is entered after verification,
+// matching "get the code → create account → set password".
 $('#step2').addEventListener('submit', async (e) => {
   e.preventDefault();
   hide(msg2);
   const value = email2.value.trim();
   if (!/^\d{6}$/.test(code.value.trim())) { show(msg2, 'Enter the 6-digit code.', false); return; }
-  if (!passwordOk()) { show(msg2, 'Please meet all password requirements.', false); return; }
 
   const btn = $('#btn2');
   btn.disabled = true; btn.textContent = 'Verifying…';
   try {
-    const vRes = await fetch('/api/portal/register/verify', {
+    const res = await fetch('/api/portal/register/verify', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: value, code: code.value.trim() }),
     });
-    const vData = await vRes.json().catch(() => ({}));
-    if (!vRes.ok) throw new Error(vData.error || 'Verification failed');
-    if (!vData.token) throw new Error('Verification token missing');
-
-    btn.textContent = 'Creating account…';
-    const cRes = await fetch('/api/portal/register/complete', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: vData.token, password: $('#p1').value, displayName: $('#displayName').value.trim() }),
-    });
-    const cData = await cRes.json().catch(() => ({}));
-    if (!cRes.ok) throw new Error(cData.error || 'Could not create account');
-
-    sessionStorage.removeItem('portalRegisterEmail');
-    location.href = '/portal/dashboard/';
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Verification failed');
+    if (!data.token) throw new Error('Verification token missing');
+    verifyToken = data.token;
+    btn.disabled = false; btn.textContent = 'Verify code';
+    goStep3();
   } catch (err) {
-    show(msg2, err.message || 'Could not create account', false);
+    show(msg2, err.message || 'Verification failed', false);
+    btn.disabled = false; btn.textContent = 'Verify code';
+  }
+});
+
+$('#step3').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  hide(msg3);
+  if (!verifyToken) { show(msg3, 'Please verify your email first.', false); return; }
+  if (!passwordOk()) { show(msg3, 'Please meet all password requirements.', false); return; }
+
+  const btn = $('#btn3');
+  btn.disabled = true; btn.textContent = 'Creating account…';
+  try {
+    const res = await fetch('/api/portal/register/complete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: verifyToken, password: $('#p1').value, displayName: $('#displayName').value.trim() }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not create account');
+    sessionStorage.removeItem('portalRegisterEmail');
+    location.href = nextUrl;
+  } catch (err) {
+    show(msg3, err.message || 'Could not create account', false);
     btn.disabled = false; btn.textContent = 'Create account & continue';
   }
 });

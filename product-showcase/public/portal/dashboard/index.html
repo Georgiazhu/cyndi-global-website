@@ -147,7 +147,7 @@ tr:last-child td{border-bottom:0}
 <section class="view" id="view-shortlist">
   <div class="band"><h1>Shortlist</h1><div class="meta" id="slMeta"></div></div>
   <div class="info">Your Shortlist is selected from <b>your Showcase</b> — the product pool Cyndi has curated for your company. Add products below, remove the ones you don't want, then confirm.</div>
-  <div class="section"><h2>Selected products</h2><div class="body tight"><table><thead><tr><th></th><th>Product</th><th>SKU</th><th>Unit</th><th></th></tr></thead><tbody id="slRows"></tbody></table></div></div>
+  <div class="section"><h2>Selected products</h2><div class="body tight"><table><thead><tr><th></th><th>Product</th><th>SKU</th><th></th></tr></thead><tbody id="slRows"></tbody></table></div></div>
   <div class="section"><h2>Add from your Showcase</h2><div class="body"><div id="slPicker"></div><button class="btn line small" style="margin-top:10px" onclick="addPickedShortlist()">Add selected products</button></div></div>
   <div class="footbar"><button class="btn" onclick="confirmShortlist()">Confirm Shortlist</button><span class="note">Confirm to move the project to the Mockup stage.</span></div>
 </section>
@@ -158,8 +158,12 @@ tr:last-child td{border-bottom:0}
   <div class="info">Remove designs you dislike and give a reason, or upload a mockup you want. Confirm to continue to Go To Order.</div>
   <div class="section"><h2>Designs for review</h2><div class="body tight"><table><thead><tr><th></th><th>Design</th><th>Reason for removal</th><th></th></tr></thead><tbody id="mkRows"></tbody></table></div></div>
   <div class="section"><h2>Upload a mockup you want</h2><div class="body">
-    <div class="upload"><input type="file" id="mkFile" onchange="document.getElementById('mkFileName').textContent=this.files[0]?this.files[0].name:''" /><div id="mkFileName" style="margin-top:6px;color:var(--ink)"></div></div>
+    <div class="upload"><input type="file" id="mkFile" accept="image/*" onchange="document.getElementById('mkFileName').textContent=this.files[0]?this.files[0].name:''" /><div id="mkFileName" style="margin-top:6px;color:var(--ink)"></div></div>
     <button class="btn line small" style="margin-top:10px" onclick="uploadMockup()">Upload Mockup</button>
+  </div></div>
+  <div class="section"><h2>Send back with notes</h2><div class="body">
+    <div class="field"><label>What should Cyndi change?</label><textarea id="mkReturnNote" placeholder="e.g. Make the logo larger on the hoodie, use navy instead of black…"></textarea></div>
+    <span class="note">You can also write a note next to any design above. All notes are sent to Cyndi.</span>
   </div></div>
   <div class="footbar"><button class="btn gray" onclick="sendBackMockup()">Send Back Mockup</button><button class="btn" onclick="confirmMockup()">Confirm Mockup</button><span class="note">Confirm to continue to Go To Order.</span></div>
 </section>
@@ -167,16 +171,16 @@ tr:last-child td{border-bottom:0}
 <!-- GO TO ORDER -->
 <section class="view" id="view-orderform">
   <div class="band"><h1>Go To Order</h1><div class="meta" id="ofMeta"></div></div>
-  <div class="info">Choose color, size and quantity for each line. Use <b>+ Add row</b> to order the same product in another variant. Confirming creates an order in the <b>Orders</b> pool and adds the items to <b>Inventory</b>.</div>
-  <div class="section"><h2>Order items</h2><div class="body tight"><table><thead><tr><th></th><th>Product</th><th>SKU</th><th>Color</th><th>Size</th><th>Quantity</th><th></th></tr></thead><tbody id="ofRows"></tbody></table></div></div>
-  <div class="footbar"><button class="btn" onclick="confirmOrder()">Confirm Order</button><span class="note" id="ofNote"></span></div>
+  <div class="info">Choose color, size and quantity for each line. Use <b>+ Add row</b> to order the same product in another variant. Prices below use your Showcase tiers; Cyndi adds setup and per-piece decoration fees to the final order.</div>
+  <div class="section"><h2>Order items</h2><div class="body tight"><table><thead><tr><th></th><th>Product</th><th>SKU</th><th>Color</th><th>Size</th><th>Quantity</th><th>Unit</th><th>Line total</th><th></th></tr></thead><tbody id="ofRows"></tbody></table></div></div>
+  <div class="footbar"><button class="btn" onclick="confirmOrder()">Confirm Order</button><span class="note" id="ofNote"></span><span class="note" id="ofTotal" style="font-weight:700;color:var(--ink)"></span></div>
 </section>
 
 <!-- ORDERS -->
 <section class="view" id="view-orders">
   <div class="band"><h1>Orders</h1><div class="meta" id="ordersMeta">Every order belongs to one project; a project may have no order, or several orders.</div></div>
   <div class="info" id="idInfo"></div>
-  <div class="section"><h2>Order pool</h2><div class="body tight"><table><thead><tr><th>Order ID</th><th>Project</th><th>Items</th><th>Units</th><th>Created</th><th>Status</th></tr></thead><tbody id="orderRows"></tbody></table></div></div>
+  <div class="section"><h2>Order pool</h2><div class="body tight"><table><thead><tr><th>Order ID</th><th>Project</th><th>Items</th><th>Units</th><th>Total</th><th>Created</th><th>Status</th></tr></thead><tbody id="orderRows"></tbody></table></div></div>
 </section>
 
 <!-- PORTALS -->
@@ -257,6 +261,14 @@ function sizeOptionsFor(sku){
   if(names.length)return names;
   return ['KP-CAP-02','BG-TP-12','BT-BTL-08'].includes(String(sku))?['OS']:['S','M','L','XL','XXL'];
 }
+function unitPriceFor(sku,qty){
+  const tiers=(showcaseForSku(sku)?.pricing||[]).filter(t=>Number.isFinite(Number(t?.quantity))&&Number.isFinite(Number(t?.price))).sort((a,b)=>Number(a.quantity)-Number(b.quantity));
+  if(!tiers.length)return Number(showcaseForSku(sku)?.price)||0;
+  let price=Number(tiers[0].price)||0;
+  for(const t of tiers)if(qty>=Number(t.quantity))price=Number(t.price)||0;
+  return price;
+}
+const money=n=>'$'+Number(n||0).toFixed(2);
 function newOrderLine(productIndex){
   const s=(projects.find(x=>x.id===currentProject)?.shortlist||[])[productIndex]||[];
   const sku=s[1]||'';
@@ -279,8 +291,9 @@ async function load(){
     if(d.error)throw new Error(d.error);
     apply(d);
   }catch(e){
-    if(location.protocol!=='file:')console.warn('Dashboard API unavailable, showing preview data:',e.message);
-    apply(DEMO);
+    if(location.protocol==='file:'){apply(DEMO);return;}
+    console.warn('Dashboard API unavailable:',e.message);
+    document.querySelector('.wrap').innerHTML='<div class="section"><div class="body"><b>Could not load your projects.</b><div class="hint">Please refresh the page or contact Cyndi Global if this continues.</div></div></div>';
   }
 }
 async function post(body){
@@ -347,7 +360,7 @@ function renderShortlistPicker(p){
   const existing=new Set(p.shortlist.map(s=>String(s[1])));
   const items=showcase.filter(x=>!existing.has(String(x.sku)));
   $('slPicker').innerHTML=items.length
-    ?'<div class="hint" style="margin-bottom:8px">Available in your company\'s Showcase ('+items.length+'):</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">'+items.map(x=>'<label style="display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:7px 9px;cursor:pointer"><input type="checkbox" data-sl-pid="'+esc(x.id)+'" style="width:auto">'+(x.image?'<img class="thumb" src="'+esc(x.image)+'" alt="">':'<span class="thumb">'+esc(String(x.sku).slice(0,2))+'</span>')+'<span><b>'+esc(x.name)+'</b><br><span style="color:var(--muted);font-size:10px">'+esc(x.sku)+' · $'+esc(x.price)+'</span></span></label>').join('')+'</div>'
+    ?'<div class="hint" style="margin-bottom:8px">Available in your company\'s Showcase ('+items.length+'):</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">'+items.map(x=>'<label style="display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:7px 9px;cursor:pointer"><input type="checkbox" data-sl-pid="'+esc(x.id)+'" style="width:auto">'+(x.image?'<img class="thumb" src="'+esc(x.image)+'" alt="">':'<span class="thumb">'+esc(String(x.sku).slice(0,2))+'</span>')+'<span><b>'+esc(x.name)+'</b><br><span style="color:var(--muted);font-size:10px">'+esc(x.sku)+'</span></span></label>').join('')+'</div>'
     :'<div style="color:var(--muted)">'+(showcase.length?'All your showcase products are already in this shortlist.':'Your showcase is empty — ask Cyndi to add products for your company.')+'</div>';
 }
 function addPickedShortlist(){
@@ -358,7 +371,7 @@ function addPickedShortlist(){
 function openShortlist(id){
   currentProject=id;const p=projects.find(x=>x.id===id);if(!p)return;
   $('slMeta').innerHTML='<b>'+p.name+'</b> · '+p.id+' · '+p.shortlist.length+' products';
-  $('slRows').innerHTML=p.shortlist.map((s,i)=>'<tr><td>'+(s[3]?'<img class="thumb" src="'+esc(s[3])+'" alt="">':'<span class="thumb">'+esc(String(s[1]).slice(0,2))+'</span>')+'</td><td><b>'+esc(s[0])+'</b></td><td>'+esc(s[1])+'</td><td>$'+esc(s[2])+'</td><td><button class="link-btn" onclick="removeShortlist('+i+')">Remove</button></td></tr>').join('')||'<tr><td colspan="5" style="color:var(--muted)">No products in shortlist yet — add some from your Showcase below.</td></tr>';
+  $('slRows').innerHTML=p.shortlist.map((s,i)=>'<tr><td>'+(s[3]?'<img class="thumb" src="'+esc(s[3])+'" alt="">':'<span class="thumb">'+esc(String(s[1]).slice(0,2))+'</span>')+'</td><td><b>'+esc(s[0])+'</b></td><td>'+esc(s[1])+'</td><td><button class="link-btn" onclick="removeShortlist('+i+')">Remove</button></td></tr>').join('')||'<tr><td colspan="4" style="color:var(--muted)">No products in shortlist yet — add some from your Showcase below.</td></tr>';
   renderShortlistPicker(p);
   setView('shortlist');
 }
@@ -367,15 +380,28 @@ function confirmShortlist(){act({action:'confirmShortlist',projectNo:currentProj
 function openMockup(id){
   currentProject=id;const p=projects.find(x=>x.id===id);if(!p)return;
   $('mkMeta').innerHTML='<b>'+p.name+'</b> · '+p.id+' · '+p.mockups.length+' design(s)';
-  $('mkRows').innerHTML=p.mockups.map((m,i)=>{const o=(m&&typeof m==='object')?m:{label:String(m),image:''};return '<tr><td>'+(o.image?'<img class="thumb" src="'+esc(o.image)+'" alt="">':'<span class="thumb">MK</span>')+'</td><td><b>'+esc(o.label)+'</b>'+(o.by?'<div style="font-size:10px;color:var(--muted)">by '+esc(o.by)+'</div>':'')+'</td><td><input data-mk="'+i+'" placeholder="Reason, e.g. logo too small" /></td><td><button class="link-btn" onclick="removeMockup('+i+')">Remove with reason</button></td></tr>';}).join('')||'<tr><td colspan="4" style="color:var(--muted)">No designs to review.</td></tr>';
-  $('mkFile').value='';$('mkFileName').textContent='';setView('mockup');
+  $('mkRows').innerHTML=p.mockups.map((m,i)=>{const o=(m&&typeof m==='object')?m:{label:String(m),image:''};const preview=o.kind==='pdf'?'<a href="'+esc(o.pdfUrl||o.image)+'" target="_blank" rel="noopener">PDF</a>':(o.image?'<img class="thumb" src="'+esc(o.image)+'" alt="">':'<span class="thumb">MK</span>');return '<tr><td>'+preview+'</td><td><b>'+esc(o.label)+'</b>'+(o.sku?'<div style="font-size:10px;color:var(--muted)">SKU '+esc(o.sku)+'</div>':'')+(o.by?'<div style="font-size:10px;color:var(--muted)">by '+esc(o.by)+'</div>':'')+'</td><td><input data-mk="'+i+'" placeholder="Reason, e.g. logo too small" /></td><td><button class="link-btn" onclick="removeMockup('+i+')">Remove with reason</button></td></tr>';}).join('')||'<tr><td colspan="4" style="color:var(--muted)">No designs to review.</td></tr>';
+  $('mkFile').value='';$('mkFileName').textContent='';$('mkReturnNote').value='';setView('mockup');
 }
 function removeMockup(i){act({action:'removeMockup',projectNo:currentProject,index:i,reason:document.querySelector('[data-mk="'+i+'"]')?.value||''},()=>openMockup(currentProject));}
-function uploadMockup(){
+async function uploadMockup(){
   const f=$('mkFile').files[0];if(!f){toast('Choose a file first');return;}
-  act({action:'uploadMockup',projectNo:currentProject,fileName:f.name},()=>openMockup(currentProject));
+  if(!f.type.startsWith('image/')){toast('Only image files can be uploaded');return;}
+  try{
+    const fd=new FormData();fd.append('projectNo',currentProject);fd.append('file',f);
+    const r=await fetch('/api/portal/mockup-upload',{method:'POST',body:fd});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||d.error)throw new Error(d.error||'Upload failed');
+    act({action:'uploadMockup',projectNo:currentProject,fileName:f.name,imageUrl:d.url},()=>openMockup(currentProject));
+  }catch(e){toast('Error: '+e.message)}
 }
-function sendBackMockup(){toast('Mockup sent back to Cyndi with your notes');}
+function sendBackMockup(){
+  const general=($('mkReturnNote')?.value||'').trim();
+  const perDesign=[...document.querySelectorAll('[data-mk]')].map((el,i)=>({i,n:el.value.trim()})).filter(x=>x.n).map(x=>`Design ${x.i+1}: ${x.n}`);
+  const reason=[general,...perDesign].filter(Boolean).join(' | ');
+  if(!reason){toast('Add a note for Cyndi first');return;}
+  act({action:'returnMockup',projectNo:currentProject,reason},()=>setView('projects'));
+}
 function confirmMockup(){act({action:'confirmMockup',projectNo:currentProject},()=>openOrderForm(currentProject));}
 function openOrderForm(id){
   currentProject=id;const p=projects.find(x=>x.id===id);if(!p)return;
@@ -388,6 +414,7 @@ function openOrderForm(id){
 function renderOrderLines(){
   const p=projects.find(x=>x.id===currentProject);
   if(!p){$('ofRows').innerHTML='';return;}
+  let estimated=0;
   $('ofRows').innerHTML=orderLines.map((ln)=>{
     const s=p.shortlist[ln.productIndex]||[];
     const sc=showcaseForSku(s[1]);
@@ -395,6 +422,7 @@ function renderOrderLines(){
     const name=s[0]||sc?.name||'Product';
     const sku=s[1]||sc?.sku||'ITEM';
     const colors=colorOptionsFor(sku),sizes=sizeOptionsFor(sku);
+    const unit=unitPriceFor(sku,ln.qty),line=unit*ln.qty;estimated+=line;
     const select=(field,values,current)=>'<select onchange="updateOrderLine(\''+ln.id+'\',\''+field+'\',this.value)">'+values.map(v=>'<option'+(String(v)===String(current)?' selected':'')+'>'+esc(v)+'</option>').join('')+'</select>';
     return '<tr>'
       +'<td>'+(image?'<img class="thumb" src="'+esc(image)+'" alt="">':'<span class="thumb">'+esc(String(sku).slice(0,2))+'</span>')+'</td>'
@@ -402,11 +430,13 @@ function renderOrderLines(){
       +'<td>'+esc(sku)+'</td>'
       +'<td><div class="field">'+select('color',colors,ln.color)+'</div></td>'
       +'<td><div class="field">'+select('size',sizes,ln.size)+'</div></td>'
-      +'<td><div class="field"><input type="number" min="1" value="'+Number(ln.qty)+'" oninput="updateOrderLine(\''+ln.id+'\',\'qty\',this.value)" /></div></td>'
+      +'<td><div class="field"><input type="number" min="1" value="'+Number(ln.qty)+'" onchange="updateOrderLine(\''+ln.id+'\',\'qty\',this.value);renderOrderLines()" /></div></td>'
+      +'<td>'+money(unit)+'</td><td><b>'+money(line)+'</b></td>'
       +'<td class="of-actions"><button class="link-btn" onclick="addOrderLine(\''+ln.id+'\')">+ Add row</button>'
       +(orderLines.length>1?'<button class="link-btn" onclick="removeOrderLine(\''+ln.id+'\')">Remove</button>':'')+'</td>'
       +'</tr>';
-  }).join('')||'<tr><td colspan="7" style="color:var(--muted)">No products in this shortlist.</td></tr>';
+  }).join('')||'<tr><td colspan="9" style="color:var(--muted)">No products in this shortlist.</td></tr>';
+  $('ofTotal').textContent='Estimated products: '+money(estimated)+' (final order includes Cyndi decoration fees)';
 }
 function updateOrderLine(id,field,value){
   const ln=orderLines.find(x=>x.id===id);if(!ln)return;
@@ -433,7 +463,10 @@ function confirmOrder(){
   act({action:'confirmOrder',projectNo:p.id,items},()=>setView('orders'));
 }
 function renderOrders(){
-  $('orderRows').innerHTML=orders.map(o=>'<tr><td><b>'+o.id+'</b></td><td>'+(o.project||'—')+'</td><td>'+o.items.map(i=>esc(i[0])+' ('+esc(i[4]?i[4]+' · ':'')+esc(i[2])+' × '+i[3]+')').join('<br>')+'</td><td><b>'+o.items.reduce((a,b)=>a+b[3],0)+'</b></td><td>'+o.created+'</td><td><span class="pill green">'+(o.status||'Confirmed')+'</span></td></tr>').join('')||'<tr><td colspan="6" style="color:var(--muted)">No orders yet.</td></tr>';
+  $('orderRows').innerHTML=orders.map(o=>'<tr><td><b>'+o.id+'</b></td><td>'+(o.project||'—')+'</td><td>'+o.items.map(i=>{
+    const fees=[i[7]?('setup '+money(i[7])):'',i[8]?('print '+money(i[8])+'/pc'):''].filter(Boolean).join(', ');
+    return esc(i[0])+' ('+esc(i[4]?i[4]+' · ':'')+esc(i[2])+' × '+i[3]+') · '+money(i[6]||0)+(fees?' ['+esc(fees)+']':'');
+  }).join('<br>')+'</td><td><b>'+o.items.reduce((a,b)=>a+b[3],0)+'</b></td><td><b>'+money(o.total)+'</b></td><td>'+o.created+'</td><td><span class="pill green">'+(o.status||'Confirmed')+'</span></td></tr>').join('')||'<tr><td colspan="7" style="color:var(--muted)">No orders yet.</td></tr>';
   const withOrders=new Set(orders.filter(o=>o.project).map(o=>o.project)).size;
   $('idInfo').innerHTML=orders.length+' orders · '+withOrders+' projects with orders · '+(projects.length-withOrders)+' projects without an order. Order ID = project number + sequence, so one project can create multiple orders.';
 }
@@ -442,6 +475,9 @@ function renderPortals(){$('portalRows').innerHTML=portals.map(p=>'<div style="p
 let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2600);}
 function renderAll(){renderProjects();renderOrders();renderInventory();renderPortals();}
 load();
+// Keep admin pushes visible without a manual refresh.
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
+setInterval(()=>{if(!document.hidden)load()},30000);
 // Deep links from the showcase header: /portal/dashboard/?view=orders|portals|inventory.
 (function(){const v=new URLSearchParams(location.search).get('view');
   if(v==='showcase'){location.replace('/showcase/');return;}

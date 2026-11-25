@@ -73,25 +73,55 @@ function int(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-// Frontend order items are arrays: [name, sku, size, qty, color].
+// Frontend order items are arrays:
+// [name, sku, size, qty, color, unitPrice, lineTotal, setupFee, printFee, decoration].
 // D1 keeps a snapshot with shop fields; map both shapes defensively.
 function shapeOrderItems(raw) {
   return arrayOf(parseJson(raw, [])).map((it) => {
+    const common = [
+      String(it?.name || 'Product'),
+      String(it?.sku || it?.stockSku || it?.id || 'ITEM'),
+      String(it?.selectedSize || it?.size || 'OS'),
+      int(it?.quantity, 1),
+      String(it?.color || ''),
+    ];
     if (Array.isArray(it)) {
       return [
-        String(it[0] || 'Product'), String(it[1] || 'ITEM'), String(it[2] || 'OS'),
-        int(it[3], 1), String(it[4] || it?.color || ''),
+        common[0], common[1], common[2], common[3], String(it[4] || ''),
+        Number(it[5]) || 0, Number(it[6]) || 0,
+        Number(it[7]) || 0, Number(it[8]) || 0, String(it[9] || ''),
       ];
     }
-    const sku = it?.sku || it?.stockSku || it?.id || 'ITEM';
-    const size = it?.selectedSize || it?.size || 'OS';
     return [
-      String(it?.name || 'Product'), String(sku), String(size),
-      int(it?.quantity, 1), String(it?.color || ''),
+      ...common,
+      Number(it?.unitPrice) || 0, Number(it?.lineTotal) || 0,
+      Number(it?.setupFee) || 0, Number(it?.printFee) || 0,
+      String(it?.decoration || ''),
     ];
   });
 }
 function units(items) { return items.reduce((sum, it) => sum + int(it[3], 0), 0); }
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+function orderTotal(items) { return round2(items.reduce((sum, it) => sum + (Number(it[6]) || 0), 0)); }
+
+// Same tier rule as the Showcase checkout: highest quantity tier <= ordered qty.
+function tierUnitPrice(pricing, quantity) {
+  const tiers = (Array.isArray(pricing) ? pricing : [])
+    .filter((t) => t && Number.isFinite(Number(t.quantity)) && Number.isFinite(Number(t.price)))
+    .sort((a, b) => Number(a.quantity) - Number(b.quantity));
+  if (!tiers.length) return 0;
+  let price = Number(tiers[0].price);
+  for (const t of tiers) if (quantity >= Number(t.quantity)) price = Number(t.price);
+  return round2(price);
+}
+function priceLine(catalogue, sku, qty, setupFee = 0, printFee = 0, decoration = '') {
+  const product = catalogue.find((p) => String(p.sku) === String(sku));
+  const unitPrice = tierUnitPrice(product?.pricing, qty);
+  const setup = Math.max(0, Number(setupFee) || 0);
+  const print = Math.max(0, Number(printFee) || 0);
+  const lineTotal = round2(qty * unitPrice + setup + qty * print);
+  return { unitPrice, setupFee: round2(setup), printFee: round2(print), decoration: text(decoration, 40), lineTotal };
+}
 
 function orderNoForProject(db, projectNo) {
   return (async () => {
@@ -185,6 +215,7 @@ async function showcaseForDashboard(db, customerId) {
         image: p.image || '', price, category: names.get(p.category_id) || '',
         colors: arrayOf(parseJson(p.colors_json, [])),
         sizes: arrayOf(parseJson(p.sizes_json, [])),
+        pricing: arrayOf(parseJson(p.pricing_json, [])),
       };
     });
     return filterByPool(list, pool);
@@ -197,8 +228,8 @@ async function showcaseForDashboard(db, customerId) {
 // One read assembles every dashboard section from real D1 rows.
 export async function loadDashboard(db, user) {
   await ensureDashboardSchema(db);
-  await seedIfEmpty(db, user);
-
+  // New accounts start with an empty project list. Demo seeding was removed
+  // because "Projects" must be the real starting point for every client event.
   const id = uid(user);
   const pRes = await db.prepare(
     'SELECT * FROM client_projects WHERE user_id = ?1 ORDER BY created_at DESC'
@@ -360,19 +391,33 @@ export async function mutateDashboard(db, user, body) {
       const i = int(body?.index, -1);
       if (i < 0 || i >= list.length) throw Object.assign(new Error('Invalid index'), { status: 400 });
       const reason = text(body?.reason, 200) || 'no reason given';
+      const removed = list[i];
+      const label = typeof removed === 'string' ? removed : (removed?.label || 'Design mockup');
       list.splice(i, 1);
       await save({ mockups: list });
+      await logActivity(db, projectNo, uname(user), 'mockup_rejected', `Client rejected "${label}" · ${reason}`, 'client');
       return { ok: true, message: `Design removed · reason: ${reason}` };
     }
     case 'uploadMockup': {
       const list = arrayOf(parseJson(row.mockups_json, []));
       const fileName = text(body?.fileName, 120);
-      if (!fileName) throw Object.assign(new Error('Choose a file first'), { status: 400 });
-      list.push(`${fileName} · uploaded by you`);
+      const imageUrl = text(body?.imageUrl, 500);
+      if (!imageUrl && !fileName) throw Object.assign(new Error('Choose a file first'), { status: 400 });
+      list.push({ label: fileName || 'Client design', image: imageUrl, by: uname(user), role: 'client' });
       await save({ mockups: list });
-      return { ok: true, message: 'Mockup uploaded for review' };
+      await logActivity(db, projectNo, uname(user), 'mockup_uploaded', `Client uploaded ${fileName || 'a design'} for review`, 'client');
+      return { ok: true, message: 'Design uploaded for Cyndi to review' };
+    }
+    case 'returnMockup': {
+      const reason = text(body?.reason, 600);
+      if (!reason) throw Object.assign(new Error('Add a note for Cyndi'), { status: 400 });
+      await save({ stage: 2 });
+      await logActivity(db, projectNo, uname(user), 'mockup_returned', `Client returned mockups · ${reason}`, 'client');
+      return { ok: true, message: 'Mockups returned to Cyndi with your notes' };
     }
     case 'confirmMockup': {
+      const list = arrayOf(parseJson(row.mockups_json, []));
+      if (!list.length) throw Object.assign(new Error('Cyndi has not uploaded any mockups yet'), { status: 409 });
       await save({ stage: 3 });
       await logActivity(db, projectNo, uname(user), 'mockup_confirmed', 'Client approved the mockup · ready for order', 'client');
       return { ok: true, message: 'Mockup confirmed · choose colors, sizes and quantities' };
@@ -382,6 +427,7 @@ export async function mutateDashboard(db, user, body) {
       const selections = Array.isArray(body?.items) ? body.items : [];
       if (!selections.length) throw Object.assign(new Error('No items to order'), { status: 400 });
       const shortlist = arrayOf(parseJson(row.shortlist_json, []));
+      const catalogue = await showcaseForDashboard(db, uid(user));
       const items = selections.map((sel, i) => {
         // A line can duplicate a shortlist product (different colour/size), so
         // the client sends productIndex explicitly. Legacy clients fall back to
@@ -389,26 +435,29 @@ export async function mutateDashboard(db, user, body) {
         const requested = sel?.productIndex !== undefined ? int(sel.productIndex, -1) : i;
         const index = requested >= 0 && requested < shortlist.length ? requested : i;
         const src = shortlist[index] || ['Product', 'ITEM', 0];
-        return [
-          String(src[0] || 'Product'),
-          String(src[1] || 'ITEM'),
-          String(text(sel?.size, 20) || 'OS'),
-          Math.max(1, int(sel?.qty, 1)),
-          String(text(sel?.color, 40)),
-        ];
+        const sku = String(src[1] || 'ITEM');
+        const qty = Math.max(1, int(sel?.qty, 1));
+        const color = String(text(sel?.color, 40));
+        const size = String(text(sel?.size, 20) || 'OS');
+        const priced = priceLine(catalogue, sku, qty);
+        return [String(src[0] || 'Product'), sku, size, qty, color,
+          priced.unitPrice, priced.lineTotal, priced.setupFee, priced.printFee, priced.decoration];
       });
       const orderNo = await orderNoForProject(db, projectNo);
       const snapshot = items.map((it) => ({
         name: it[0], sku: it[1], size: it[2], quantity: it[3], color: it[4],
+        unitPrice: it[5], lineTotal: it[6], setupFee: it[7], printFee: it[8], decoration: it[9],
       }));
       await db.prepare(`INSERT INTO orders
         (order_no,customer_id,customer_name,customer_email,items_json,item_count,total,status,created_at,status_updated_at,project_no)
-        VALUES (?1,?2,?3,?4,?5,?6,0,'confirmed',?7,?7,?8)`).bind(
+        VALUES (?1,?2,?3,?4,?5,?6,?7,'confirmed',?8,?8,?9)`).bind(
         orderNo, Number(uid(user)), uname(user), user.email,
-        JSON.stringify(snapshot), units(items), ts, projectNo
+        JSON.stringify(snapshot), units(items), orderTotal(items), ts, projectNo
       ).run();
       await save({ status: 'completed' });
-      return { ok: true, orderNo, message: `${orderNo} created · ${units(items)} pcs added to Inventory` };
+      await logActivity(db, projectNo, uname(user), 'order_created',
+        `${orderNo} created · $${orderTotal(items).toFixed(2)} · ${units(items)} pcs`, 'client');
+      return { ok: true, orderNo, total: orderTotal(items), message: `${orderNo} created · $${orderTotal(items).toFixed(2)} · ${units(items)} pcs` };
     }
     default:
       throw Object.assign(new Error('Unknown action'), { status: 400 });
@@ -440,6 +489,17 @@ export async function listAdminProjects(db) {
     FROM client_projects p LEFT JOIN customers c ON CAST(c.id AS TEXT) = p.user_id
     ORDER BY p.updated_at DESC, p.created_at DESC`).all();
   const rows = res.results || [];
+  const orderRes = await db.prepare(
+    'SELECT * FROM orders WHERE project_no IS NOT NULL ORDER BY created_at DESC LIMIT 200'
+  ).all();
+  const ordersByProject = new Map();
+  for (const o of orderRes.results || []) {
+    if (!ordersByProject.has(o.project_no)) ordersByProject.set(o.project_no, []);
+    ordersByProject.get(o.project_no).push({
+      id: o.order_no, total: Number(o.total || 0), status: o.status || 'confirmed',
+      created: day(o.created_at), items: shapeOrderItems(o.items_json),
+    });
+  }
   const feed = await listActivity(db, rows.map((r) => r.project_no));
   const byProject = new Map();
   for (const a of feed) {
@@ -461,7 +521,8 @@ export async function listAdminProjects(db) {
     done: r.status === 'completed',
     shortlist: arrayOf(parseJson(r.shortlist_json, [])),
     mockups: arrayOf(parseJson(r.mockups_json, [])),
-    orderCount: 0,
+    orders: ordersByProject.get(r.project_no) || [],
+    orderCount: (ordersByProject.get(r.project_no) || []).length,
     activity: byProject.get(r.project_no) || [],
     latest: (byProject.get(r.project_no) || [])[0] || null,
   }));
@@ -485,11 +546,36 @@ export async function adminCreateProject(db, customer, data, adminName) {
 /** Admin curates the project shortlist from the product showcase, then publishes it. */
 export async function adminPublishShortlist(db, projectNo, products, adminName, confirm = false) {
   await ensureDashboardSchema(db);
-  const list = (Array.isArray(products) ? products : []).slice(0, 200).map((p) => {
-    const name = text(p?.name, 160) || 'Product';
+  const current = await db.prepare('SELECT stage, status, user_id, mockups_json, brief FROM client_projects WHERE project_no = ?1').bind(projectNo).first();
+  if (!current) throw Object.assign(new Error('Project not found'), { status: 404 });
+
+  // Admin picks must follow the same customer showcase pool rule as client picks.
+  const allowed = new Map();
+  let hasPool = false;
+  try {
+    const pool = await getCustomerPool(db, current.user_id);
+    hasPool = pool !== null;
+    const poolIds = new Set((pool || []).map(String));
+    const rows = await db.prepare('SELECT id, sku, name, image, pricing_json FROM showcase_products').all();
+    for (const p of rows.results || []) {
+      if (hasPool && !poolIds.has(String(p.id))) continue;
+      allowed.set(String(p.sku || p.id), p);
+    }
+  } catch {}
+  const incoming = (Array.isArray(products) ? products : []).slice(0, 200);
+  const list = incoming.map((p) => {
     const sku = text(p?.sku, 60) || 'ITEM';
-    const price = Number(p?.price) || 0;
-    const image = text(p?.image, 500);
+    const source = allowed.get(sku);
+    if (hasPool && !source) {
+      throw Object.assign(new Error(`${sku} is not in this customer's showcase`), { status: 403 });
+    }
+    let price = Number(p?.price) || 0;
+    try {
+      const tiers = arrayOf(parseJson(source?.pricing_json, []));
+      if (tiers.length) price = Number(tiers[0].price) || price;
+    } catch {}
+    const name = text(source?.name || p?.name, 160) || 'Product';
+    const image = text(source?.image || p?.image, 500);
     return image ? [name, sku, price, image] : [name, sku, price];
   });
   const patch = { shortlist: list };
@@ -497,8 +583,6 @@ export async function adminPublishShortlist(db, projectNo, products, adminName, 
   const shortlist = patch.shortlist;
   const stage = patch.stage;
   const ts = now();
-  const current = await db.prepare('SELECT stage, status, mockups_json, brief FROM client_projects WHERE project_no = ?1').bind(projectNo).first();
-  if (!current) throw Object.assign(new Error('Project not found'), { status: 404 });
   await db.prepare(`UPDATE client_projects SET shortlist_json=?1, stage=?2, updated_at=?3 WHERE project_no=?4`).bind(
     JSON.stringify(shortlist), stage ?? int(current.stage, 1), ts, projectNo
   ).run();
@@ -512,7 +596,15 @@ export async function adminPublishMockups(db, projectNo, mockups, adminName, con
   await ensureDashboardSchema(db);
   const list = (Array.isArray(mockups) ? mockups : []).slice(0, 100).map((m) => {
     if (typeof m === 'string') return text(m, 300);
-    return { label: text(m?.label, 200) || 'Design mockup', image: text(m?.image, 500), by: adminName };
+    return {
+      label: text(m?.label, 200) || 'Design mockup',
+      sku: text(m?.sku, 60),
+      image: text(m?.image, 500),
+      kind: text(m?.kind, 20),
+      pdfUrl: text(m?.pdfUrl, 500),
+      by: adminName,
+      role: 'admin',
+    };
   });
   const current = await db.prepare('SELECT stage, status, shortlist_json, brief FROM client_projects WHERE project_no = ?1').bind(projectNo).first();
   if (!current) throw Object.assign(new Error('Project not found'), { status: 404 });
@@ -564,31 +656,71 @@ export async function adminCreateOrder(db, projectNo, items, adminName) {
   const selections = Array.isArray(items) ? items : [];
   if (!selections.length) throw Object.assign(new Error('No items to order'), { status: 400 });
   const shortlist = arrayOf(parseJson(row.shortlist_json, []));
+  const catalogue = await showcaseForDashboard(db, row.user_id);
   const mapped = selections.map((sel, i) => {
     const requested = sel?.productIndex !== undefined ? int(sel.productIndex, -1) : i;
     const index = requested >= 0 && requested < shortlist.length ? requested : i;
     const src = shortlist[index] || ['Product', 'ITEM', 0];
+    const sku = String(src[1] || 'ITEM');
+    const qty = Math.max(1, int(sel?.qty, 1));
+    const priced = priceLine(catalogue, sku, qty, sel?.setupFee, sel?.printFee, sel?.decoration);
     return [
-      String(src[0] || 'Product'), String(src[1] || 'ITEM'),
-      String(text(sel?.size, 20) || 'OS'), Math.max(1, int(sel?.qty, 1)),
-      String(text(sel?.color, 40)),
+      String(src[0] || 'Product'), sku, String(text(sel?.size, 20) || 'OS'), qty,
+      String(text(sel?.color, 40)), priced.unitPrice, priced.lineTotal,
+      priced.setupFee, priced.printFee, priced.decoration,
     ];
   });
   const orderNo = await orderNoForProject(db, projectNo);
   const snapshot = mapped.map((it) => ({
     name: it[0], sku: it[1], size: it[2], quantity: it[3], color: it[4],
+    unitPrice: it[5], lineTotal: it[6], setupFee: it[7], printFee: it[8], decoration: it[9],
   }));
   const ts = now();
   const customerId = Number(uid({ id: row.user_id })) || 0;
   await db.prepare(`INSERT INTO orders
     (order_no,customer_id,customer_name,customer_email,items_json,item_count,total,status,created_at,status_updated_at,project_no)
-    VALUES (?1,?2,?3,?4,?5,?6,0,'confirmed',?7,?7,?8)`).bind(
+    VALUES (?1,?2,?3,?4,?5,?6,?7,'confirmed',?8,?8,?9)`).bind(
     orderNo, customerId, row.creator || 'Cyndi Global', '',
-    JSON.stringify(snapshot), units(mapped), ts, projectNo
+    JSON.stringify(snapshot), units(mapped), orderTotal(mapped), ts, projectNo
   ).run();
   await db.prepare("UPDATE client_projects SET stage=3, status='completed', updated_at=?1 WHERE project_no=?2").bind(ts, projectNo).run();
-  await logActivity(db, projectNo, adminName, 'order_created', `Cyndi created order ${orderNo} · ${units(mapped)} pcs`, 'admin');
-  return { ok: true, orderNo, units: units(mapped) };
+  await logActivity(db, projectNo, adminName, 'order_created',
+    `Cyndi created order ${orderNo} · $${orderTotal(mapped).toFixed(2)} · ${units(mapped)} pcs`, 'admin');
+  return { ok: true, orderNo, total: orderTotal(mapped), units: units(mapped) };
+}
+
+/** Cyndi adds setup / per-piece decoration fees to an existing project order. */
+export async function adminUpdateOrderPricing(db, orderNo, lines, adminName) {
+  await ensureDashboardSchema(db);
+  const row = await db.prepare('SELECT * FROM orders WHERE order_no = ?1').bind(orderNo).first();
+  if (!row) throw Object.assign(new Error('Order not found'), { status: 404 });
+  const items = shapeOrderItems(row.items_json);
+  const updates = Array.isArray(lines) ? lines : [];
+  for (const update of updates) {
+    const i = int(update?.index, -1);
+    if (i < 0 || i >= items.length || !items[i]) continue;
+    const setup = Math.max(0, Number(update?.setupFee) || 0);
+    const print = Math.max(0, Number(update?.printFee) || 0);
+    const unitPrice = Number(items[i][5]) || 0;
+    const qty = Math.max(1, int(items[i][3], 1));
+    items[i] = [
+      items[i][0], items[i][1], items[i][2], qty, String(items[i][4] || ''),
+      unitPrice, round2(qty * unitPrice + setup + qty * print),
+      round2(setup), round2(print), String(text(update?.decoration || items[i][9], 40)),
+    ];
+  }
+  const total = orderTotal(items);
+  await db.prepare('UPDATE orders SET items_json=?1, total=?2, status_updated_at=?3 WHERE order_no=?4').bind(
+    JSON.stringify(items.map((it) => ({
+      name: it[0], sku: it[1], size: it[2], quantity: it[3], color: it[4],
+      unitPrice: it[5], lineTotal: it[6], setupFee: it[7], printFee: it[8], decoration: it[9],
+    }))), total, now(), orderNo
+  ).run();
+  if (row.project_no) {
+    await logActivity(db, row.project_no, adminName, 'order_priced',
+      `Cyndi priced ${orderNo} · $${total.toFixed(2)}`, 'admin');
+  }
+  return { ok: true, orderNo, total };
 }
 
 export async function adminDeleteProject(db, projectNo, adminName) {

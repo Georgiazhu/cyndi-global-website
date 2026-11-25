@@ -37,6 +37,7 @@ th{font-size:10.5px;text-transform:uppercase;color:var(--muted)}
 .picker .it{display:flex;gap:8px;align-items:center;padding:6px 8px;border-bottom:1px solid #f0f3f6;cursor:pointer}
 .picker .it:hover{background:#fafcfd}.picker .it input{width:auto}.picker .it img{width:30px;height:30px;object-fit:cover;border-radius:5px;background:#f2f2f2}
 .picker .it .nm{flex:1}.picker .it .pr{color:var(--oat);font-weight:700}
+.of-actions{white-space:nowrap}.of-actions button{margin-top:4px}
 .thumb{width:28px;height:28px;border-radius:5px;object-fit:cover;background:#f2f2f2;display:inline-block;vertical-align:middle}
 .msg{padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px;display:none}.msg.err{display:block;background:#fff1eb;color:#9a3d22}.msg.ok{display:block;background:#e8f8ef;color:#1e7040}
 .feed{list-style:none;margin:0;padding:0}.feed li{padding:7px 0;border-bottom:1px solid #f0f3f6;font-size:12px}.feed li .t{color:var(--muted);font-size:10.5px}
@@ -97,6 +98,7 @@ th{font-size:10.5px;text-transform:uppercase;color:var(--muted)}
 <script>
 const API='/api/admin/projects';
 let state={projects:[],customers:[],showcase:{categories:[],products:[]},catalog:{categories:[],products:[]},pool:null,poolCustomerId:'',poolCust:'',poolDraft:null,current:null,tab:1};
+let orderLines=[],orderLineSeq=0;
 const $=id=>document.getElementById(id);
 function msg(t,ok){const e=$('msg');e.textContent=t;e.className='msg '+(ok?'ok':'err')}
 async function api(url,opts){const r=await fetch(url,Object.assign({credentials:'same-origin',headers:{'Accept':'application/json'}},opts||{}));const b=await r.json().catch(()=>({}));if(r.status===401){AdminAuth.requireLogin();throw new Error('Please sign in')}if(!r.ok)throw new Error(b.error||'Request failed');return b}
@@ -126,7 +128,7 @@ function renderPool(){
   $('poolPicker').innerHTML=state.catalog.products.map(x=>'<label class="it"><input type="checkbox" data-pool-pid="'+esc(x.id)+'" '+(state.poolDraft.ids.has(String(x.id))?'checked':'')+'><img src="'+esc(x.image)+'" alt=""><span class="nm"><b>'+esc(x.name)+'</b><br><span class="hint">'+esc(x.sku)+'</span></span><span class="pr">$'+esc(x.price)+'</span></label>').join('')||'<div class="empty">No catalogue products yet — add them in <a href="/admin/showcase.html">Showcase</a>.</div>';
   document.querySelectorAll('[data-pool-pid]').forEach(cb=>cb.addEventListener('change',()=>{
     if(cb.checked)state.poolDraft.ids.add(cb.dataset.poolPid);else state.poolDraft.ids.delete(cb.dataset.poolPid);
-    setPoolState();
+    state.poolDraft.dirty=true;setPoolState();
   }));
 }
 async function savePool(){
@@ -165,6 +167,59 @@ function renderList(){
 }
 function stageBar(p){return '<div class="stagebar">'+['Shortlist','Mockup','Order'].map((s,i)=>'<div class="'+((i+1===p.stage&&!p.done)?'on':((i+1<p.stage||p.done)?'done':''))+'">'+(i+1)+' · '+s+'</div>').join('')+'</div>'}
 
+function optNames(list){return (Array.isArray(list)?list:[]).map(x=>typeof x==='string'?x:(x?.name||x?.color||x?.label||'')).filter(Boolean)}
+function adminProduct(sku){return state.showcase.products.find(x=>String(x.sku)===String(sku))||null}
+function adminUnitPrice(sku,qty){
+  const tiers=(adminProduct(sku)?.pricing||[]).filter(t=>Number.isFinite(Number(t?.quantity))&&Number.isFinite(Number(t?.price))).sort((a,b)=>Number(a.quantity)-Number(b.quantity));
+  if(!tiers.length)return Number(adminProduct(sku)?.price)||0;
+  let price=Number(tiers[0].price)||0;for(const t of tiers)if(qty>=Number(t.quantity))price=Number(t.price)||0;return price;
+}
+const money=n=>'$'+Number(n||0).toFixed(2);
+function adminNewLine(productIndex){
+  const s=(state.projects.find(x=>x.id===state.current)?.shortlist||[])[productIndex]||[];
+  const sku=s[1]||'',prod=adminProduct(sku);
+  const colors=optNames(prod?.colors),sizes=optNames(prod?.sizes);
+  return {id:'ol'+(++orderLineSeq),productIndex,color:colors[0]||'Standard',size:sizes[0]||'OS',qty:24,decoration:'',setupFee:0,printFee:0};
+}
+function adminRenderOrderLines(p){
+  const body=$('orderLineBody');if(!body)return;
+  let estimated=0;
+  body.innerHTML=orderLines.map(ln=>{
+    const s=p.shortlist[ln.productIndex]||[];const sku=s[1]||'ITEM',prod=adminProduct(sku);
+    const colors=optNames(prod?.colors),sizes=optNames(prod?.sizes);
+    const unit=adminUnitPrice(sku,ln.qty),line=unit*ln.qty+Number(ln.setupFee||0)+ln.qty*Number(ln.printFee||0);estimated+=line;
+    const sel=(field,values,current)=>'<select onchange="adminUpdateLine(\''+ln.id+'\',\''+field+'\',this.value)">'+values.map(v=>'<option'+(String(v)===String(current)?' selected':'')+'>'+esc(v)+'</option>').join('')+'</select>';
+    return '<tr data-line="'+ln.id+'"><td><b>'+esc(s[0]||prod?.name||'Product')+'</b></td><td>'+esc(sku)+'</td>'+
+      '<td><div class="field">'+sel('color',colors.length?colors:['Standard'],ln.color)+'</div></td>'+
+      '<td><div class="field">'+sel('size',sizes.length?sizes:['OS'],ln.size)+'</div></td>'+
+      '<td><input type="number" min="1" value="'+Number(ln.qty)+'" onchange="adminUpdateLine(\''+ln.id+'\',\'qty\',this.value);adminRefreshTotals()"></td>'+
+      '<td><div class="field">'+sel('decoration',['','print','embroidery'],ln.decoration)+'</div></td>'+
+      '<td><input type="number" min="0" step="0.01" value="'+Number(ln.setupFee||0)+'" onchange="adminUpdateLine(\''+ln.id+'\',\'setupFee\',this.value);adminRefreshTotals()"></td>'+
+      '<td><input type="number" min="0" step="0.01" value="'+Number(ln.printFee||0)+'" onchange="adminUpdateLine(\''+ln.id+'\',\'printFee\',this.value);adminRefreshTotals()"></td>'+
+      '<td class="line-cell"><b>'+money(line)+'</b></td><td class="of-actions"><button class="line sm" onclick="adminAddLine(\''+ln.id+'\')">+ row</button>'+(orderLines.length>1?'<button class="line sm" onclick="adminRemoveLine(\''+ln.id+'\')">Remove</button>':'')+'</td></tr>';
+  }).join('')||'<tr><td colspan="10" class="empty">No items in shortlist.</td></tr>';
+  if($('adminOrderTotal'))$('adminOrderTotal').textContent='Total: '+money(estimated);
+}
+function adminUpdateLine(id,field,value){
+  const ln=orderLines.find(x=>x.id===id);if(!ln)return;
+  if(field==='qty')ln.qty=Math.max(1,Number.parseInt(value,10)||1);
+  else if(field==='setupFee'||field==='printFee')ln[field]=Math.max(0,Number(value)||0);
+  else ln[field]=value;
+}
+function adminRefreshTotals(){
+  let estimated=0;
+  orderLines.forEach(ln=>{
+    const s=(state.projects.find(x=>x.id===state.current)?.shortlist||[])[ln.productIndex]||[];
+    const sku=s[1]||'ITEM';
+    const line=adminUnitPrice(sku,ln.qty)*ln.qty+Number(ln.setupFee||0)+ln.qty*Number(ln.printFee||0);
+    estimated+=line;
+    const cell=document.querySelector('[data-line="'+ln.id+'"] .line-cell');if(cell)cell.innerHTML='<b>'+money(line)+'</b>';
+  });
+  if($('adminOrderTotal'))$('adminOrderTotal').textContent='Total: '+money(estimated);
+}
+function adminAddLine(id){const i=orderLines.findIndex(x=>x.id===id);if(i<0)return;orderLines.splice(i+1,0,adminNewLine(orderLines[i].productIndex));adminRenderOrderLines(state.projects.find(x=>x.id===state.current))}
+function adminRemoveLine(id){if(orderLines.length<=1){msg('Keep at least one order line',false);return}orderLines=orderLines.filter(x=>x.id!==id);adminRenderOrderLines(state.projects.find(x=>x.id===state.current))}
+
 function renderDetail(){
   const p=state.projects.find(x=>x.id===state.current);
   if(!p){$('detail').innerHTML='<div class="card"><div class="empty">Select a project on the left, or create one to begin.</div></div>';return}
@@ -189,7 +244,7 @@ function renderTab(p){
     const rows=p.shortlist.map((s,i)=>'<tr><td>'+(s[3]?'<img class="thumb" src="'+esc(s[3])+'">':'')+'</td><td><b>'+esc(s[0])+'</b></td><td>'+esc(s[1])+'</td><td>$'+esc(s[2])+'</td><td><button class="line sm" data-rm="'+i+'">Remove</button></td></tr>').join('')||'<tr><td colspan="5" class="empty">Shortlist is empty. Pick curated showcase products below.</td></tr>';
     const cust=state.customers.find(c=>String(c.id)===String(p.customerId));
     box.innerHTML='<h3>Curated shortlist (a project-specific selection from this customer\'s showcase)</h3><table><thead><tr><th></th><th>Product</th><th>SKU</th><th>Price</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'+
-      '<div class="row" style="margin-top:10px"><button id="saveSL" class="line">Save draft</button><button id="pushSL" class="primary">Confirm & push to client</button><span class="hint">Pushing sets the stage to Mockup and notifies the client.</span></div>'+
+      '<div class="row" style="margin-top:10px"><button id="saveSL" class="line">Save to project</button><button id="pushSL" class="primary">Confirm & push to client</button><span class="hint">Saving updates the client project; pushing sets the stage to Mockup.</span></div>'+
       '<h3>Pick from '+(cust?esc(cust.name):'customer')+'\'s showcase</h3><div class="hint">Only products in this customer\'s curated pool are listed here. Adjust the pool on the left to add or remove options.</div><div class="row"><select id="catFilter" style="max-width:220px"><option value="">All categories</option>'+cats+'</select><input id="prodSearch" placeholder="Search name or SKU" style="max-width:260px"></div>'+
       '<div class="picker" id="picker" style="margin-top:8px"></div>';
     const drawPicker=()=>{
@@ -209,18 +264,35 @@ function renderTab(p){
     $('saveSL').addEventListener('click',()=>saveShortlist(p,false));
     $('pushSL').addEventListener('click',()=>saveShortlist(p,true));
   }else if(state.tab===2){
-    const rows=p.mockups.map((m,i)=>{const o=typeof m==='string'?{label:m,image:''}:m;return '<tr><td>'+(o.image?'<img class="thumb" src="'+esc(o.image)+'">':'')+'</td><td><b>'+esc(o.label)+'</b></td><td><button class="line sm" data-rm="'+i+'">Remove</button></td></tr>'}).join('')||'<tr><td colspan="3" class="empty">No mockups uploaded yet.</td></tr>';
+    const rows=p.mockups.map((m,i)=>{const o=typeof m==='string'?{label:m,image:''}:m;const preview=o.kind==='pdf'?(o.pdfUrl?'<a href="'+esc(o.pdfUrl)+'" target="_blank" rel="noopener">PDF</a>':''):(o.image?'<img class="thumb" src="'+esc(o.image)+'">':'');return '<tr><td>'+preview+'</td><td><b>'+esc(o.label)+'</b>'+(o.sku?'<div class="hint">SKU '+esc(o.sku)+'</div>':'')+'</td><td><button class="line sm" data-rm="'+i+'">Remove</button></td></tr>'}).join('')||'<tr><td colspan="3" class="empty">No mockups uploaded yet.</td></tr>';
+    const products=p.shortlist.map(s=>'<option value="'+esc(s[1])+'">'+esc(s[0])+' · '+esc(s[1])+'</option>').join('');
     box.innerHTML='<h3>Design mockups for client review</h3><table><thead><tr><th></th><th>Design</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'+
-      '<div class="row" style="margin-top:10px"><input id="mkLabel" placeholder="Design description, e.g. Left chest embroidery" style="max-width:340px"><input id="mkFile" type="file" accept="image/*"></div>'+
-      '<div class="row" style="margin-top:8px"><button id="saveMK" class="line">Save draft</button><button id="pushMK" class="primary">Confirm & push to client</button><span class="hint">Pushing sets the stage to Order and notifies the client.</span></div>';
+      '<div class="row" style="margin-top:10px"><select id="mkSku" style="max-width:260px"><option value="">Project-level design</option>'+products+'</select><input id="mkLabel" placeholder="Design description, e.g. Left chest embroidery" style="max-width:300px"><input id="mkFile" type="file" accept="image/*"></div>'+
+      '<div class="row" style="margin-top:8px"><button id="saveMK" class="line">Save to project</button><button id="pushMK" class="primary">Confirm & push to client</button><span class="hint">Pushing sets the stage to Order. Each image is linked to the product selected above.</span></div>'+
+      '<h3>Mockup source sheet (optional)</h3><div class="hint">Upload a whole PDF sheet here. Automatic AI slicing is not configured yet — add the cropped per-product images above after reviewing the PDF.</div><div class="row" style="margin-top:8px"><input id="mkPdf" type="file" accept="application/pdf,.pdf" style="max-width:320px"><button id="addPdf" class="line sm">Add PDF source</button></div>';
     document.querySelectorAll('[data-rm]').forEach(b=>b.addEventListener('click',()=>{p.mockups.splice(Number(b.dataset.rm),1);saveMockups(p,false)}));
     $('saveMK').addEventListener('click',()=>addMockup(p,false));
     $('pushMK').addEventListener('click',()=>addMockup(p,true));
+    $('addPdf').addEventListener('click',()=>addMockupPdf(p));
   }else{
-    const items=p.shortlist.map((s,i)=>'<tr><td><b>'+esc(s[0])+'</b></td><td>'+esc(s[1])+'</td><td><select data-size="'+i+'">'+['OS','S','M','L','XL','XXL'].map(x=>'<option>'+x+'</option>').join('')+'</select></td><td><input type="number" min="1" value="24" data-qty="'+i+'"></td></tr>').join('')||'<tr><td colspan="4" class="empty">No items in shortlist.</td></tr>';
-    box.innerHTML='<h3>Create order</h3><table><thead><tr><th>Product</th><th>SKU</th><th>Size</th><th>Qty</th></tr></thead><tbody>'+items+'</tbody></table><div class="row" style="margin-top:10px"><button id="orderBtn" class="primary">Create order & complete project</button></div>'+
+    orderLines=p.shortlist.map((_,i)=>adminNewLine(i));
+    const ordersHtml=(p.orders||[]).map(o=>{
+      const lines=o.items.map((it,i)=>'<tr><td><b>'+esc(it[0])+'</b></td><td>'+esc(it[1])+'</td><td>'+esc(it[4]||'—')+' · '+esc(it[2])+'</td><td>'+it[3]+'</td><td>'+money(it[5])+'</td>'+
+        '<td><select data-dec="'+o.id+'-'+i+'">'+['','print','embroidery'].map(x=>'<option'+(String(it[9]||'')===x?' selected':'')+'>'+x+'</option>').join('')+'</select></td>'+
+        '<td><input type="number" min="0" step="0.01" value="'+Number(it[7]||0)+'" data-setup="'+o.id+'-'+i+'"></td>'+
+        '<td><input type="number" min="0" step="0.01" value="'+Number(it[8]||0)+'" data-print="'+o.id+'-'+i+'"></td><td><b>'+money(it[6])+'</b></td></tr>').join('');
+      return '<div style="border:1px solid var(--line);border-radius:9px;padding:10px;margin-top:10px"><h3>'+esc(o.id)+' · '+esc(o.created)+' · current total '+money(o.total)+'</h3>'+
+        '<table><thead><tr><th>Product</th><th>SKU</th><th>Variant</th><th>Qty</th><th>Unit</th><th>Decoration</th><th>Setup fee</th><th>Print fee / pc</th><th>Line</th></tr></thead><tbody>'+lines+'</tbody></table>'+
+        '<div class="row" style="margin-top:8px"><button class="line sm" data-price-order="'+esc(o.id)+'">Save fees & update total</button><span class="hint">Clients see the updated total in their Orders page.</span></div></div>';
+    }).join('')||'<div class="hint">No orders for this project yet.</div>';
+    box.innerHTML='<h3>Create order</h3><div class="hint">Base unit prices come from this customer\'s Showcase tiers. Add setup and per-piece decoration fees below; clients see base prices while ordering and the final total here.</div>'+
+      '<table><thead><tr><th>Product</th><th>SKU</th><th>Color</th><th>Size</th><th>Qty</th><th>Decoration</th><th>Setup fee</th><th>Print fee / pc</th><th>Line</th><th></th></tr></thead><tbody id="orderLineBody"></tbody></table>'+
+      '<div class="row" style="margin-top:10px"><span id="adminOrderTotal" style="font-weight:700"></span><button id="orderBtn" class="primary">Create order & complete project</button></div>'+
+      '<h3>Existing orders · final pricing</h3>'+ordersHtml+
       '<h3>Latest actions</h3><ul class="feed">'+feedHtml(p)+'</ul>';
+    adminRenderOrderLines(p);
     $('orderBtn').addEventListener('click',()=>createOrder(p));
+    document.querySelectorAll('[data-price-order]').forEach(b=>b.addEventListener('click',()=>saveOrderPricing(p,b.dataset.priceOrder)));
   }
 }
 function feedHtml(p){return (p.activity.slice(0,12).map(a=>'<li><b>'+esc(a.action.replace(/_/g,' '))+'</b> — '+esc(a.detail)+' <span class="t">· '+esc(a.actor)+' · '+esc((a.at||'').slice(0,16).replace('T',' '))+'</span></li>').join('')||'<li class="hint">No activity yet.</li>')}
@@ -238,23 +310,43 @@ async function refresh(custId){
   renderCustomers();renderPool();renderList();renderDetail();
 }
 async function saveShortlist(p,confirm){
-  try{const r=await post({action:'publishShortlist',projectNo:p.id,products:p.shortlist.map(s=>({name:s[0],sku:s[1],price:s[2],image:s[3]||''})),confirm});await refresh();msg(confirm?'Shortlist pushed to client':'Shortlist draft saved',true)}
+  try{const r=await post({action:'publishShortlist',projectNo:p.id,products:p.shortlist.map(s=>({name:s[0],sku:s[1],price:s[2],image:s[3]||''})),confirm});await refresh();msg(confirm?'Shortlist pushed to client':'Shortlist saved to project',true)}
   catch(e){msg(e.message,false)}
 }
 async function addMockup(p,confirm){
-  const label=($('mkLabel').value||'').trim();const file=$('mkFile').files[0];
+  const label=($('mkLabel').value||'').trim();const file=$('mkFile').files[0];const sku=$('mkSku')?.value||'';
   if(!label&&!file){msg('Enter a design description or choose an image',false);return}
   try{
     let image='';
     if(file){const fd=new FormData();fd.append('productNo',p.id.replace(/[^A-Za-z0-9-]/g,''));fd.append('file',file);const up=await api('/api/admin/upload',{method:'POST',body:fd});image=up.url||''}
-    p.mockups.push({label:label||file.name,image,by:'admin'});
-    const r=await post({action:'publishMockups',projectNo:p.id,mockups:p.mockups,confirm});await refresh();msg(confirm?'Mockup pushed to client':'Mockup draft saved',true)
+    p.mockups.push({label:label||file.name,sku,image,by:'admin'});
+    await post({action:'publishMockups',projectNo:p.id,mockups:p.mockups,confirm});await refresh();msg(confirm?'Mockup pushed to client':'Mockup saved to project',true)
   }catch(e){msg(e.message,false)}
 }
-async function saveMockups(p,confirm){try{await post({action:'publishMockups',projectNo:p.id,mockups:p.mockups,confirm});await refresh();msg('Draft saved',true)}catch(e){msg(e.message,false)}}
+async function addMockupPdf(p){
+  const file=$('mkPdf').files[0];
+  if(!file){msg('Choose a PDF first',false);return}
+  try{
+    const fd=new FormData();fd.append('projectNo',p.id);fd.append('file',file);
+    const up=await api('/api/admin/mockup-pdf',{method:'POST',body:fd});
+    p.mockups.push({label:'Source PDF · '+file.name,kind:'pdf',pdfUrl:up.url,by:'admin'});
+    await post({action:'publishMockups',projectNo:p.id,mockups:p.mockups,confirm:false});await refresh();
+    msg('PDF source added. Add cropped product images above for client review.',true)
+  }catch(e){msg(e.message,false)}
+}
+async function saveMockups(p,confirm){try{await post({action:'publishMockups',projectNo:p.id,mockups:p.mockups,confirm});await refresh();msg('Mockups saved',true)}catch(e){msg(e.message,false)}}
 async function createOrder(p){
-  const items=p.shortlist.map((s,i)=>({size:document.querySelector('[data-size="'+i+'"]')?.value||'OS',qty:Number(document.querySelector('[data-qty="'+i+'"]')?.value)||1}));
-  try{const r=await post({action:'createOrder',projectNo:p.id,items});await refresh();msg('Order '+r.orderNo+' created',true)}catch(e){msg(e.message,false)}
+  const items=orderLines.map(ln=>({productIndex:ln.productIndex,color:ln.color,size:ln.size,qty:Number(ln.qty)||1,decoration:ln.decoration,setupFee:Number(ln.setupFee)||0,printFee:Number(ln.printFee)||0}));
+  try{const r=await post({action:'createOrder',projectNo:p.id,items});await refresh();msg('Order '+r.orderNo+' created · '+money(r.total||0),true)}catch(e){msg(e.message,false)}
+}
+async function saveOrderPricing(p,orderNo){
+  const lines=[];
+  (p.orders||[]).filter(o=>o.id===orderNo).forEach(o=>o.items.forEach((it,i)=>lines.push({
+    index:i,decoration:document.querySelector('[data-dec="'+orderNo+'-'+i+'"]')?.value||'',
+    setupFee:Number(document.querySelector('[data-setup="'+orderNo+'-'+i+'"]')?.value)||0,
+    printFee:Number(document.querySelector('[data-print="'+orderNo+'-'+i+'"]')?.value)||0,
+  })));
+  try{const r=await post({action:'updateOrderPricing',orderNo,lines});await refresh();msg('Order '+orderNo+' updated · '+money(r.total||0),true)}catch(e){msg(e.message,false)}
 }
 async function rename(p){const name=window.prompt('Project title',p.title);if(!name||name===p.title)return;try{await post({action:'updateProject',projectNo:p.id,title:name});await refresh();msg('Renamed',true)}catch(e){msg(e.message,false)}}
 async function del(p){if(!window.confirm('Delete '+p.id+'? This cannot be undone.'))return;try{await post({action:'deleteProject',projectNo:p.id});state.current=null;await refresh();msg('Project deleted',true)}catch(e){msg(e.message,false)}}
@@ -263,9 +355,12 @@ $('createBtn').addEventListener('click',async()=>{
   if(!customerId){msg('Choose a customer',false);return}
   try{const r=await post({action:'createProject',customerId,title,brief});$('newTitle').value='';$('newBrief').value='';state.current=r.projectNo;state.tab=1;state.poolCust=String(customerId);await refresh(state.poolCust);msg('Project '+r.projectNo+' created · pick its shortlist from this customer\'s showcase',true)}catch(e){msg(e.message,false)}
 });
-$('poolCust').addEventListener('change',()=>{state.poolCust=$('poolCust').value;state.poolDraft=null;refresh(state.poolCust)});
-$('poolAll').addEventListener('click',()=>{state.poolDraft.ids=new Set(state.catalog.products.map(p=>String(p.id)));setPoolState();document.querySelectorAll('[data-pool-pid]').forEach(cb=>cb.checked=true)});
-$('poolNone').addEventListener('click',()=>{state.poolDraft.ids=new Set();setPoolState();document.querySelectorAll('[data-pool-pid]').forEach(cb=>cb.checked=false)});
+$('poolCust').addEventListener('change',()=>{
+  if(state.poolDraft?.dirty&&!window.confirm('Discard unsaved showcase changes for this customer?')){$('poolCust').value=state.poolCust;return}
+  state.poolCust=$('poolCust').value;state.poolDraft=null;refresh(state.poolCust)
+});
+$('poolAll').addEventListener('click',()=>{state.poolDraft.ids=new Set(state.catalog.products.map(p=>String(p.id)));state.poolDraft.dirty=true;setPoolState();document.querySelectorAll('[data-pool-pid]').forEach(cb=>cb.checked=true)});
+$('poolNone').addEventListener('click',()=>{state.poolDraft.ids=new Set();state.poolDraft.dirty=true;setPoolState();document.querySelectorAll('[data-pool-pid]').forEach(cb=>cb.checked=false)});
 $('poolSave').addEventListener('click',savePool);
 $('poolReset').addEventListener('click',resetPool);
 AdminAuth.require({onReady:()=>refresh()});

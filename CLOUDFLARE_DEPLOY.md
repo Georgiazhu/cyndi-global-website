@@ -76,6 +76,10 @@ POST /api/admin/upload
   - 更换密钥会让所有客户会话失效（需要重新登录），不影响密码。
 - 可选：`CUSTOMER_PBKDF2_ITERATIONS`（默认且最大 100000，Cloudflare Workers 的 PBKDF2 上限；最小 10000）。新密码用 PBKDF2-SHA256，格式 `pbkdf2$<次数>$<salt>$<hash>`；旧的 SHA-256 哈希登录成功后自动升级。如果 Workers Free 计划登录时出现 CPU 超限（1102 错误），可以调低到 50000。
 - 本地开发：在仓库根目录 `.dev.vars`（已被 `.gitignore` 忽略）写一行 `CUSTOMER_SESSION_SECRET=<随机串>`，然后重启 `wrangler pages dev`。
+- 自助注册 / 忘记密码的邮箱验证码必须配置发信服务，否则接口会明确返回 503，前端不会假装“已发送”：
+  - 推荐 Pages Secret：`RESEND_API_KEY`（Resend API Key）+ `EMAIL_FROM`（默认 `Cyndi Global <no-reply@cyndiglobal.com>`）。
+  - 或用通用 JSON 邮件端点：`MAIL_API_URL` + `MAIL_API_KEY`。
+  - 本地/测试可临时设置 `ALLOW_RESET_CODE_IN_RESPONSE=1`，验证码会显示在页面上；生产环境务必关闭。
 - 迁移：`migrations/0011_customer_showcase_access.sql`（clients 表、customers 新增 `client_id` / `showcase_access` / `username`，把原 Showcase 的 HRT 账号复制成客户账户并保留原密码，回填 HRT 的 SC- 订单）。线上执行：
 
   ```bash

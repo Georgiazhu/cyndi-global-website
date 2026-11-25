@@ -8,7 +8,7 @@ import {
 } from '../functions/_lib/client-showcase.js';
 import {
   ensureDashboardSchema, loadDashboard, mutateDashboard,
-  adminCreateProject, adminPublishShortlist,
+  adminCreateProject, adminPublishShortlist, adminPublishMockups, adminUpdateOrderPricing,
 } from '../functions/_lib/dashboard.js';
 
 // Minimal D1-compatible wrapper over node:sqlite so the real SQL runs in tests.
@@ -41,9 +41,9 @@ async function fixture() {
     INSERT INTO customers VALUES (1,'alice@example.com','Alice','alice','active'),(2,'bob@example.com','Bob','bob','active');
     INSERT INTO showcase_categories VALUES ('apparel','Apparel',10,'2026-01-01');
     INSERT INTO showcase_products VALUES
-      ('p1','apparel','HD-01','Hoodie','','[{"name":"Black"}]','["S","M"]','[{"price":38}]',10,'2026-01-01'),
-      ('p2','apparel','CP-02','Cap','','[{"name":"Navy"}]','["OS"]','[{"price":14}]',20,'2026-01-01'),
-      ('p3','apparel','BT-08','Bottle','','[{"name":"Steel"}]','["OS"]','[{"price":22}]',30,'2026-01-01');
+      ('p1','apparel','HD-01','Hoodie','','[{"name":"Black"}]','["S","M"]','[{"quantity":1,"price":38}]',10,'2026-01-01'),
+      ('p2','apparel','CP-02','Cap','','[{"name":"Navy"}]','["OS"]','[{"quantity":1,"price":14}]',20,'2026-01-01'),
+      ('p3','apparel','BT-08','Bottle','','[{"name":"Steel"}]','["OS"]','[{"quantity":1,"price":22}]',30,'2026-01-01');
   `);
   const db = d1(sqlite);
   await ensureDashboardSchema(db);
@@ -94,6 +94,7 @@ test('customer pool curates the showcase and gates shortlist picks', async () =>
 
   // Order lines can duplicate one shortlist product with different colour/size.
   await mutateDashboard(db, alice, { action: 'confirmShortlist', projectNo: clientProject.projectNo });
+  await adminPublishMockups(db, clientProject.projectNo, [{ label: 'Bottle lid print', sku: 'BT-08' }], 'Cyndi Global', true);
   await mutateDashboard(db, alice, { action: 'confirmMockup', projectNo: clientProject.projectNo });
   const order = await mutateDashboard(db, alice, {
     action: 'confirmOrder', projectNo: clientProject.projectNo,
@@ -108,6 +109,17 @@ test('customer pool curates the showcase and gates shortlist picks', async () =>
     ['BT-08', 'OS', 12, 'Steel'], ['BT-08', 'OS', 8, 'Black'],
   ]);
   assert.equal(afterOrder.inventory.find((r) => r.sku === 'BT-08' && r.color === 'Steel').onHand, 12);
+  assert.equal(placed.total, 440); // (12 + 8) × $22 base price
+
+  // Cyndi adds setup / per-piece decoration fees to the final order.
+  const priced = await adminUpdateOrderPricing(db, order.orderNo, [
+    { index: 0, setupFee: 50, printFee: 1.5, decoration: 'embroidery' },
+  ], 'Cyndi Global');
+  assert.equal(priced.total, 508); // 12×22 + 50 + 12×1.5 + 8×22
+  const repriced = (await loadDashboard(db, alice)).orders.find((o) => o.id === order.orderNo);
+  assert.equal(repriced.total, 508);
+  assert.equal(repriced.items[0][7], 50);
+  assert.equal(repriced.items[0][8], 1.5);
 
   // Reset restores the full catalogue for this customer only.
   await db.prepare('DELETE FROM client_showcase_pools WHERE customer_id = ?1').bind('1').run();

@@ -6,13 +6,14 @@
 //     publishShortlist      { projectNo, products:[{name,sku,price,image}], confirm? }
 //     publishMockups        { projectNo, mockups:[{label,image}], confirm? }
 //     setStage              { projectNo, stage, status?, note? }
-//     createOrder           { projectNo, items:[{size,qty}] }
+//     createOrder           { projectNo, items:[{productIndex,color,size,qty,setupFee,printFee,decoration}] }
+//     updateOrderPricing    { orderNo, lines:[{index,setupFee,printFee,decoration}] }
 //     deleteProject         { projectNo }
 // Everything published here is written to the same rows the client portal reads.
 import { getAdminSecret, isAuthenticated, json, readSession } from '../../_lib/auth.js';
 import {
   listAdminProjects, adminCreateProject, adminPublishShortlist, adminPublishMockups,
-  adminSetStage, adminCreateOrder, adminDeleteProject, adminUpdateProject,
+  adminSetStage, adminCreateOrder, adminDeleteProject, adminUpdateProject, adminUpdateOrderPricing,
 } from '../../_lib/dashboard.js';
 import {
   getCustomerPool, setCustomerPool, filterByPool, ensureClientShowcaseSchema,
@@ -48,15 +49,27 @@ async function showcase(db, customerId) {
     categories = (c.results || []).map((x) => ({ id: x.id, name: x.name }));
   } catch {}
   try {
-    const p = await db.prepare(`SELECT id, category_id, sku, name, image, pricing_json, sort
+    const p = await db.prepare(`SELECT id, category_id, sku, name, image, colors_json, sizes_json, pricing_json, sort
       FROM showcase_products ORDER BY sort ASC, name ASC`).all();
     products = (p.results || []).map((x) => {
       let price = 0;
+      let pricing = [];
       try {
         const arr = JSON.parse(x.pricing_json || '[]');
-        if (Array.isArray(arr) && arr.length) price = Number(arr[0].price) || 0;
+        if (Array.isArray(arr)) {
+          pricing = arr;
+          if (arr.length) price = Number(arr[0].price) || 0;
+        }
       } catch {}
-      return { id: x.id, categoryId: x.category_id, sku: x.sku || x.id, name: x.name, image: x.image || '', price };
+      let colors = [], sizes = [];
+      try { colors = JSON.parse(x.colors_json || '[]'); } catch {}
+      try { sizes = JSON.parse(x.sizes_json || '[]'); } catch {}
+      return {
+        id: x.id, categoryId: x.category_id, sku: x.sku || x.id, name: x.name,
+        image: x.image || '', price, pricing,
+        colors: Array.isArray(colors) ? colors : [],
+        sizes: Array.isArray(sizes) ? sizes : [],
+      };
     });
     const pool = customerId ? await getCustomerPool(db, customerId) : null;
     products = filterByPool(products, pool);
@@ -87,7 +100,9 @@ export async function onRequestPost({ request, env }) {
   try { body = await request.json(); } catch { return reply({ error: 'Invalid JSON body' }, 400); }
   const action = String(body?.action || '');
   try {
-    const who = (await readSession(request, await getAdminSecret(env)))?.username || 'admin';
+    const sessionUser = (await readSession(request, await getAdminSecret(env)))?.username || 'admin';
+    // Customer-visible activity should identify the company, never an internal login.
+    const who = 'Cyndi Global';
     let out;
     switch (action) {
       case 'createProject': {
@@ -137,6 +152,11 @@ export async function onRequestPost({ request, env }) {
         out = await adminCreateOrder(env.DB, body.projectNo, body.items, who);
         break;
       }
+      case 'updateOrderPricing': {
+        if (!body.orderNo) return reply({ error: 'orderNo is required' }, 400);
+        out = await adminUpdateOrderPricing(env.DB, body.orderNo, body.lines, who);
+        break;
+      }
       case 'deleteProject': {
         if (!body.projectNo) return reply({ error: 'projectNo is required' }, 400);
         out = await adminDeleteProject(env.DB, body.projectNo, who);
@@ -145,7 +165,7 @@ export async function onRequestPost({ request, env }) {
       default:
         return reply({ error: 'Unknown action' }, 400);
     }
-    console.log(`admin projects: ${action} by ${who}`);
+    console.log(`admin projects: ${action} by ${sessionUser}`);
     return reply({ ok: true, ...out });
   } catch (e) {
     const status = Number(e?.status) || 500;

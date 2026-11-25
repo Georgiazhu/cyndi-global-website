@@ -89,7 +89,7 @@ npx wrangler pages dev --port 8788
 - Build command：`cd product-showcase && npm install && npm run build`
 - Build output：`product-showcase/dist`
 - Bindings：D1 `DB` → `cyndi-logistics`；R2 `MEDIA` → `cyndi-products`
-- Variables：`R2_PUBLIC_BASE` = `https://img.cyndiglobal.com`；`LOGISTICS_ADMIN_PASSWORD`（兜底后台密码）；**`CUSTOMER_SESSION_SECRET`（必填 Secret，客户/Showcase 会话签名密钥，缺失时客户登录 fail closed 返回 503）**，详见 [`CLOUDFLARE_DEPLOY.md`](./CLOUDFLARE_DEPLOY.md#客户账户与-showcase-登录customer_session_secret)
+- Variables：`R2_PUBLIC_BASE` = `https://img.cyndiglobal.com`；`LOGISTICS_ADMIN_PASSWORD`（兜底后台密码）；**`CUSTOMER_SESSION_SECRET`（必填 Secret，客户/Showcase 会话签名密钥，缺失时客户登录 fail closed 返回 503）**；自助注册验证码发信需 `RESEND_API_KEY`（或 `MAIL_API_URL` + `MAIL_API_KEY`）与可选 `EMAIL_FROM`，详见 [`CLOUDFLARE_DEPLOY.md`](./CLOUDFLARE_DEPLOY.md#客户账户与-showcase-登录customer_session_secret)
 
 生产 D1 建表/导数据（用真实 UUID，不加 `--local`）见 [`CLOUDFLARE_DEPLOY.md`](./CLOUDFLARE_DEPLOY.md)。
 

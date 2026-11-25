@@ -56,7 +56,7 @@
         <input id="pw" type="password" autocomplete="current-password" placeholder="••••••••" required>
       </div>
       <button class="btn" id="submit" type="submit">Sign in</button>
-      <div class="links"><a href="/portal/forgot-password/">Forgot password?</a><a href="/portal/register/">Create account</a></div>
+      <div class="links"><a href="/portal/forgot-password/">Forgot password?</a><a href="/portal/register/" id="createAccount">Create account</a></div>
     </form>
     <div class="fine">Confidential — for authorised recipients only.<br>Accounts may also be created by Cyndi Global administrators.</div>
   </div>
@@ -68,6 +68,7 @@ const params = new URLSearchParams(location.search);
 // Only same-origin relative paths are accepted as a post-login destination.
 const nextRaw = params.get('next');
 const next = (nextRaw && nextRaw.startsWith('/') && !nextRaw.startsWith('//')) ? nextRaw : '/portal/dashboard/';
+$('#createAccount').href = '/portal/register/?next=' + encodeURIComponent(next);
 const notice = params.get('reset');
 if (notice === '1') {
   const msg = $('#msg');
