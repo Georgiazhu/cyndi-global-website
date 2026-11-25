@@ -24,8 +24,9 @@ button{cursor:pointer}
 
 /* top navigation — 5 first-level menus */
 .mainnav{height:60px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 32px;gap:40px;background:#fff}
-.logo{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.logo{display:flex;align-items:center;gap:7px;flex-shrink:0;cursor:pointer}
 .logo img{display:block;height:28px;width:auto}
+a.logo:hover{opacity:.82}
 .mainnav nav{display:flex;gap:26px;align-items:center;height:100%}
 .mainnav nav button,.mainnav nav a{border:0;background:none;height:100%;padding:0;font-size:13px;font-weight:500;color:#0f1f3a;border-bottom:2px solid transparent;text-decoration:none;display:inline-flex;align-items:center}
 .mainnav nav button:hover,.mainnav nav button.active,.mainnav nav a:hover,.mainnav nav a.active{color:#0f1f3a;border-bottom-color:var(--accent)}
@@ -134,7 +135,7 @@ tr:last-child td{border-bottom:0}
 <body>
 
 <div class="mainnav">
-  <div class="logo"><img src="https://www.cyndiglobal.com/cyndi-logo-mark-v5.png" alt="Cyndi" /><img src="https://www.cyndiglobal.com/cyndi-logo-word-v5.png" alt="Cyndiglobal" /></div>
+  <a class="logo" href="/portal/login/" aria-label="Cyndi — back to homepage" onclick="portalExit(event)"><img src="https://www.cyndiglobal.com/cyndi-logo-mark-v5.png" alt="Cyndi" /><img src="https://www.cyndiglobal.com/cyndi-logo-word-v5.png" alt="Cyndiglobal" /></a>
   <nav>
     <button data-view="projects" class="active">Projects</button>
     <button data-view="orders">Orders</button>
@@ -142,7 +143,7 @@ tr:last-child td{border-bottom:0}
     <button data-view="portals">Portals</button>
     <button data-view="inventory">Inventory</button>
   </nav>
-  <div class="right"><span class="avatar">AL</span><span class="user-meta">Alex Lin<small>alex.lin@cyndiglobal.com</small><a href="#">Logout</a></span></div>
+  <div class="right"><span class="avatar">AL</span><span class="user-meta">Alex Lin<small>alex.lin@cyndiglobal.com</small><a href="#" onclick="portalExit(event)">Logout</a></span></div>
 </div>
 
 <div class="wrap">
@@ -357,6 +358,11 @@ function setView(v){
 }
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 function backToProjects(){ setView('projects'); }
+async function portalExit(e){
+  if(e)e.preventDefault();
+  try{await fetch('/api/logout',{method:'POST'});}catch(_){}
+  location.replace('/portal/login/');
+}
 
 function toggleNewProject(force){
   const body=$('newProjectBody'),btn=$('newProjectToggle'),icon=$('newProjectIcon');
@@ -546,8 +552,7 @@ setInterval(()=>{if(!document.hidden)load()},30000);
     var name=u.displayName||u.email||'Client';
     var initials=name.trim().split(/\s+/).slice(0,2).map(function(w){return w.charAt(0).toUpperCase();}).join('');
     document.querySelector('.mainnav .avatar').textContent=initials;
-    document.querySelector('.mainnav .user-meta').innerHTML=esc(name)+'<small>'+esc(u.email||'')+'</small><a href="#" id="lg">Logout</a>';
-    document.getElementById('lg').addEventListener('click',function(e){e.preventDefault();fetch('/api/logout',{method:'POST'}).then(function(){location.href='/portal/login/';});});
+    document.querySelector('.mainnav .user-meta').innerHTML=esc(name)+'<small>'+esc(u.email||'')+'</small><a href="#" id="lg" onclick="portalExit(event)">Logout</a>';
   }).catch(function(){location.replace('/portal/login/');});
 })();
 </script>
