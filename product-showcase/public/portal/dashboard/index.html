@@ -62,6 +62,10 @@ button{cursor:pointer}
 .pcard .phead .pid{font-size:10px;color:var(--muted)}
 .pcard .pmeta{font-size:10.5px;color:var(--muted);padding:4px 16px 12px}
 .pcard .pmeta b{color:var(--ink2)}
+.pcard .latest{margin:0 16px 12px;padding:8px 11px;background:#FFF7F0;border:1px solid #F3DFCF;border-radius:9px;font-size:10.5px;color:#8A5A32;line-height:1.5}
+.pcard .latest b{color:#A85E2C}
+.pcard .latest .newdot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:6px;vertical-align:middle}
+.pcard .latest .when{color:var(--muted);white-space:nowrap}
 .pcard .pbody{display:grid;grid-template-columns:300px 1fr;gap:22px;border-top:1px solid var(--line);padding:14px 16px}
 .progress{display:flex;align-items:flex-start;padding-top:4px}
 .pstep{display:flex;flex-direction:column;align-items:center;gap:5px;width:74px;text-align:center;position:relative}
@@ -91,7 +95,7 @@ table{width:100%;border-collapse:collapse;font-size:11px}
 th{background:var(--band);text-align:left;font-size:10px;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--line)}
 td{padding:11px 12px;border-bottom:1px solid #EFEFEF;vertical-align:middle}
 tr:last-child td{border-bottom:0}
-.thumb{width:38px;height:38px;border-radius:8px;background:var(--band);display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--muted)}
+.thumb{width:38px;height:38px;border-radius:8px;background:var(--band);display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--muted);object-fit:cover;overflow:hidden}
 .info{background:var(--band);border-radius:10px;padding:10px 14px;font-size:11px;color:var(--ink2);margin-bottom:14px}
 .footbar{display:flex;gap:10px;align-items:center;margin-top:18px}
 .footbar .note{font-size:11px;color:var(--muted)}
@@ -217,6 +221,7 @@ const DEMO={
 let projects=[],orders=[],inventory=[],showcases=[],portals=[],currentProject=null,live=false;
 const labels=['Shortlist','Mockup','Order'];
 const $ = id=>document.getElementById(id);
+const esc = s => String(s==null?'':s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 function apply(d){
   projects=d.projects||[];orders=d.orders||[];inventory=d.inventory||[];
@@ -273,7 +278,13 @@ function projectCard(p){
       return '<div class="act '+(cur?'current':'')+'"><b>0'+(i+1)+' '+l+'</b><span>'+text+'</span>'+(cur?'<button class="btn small" onclick="'+fn+'(\''+p.id+'\')">'+text+'</button>':fin?'<span class="pill green">Done</span>':'<span class="pill">Pending</span>')+'</div>';
     }).join('');
   }
-  return '<div class="pcard '+(done?'past':'')+'"><div class="phead"><h3>'+p.name+'</h3><span class="pid">'+p.id+'</span></div><div class="pmeta">Created by <b>'+p.creator+'</b> · '+p.created+'</div><div class="pbody"><div class="progress">'+prog+'</div><div class="acts3">'+acts+'</div></div></div>';
+  let latest='';
+  if(p.latest){
+    const who=String(p.latest.actor||'').startsWith('admin')?'Cyndi Global':(p.latest.actor||'Cyndi Global');
+    const detail=esc(p.latest.detail||p.latest.action.replace(/_/g,' '));
+    latest='<div class="latest"><span class="newdot"></span><b>Latest action</b> · '+esc(who)+' — '+detail+' <span class="when">'+esc((p.latest.at||'').slice(0,16).replace('T',' '))+'</span></div>';
+  }
+  return '<div class="pcard '+(done?'past':'')+'"><div class="phead"><h3>'+p.name+'</h3><span class="pid">'+p.id+'</span></div><div class="pmeta">Created by <b>'+p.creator+'</b> · '+p.created+'</div>'+latest+'<div class="pbody"><div class="progress">'+prog+'</div><div class="acts3">'+acts+'</div></div></div>';
 }
 function renderProjects(){
   $('activeProjects').innerHTML=projects.filter(p=>!p.done).map(projectCard).join('')||'<div class="section"><div class="body" style="color:var(--muted)">No current projects.</div></div>';
@@ -282,7 +293,7 @@ function renderProjects(){
 function openShortlist(id){
   currentProject=id;const p=projects.find(x=>x.id===id);if(!p)return;
   $('slMeta').innerHTML='<b>'+p.name+'</b> · '+p.id+' · '+p.shortlist.length+' products';
-  $('slRows').innerHTML=p.shortlist.map((s,i)=>'<tr><td><span class="thumb">'+String(s[1]).slice(0,2)+'</span></td><td><b>'+s[0]+'</b></td><td>'+s[1]+'</td><td>$'+s[2]+'</td><td><button class="link-btn" onclick="removeShortlist('+i+')">Remove</button></td></tr>').join('')||'<tr><td colspan="5" style="color:var(--muted)">No products in shortlist.</td></tr>';
+  $('slRows').innerHTML=p.shortlist.map((s,i)=>'<tr><td>'+(s[3]?'<img class="thumb" src="'+esc(s[3])+'" alt="">':'<span class="thumb">'+esc(String(s[1]).slice(0,2))+'</span>')+'</td><td><b>'+esc(s[0])+'</b></td><td>'+esc(s[1])+'</td><td>$'+esc(s[2])+'</td><td><button class="link-btn" onclick="removeShortlist('+i+')">Remove</button></td></tr>').join('')||'<tr><td colspan="5" style="color:var(--muted)">No products in shortlist.</td></tr>';
   setView('shortlist');
 }
 function removeShortlist(i){act({action:'removeShortlist',projectNo:currentProject,index:i},()=>openShortlist(currentProject));}
@@ -290,7 +301,7 @@ function confirmShortlist(){act({action:'confirmShortlist',projectNo:currentProj
 function openMockup(id){
   currentProject=id;const p=projects.find(x=>x.id===id);if(!p)return;
   $('mkMeta').innerHTML='<b>'+p.name+'</b> · '+p.id+' · '+p.mockups.length+' design(s)';
-  $('mkRows').innerHTML=p.mockups.map((m,i)=>'<tr><td><span class="thumb">MK</span></td><td><b>'+m+'</b></td><td><input data-mk="'+i+'" placeholder="Reason, e.g. logo too small" /></td><td><button class="link-btn" onclick="removeMockup('+i+')">Remove with reason</button></td></tr>').join('')||'<tr><td colspan="4" style="color:var(--muted)">No designs to review.</td></tr>';
+  $('mkRows').innerHTML=p.mockups.map((m,i)=>{const o=(m&&typeof m==='object')?m:{label:String(m),image:''};return '<tr><td>'+(o.image?'<img class="thumb" src="'+esc(o.image)+'" alt="">':'<span class="thumb">MK</span>')+'</td><td><b>'+esc(o.label)+'</b>'+(o.by?'<div style="font-size:10px;color:var(--muted)">by '+esc(o.by)+'</div>':'')+'</td><td><input data-mk="'+i+'" placeholder="Reason, e.g. logo too small" /></td><td><button class="link-btn" onclick="removeMockup('+i+')">Remove with reason</button></td></tr>';}).join('')||'<tr><td colspan="4" style="color:var(--muted)">No designs to review.</td></tr>';
   $('mkFile').value='';$('mkFileName').textContent='';setView('mockup');
 }
 function removeMockup(i){act({action:'removeMockup',projectNo:currentProject,index:i,reason:document.querySelector('[data-mk="'+i+'"]')?.value||''},()=>openMockup(currentProject));}

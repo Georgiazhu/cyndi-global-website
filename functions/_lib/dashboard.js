@@ -5,8 +5,11 @@
 // The dashboard needs projects (shortlist -> mockup -> order) and an order->project link,
 // which the legacy schema does not have. We add them idempotently at runtime:
 //   client_projects          (new table)
+//   client_project_activity  (new table — pushed updates / latest action feed)
 //   orders.project_no       (new nullable column; ALTER TABLE ADD COLUMN cannot use IF NOT EXISTS)
 // No existing row is modified unless the customer explicitly confirms a shortlist/mockup/order.
+
+import { logActivity, listActivity } from './project-activity.js';
 
 let schemaPromise = null;
 
@@ -23,11 +26,20 @@ export async function ensureDashboardSchema(db) {
         status          TEXT NOT NULL DEFAULT 'active',
         shortlist_json  TEXT NOT NULL DEFAULT '[]',
         mockups_json    TEXT NOT NULL DEFAULT '[]',
+        brief           TEXT NOT NULL DEFAULT '',
         updated_at      TEXT NOT NULL
       )`).run();
       try {
         await db.prepare('CREATE INDEX IF NOT EXISTS idx_client_projects_user ON client_projects(user_id, created_at DESC)').run();
       } catch {}
+      // Existing installs created before `brief` existed — add it defensively.
+      try {
+        await db.prepare("ALTER TABLE client_projects ADD COLUMN brief TEXT NOT NULL DEFAULT ''").run();
+      } catch (e) {
+        if (!/duplicate column|already exists/i.test(e?.message || '')) {
+          console.error('dashboard schema (client_projects.brief):', e?.message);
+        }
+      }
       try {
         await db.prepare('ALTER TABLE orders ADD COLUMN project_no TEXT').run();
       } catch (e) {
@@ -166,16 +178,29 @@ export async function loadDashboard(db, user) {
     total: Number(r.total || 0),
   }));
 
-  const projects = (pRes.results || []).map((r) => ({
+  const projectRows = pRes.results || [];
+  const feed = await listActivity(db, projectRows.map((r) => r.project_no));
+  const byProject = new Map();
+  for (const a of feed) {
+    if (!byProject.has(a.project)) byProject.set(a.project, []);
+    byProject.get(a.project).push(a);
+  }
+
+  const projects = projectRows.map((r) => ({
     id: r.project_no,
     name: r.title,
     creator: r.created_by,
     created: day(r.created_at),
+    updated: day(r.updated_at),
+    brief: text(r.brief, 600),
     stage: int(r.stage, 1),
     done: r.status === 'completed',
+    status: r.status || 'active',
     shortlist: arrayOf(parseJson(r.shortlist_json, [])),
     mockups: arrayOf(parseJson(r.mockups_json, [])),
     orderCount: orders.filter((o) => o.project === r.project_no).length,
+    activity: byProject.get(r.project_no) || [],
+    latest: (byProject.get(r.project_no) || [])[0] || null,
   }));
 
   // Stock is derived from confirmed orders in D1 — no separate fake inventory table.
@@ -247,6 +272,7 @@ export async function mutateDashboard(db, user, body) {
       const list = arrayOf(parseJson(row.shortlist_json, []));
       if (!list.length) throw Object.assign(new Error('Add at least one product'), { status: 400 });
       await save({ stage: 2 });
+      await logActivity(db, projectNo, uname(user), 'shortlist_confirmed', 'Client confirmed the shortlist · mockups in progress', 'client');
       return { ok: true, message: 'Shortlist confirmed · Cyndi is preparing mockups' };
     }
     case 'removeMockup': {
@@ -268,6 +294,7 @@ export async function mutateDashboard(db, user, body) {
     }
     case 'confirmMockup': {
       await save({ stage: 3 });
+      await logActivity(db, projectNo, uname(user), 'mockup_confirmed', 'Client approved the mockup · ready for order', 'client');
       return { ok: true, message: 'Mockup confirmed · choose sizes and quantities' };
     }
     case 'confirmOrder': {
@@ -298,6 +325,185 @@ export async function mutateDashboard(db, user, body) {
     default:
       throw Object.assign(new Error('Unknown action'), { status: 400 });
   }
+}
+
+// ---------------------------------------------------------------------------
+// Admin-side project management. These write the SAME client_projects rows the
+// customer dashboard reads, so anything published here appears in the client's
+// portal immediately (with an activity entry as the "latest action").
+// ---------------------------------------------------------------------------
+
+function nextProjectNo(db) {
+  return (async () => {
+    const rows = await db.prepare("SELECT project_no FROM client_projects WHERE project_no LIKE 'PRJ-%'").all();
+    let max = 0;
+    for (const r of rows.results || []) {
+      const n = int(String(r.project_no || '').split('-').pop(), 0);
+      if (n > max) max = n;
+    }
+    return `PRJ-26-${String(max + 1).padStart(3, '0')}`;
+  })();
+}
+
+/** All projects across customers, joined with the owner, for the admin console. */
+export async function listAdminProjects(db) {
+  await ensureDashboardSchema(db);
+  const res = await db.prepare(`SELECT p.*, c.email AS owner_email, c.display_name AS owner_name, c.username AS owner_username
+    FROM client_projects p LEFT JOIN customers c ON CAST(c.id AS TEXT) = p.user_id
+    ORDER BY p.updated_at DESC, p.created_at DESC`).all();
+  const rows = res.results || [];
+  const feed = await listActivity(db, rows.map((r) => r.project_no));
+  const byProject = new Map();
+  for (const a of feed) {
+    if (!byProject.has(a.project)) byProject.set(a.project, []);
+    byProject.get(a.project).push(a);
+  }
+  return rows.map((r) => ({
+    id: r.project_no,
+    title: r.title,
+    customerId: Number(r.user_id) || 0,
+    customerEmail: r.owner_email || '',
+    customerName: r.owner_name || r.owner_username || '',
+    creator: r.created_by,
+    created: day(r.created_at),
+    updated: day(r.updated_at),
+    brief: text(r.brief, 600),
+    stage: int(r.stage, 1),
+    status: r.status || 'active',
+    done: r.status === 'completed',
+    shortlist: arrayOf(parseJson(r.shortlist_json, [])),
+    mockups: arrayOf(parseJson(r.mockups_json, [])),
+    orderCount: 0,
+    activity: byProject.get(r.project_no) || [],
+    latest: (byProject.get(r.project_no) || [])[0] || null,
+  }));
+}
+
+export async function adminCreateProject(db, customer, data, adminName) {
+  await ensureDashboardSchema(db);
+  const title = text(data?.title, 160) || 'New SWAG Project';
+  const brief = text(data?.brief, 600);
+  const projectNo = await nextProjectNo(db);
+  const ts = now();
+  await db.prepare(`INSERT INTO client_projects
+    (project_no,user_id,title,created_by,created_at,stage,status,shortlist_json,mockups_json,brief,updated_at)
+    VALUES (?1,?2,?3,?4,?5,1,'active','[]','[]',?6,?7)`).bind(
+    projectNo, String(customer.id), title, adminName, ts, brief, ts
+  ).run();
+  await logActivity(db, projectNo, adminName, 'project_created', `Project created for ${customer.email || 'customer'}`, 'admin');
+  return { ok: true, projectNo };
+}
+
+/** Admin curates the project shortlist from the product showcase, then publishes it. */
+export async function adminPublishShortlist(db, projectNo, products, adminName, confirm = false) {
+  await ensureDashboardSchema(db);
+  const list = (Array.isArray(products) ? products : []).slice(0, 200).map((p) => {
+    const name = text(p?.name, 160) || 'Product';
+    const sku = text(p?.sku, 60) || 'ITEM';
+    const price = Number(p?.price) || 0;
+    const image = text(p?.image, 500);
+    return image ? [name, sku, price, image] : [name, sku, price];
+  });
+  const patch = { shortlist: list };
+  if (confirm) patch.stage = 2;
+  const shortlist = patch.shortlist;
+  const stage = patch.stage;
+  const ts = now();
+  const current = await db.prepare('SELECT stage, status, mockups_json, brief FROM client_projects WHERE project_no = ?1').bind(projectNo).first();
+  if (!current) throw Object.assign(new Error('Project not found'), { status: 404 });
+  await db.prepare(`UPDATE client_projects SET shortlist_json=?1, stage=?2, updated_at=?3 WHERE project_no=?4`).bind(
+    JSON.stringify(shortlist), stage ?? int(current.stage, 1), ts, projectNo
+  ).run();
+  await logActivity(db, projectNo, adminName, confirm ? 'shortlist_confirmed' : 'shortlist_published',
+    `${confirm ? 'Shortlist confirmed — mockups in progress' : `Cyndi published ${list.length} curated product${list.length === 1 ? '' : 's'}`}`, 'admin');
+  return { ok: true, count: list.length };
+}
+
+/** Admin uploads design mockups (label + optional image URL) for the client to review. */
+export async function adminPublishMockups(db, projectNo, mockups, adminName, confirm = false) {
+  await ensureDashboardSchema(db);
+  const list = (Array.isArray(mockups) ? mockups : []).slice(0, 100).map((m) => {
+    if (typeof m === 'string') return text(m, 300);
+    return { label: text(m?.label, 200) || 'Design mockup', image: text(m?.image, 500), by: adminName };
+  });
+  const current = await db.prepare('SELECT stage, status, shortlist_json, brief FROM client_projects WHERE project_no = ?1').bind(projectNo).first();
+  if (!current) throw Object.assign(new Error('Project not found'), { status: 404 });
+  const ts = now();
+  await db.prepare(`UPDATE client_projects SET mockups_json=?1, stage=?2, updated_at=?3 WHERE project_no=?4`).bind(
+    JSON.stringify(list), confirm ? 3 : int(current.stage, 1), ts, projectNo
+  ).run();
+  await logActivity(db, projectNo, adminName, confirm ? 'mockup_confirmed' : 'mockups_published',
+    confirm ? 'Cyndi confirmed the mockups — ready for order' : `Cyndi uploaded ${list.length} design mockup${list.length === 1 ? '' : 's'} for review`, 'admin');
+  return { ok: true, count: list.length };
+}
+
+/** Admin advances a project stage (1 shortlist, 2 mockup, 3 order) or completes it. */
+export async function adminSetStage(db, projectNo, stage, status, adminName, note = '') {
+  await ensureDashboardSchema(db);
+  const current = await db.prepare('SELECT stage, status FROM client_projects WHERE project_no = ?1').bind(projectNo).first();
+  if (!current) throw Object.assign(new Error('Project not found'), { status: 404 });
+  const nextStage = stage === undefined ? int(current.stage, 1) : Math.max(1, Math.min(3, int(stage, 1)));
+  const nextStatus = status === undefined ? (current.status || 'active') : (status === 'completed' ? 'completed' : 'active');
+  await db.prepare('UPDATE client_projects SET stage=?1, status=?2, updated_at=?3 WHERE project_no=?4').bind(
+    nextStage, nextStatus, now(), projectNo
+  ).run();
+  await logActivity(db, projectNo, adminName, 'stage_updated',
+    text(note, 300) || `Cyndi set stage to ${['Shortlist', 'Mockup', 'Order'][nextStage - 1]}${nextStatus === 'completed' ? ' · completed' : ''}`, 'admin');
+  return { ok: true };
+}
+
+export async function adminUpdateProject(db, projectNo, data, adminName) {
+  await ensureDashboardSchema(db);
+  const title = text(data?.title, 160);
+  const brief = text(data?.brief, 600);
+  if (!title && !brief) return { ok: true };
+  const sets = [], binds = [];
+  if (title) { sets.push('title=?'); binds.push(title); }
+  if (brief) { sets.push('brief=?'); binds.push(brief); }
+  sets.push('updated_at=?'); binds.push(now());
+  binds.push(projectNo);
+  const res = await db.prepare(`UPDATE client_projects SET ${sets.join(',')} WHERE project_no=?`).bind(...binds).run();
+  if (!res?.success && !res?.changes) throw Object.assign(new Error('Project not found'), { status: 404 });
+  await logActivity(db, projectNo, adminName, 'project_updated', title ? `Title set to ${title}` : 'Brief updated', 'admin');
+  return { ok: true };
+}
+
+/** Admin creates a production order for a project from its shortlist. */
+export async function adminCreateOrder(db, projectNo, items, adminName) {
+  await ensureDashboardSchema(db);
+  const row = await db.prepare('SELECT * FROM client_projects WHERE project_no = ?1').bind(projectNo).first();
+  if (!row) throw Object.assign(new Error('Project not found'), { status: 404 });
+  const selections = Array.isArray(items) ? items : [];
+  if (!selections.length) throw Object.assign(new Error('No items to order'), { status: 400 });
+  const shortlist = arrayOf(parseJson(row.shortlist_json, []));
+  const mapped = selections.map((sel, i) => {
+    const src = shortlist[i] || ['Product', 'ITEM', 0];
+    return [
+      String(src[0] || 'Product'), String(src[1] || 'ITEM'),
+      String(text(sel?.size, 20) || 'OS'), Math.max(1, int(sel?.qty, 1)),
+    ];
+  });
+  const orderNo = await orderNoForProject(db, projectNo);
+  const snapshot = mapped.map((it) => ({ name: it[0], sku: it[1], size: it[2], quantity: it[3] }));
+  const ts = now();
+  const customerId = Number(uid({ id: row.user_id })) || 0;
+  await db.prepare(`INSERT INTO orders
+    (order_no,customer_id,customer_name,customer_email,items_json,item_count,total,status,created_at,status_updated_at,project_no)
+    VALUES (?1,?2,?3,?4,?5,?6,0,'confirmed',?7,?7,?8)`).bind(
+    orderNo, customerId, row.creator || 'Cyndi Global', '',
+    JSON.stringify(snapshot), units(mapped), ts, projectNo
+  ).run();
+  await db.prepare("UPDATE client_projects SET stage=3, status='completed', updated_at=?1 WHERE project_no=?2").bind(ts, projectNo).run();
+  await logActivity(db, projectNo, adminName, 'order_created', `Cyndi created order ${orderNo} · ${units(mapped)} pcs`, 'admin');
+  return { ok: true, orderNo, units: units(mapped) };
+}
+
+export async function adminDeleteProject(db, projectNo, adminName) {
+  await ensureDashboardSchema(db);
+  await logActivity(db, projectNo, adminName, 'project_deleted', 'Project deleted by Cyndi Global', 'admin');
+  await db.prepare('DELETE FROM client_project_activity WHERE project_no = ?1').bind(projectNo).run();
+  await db.prepare('DELETE FROM client_projects WHERE project_no = ?1').bind(projectNo).run();
+  return { ok: true };
 }
 
 export { orderNoForProject };

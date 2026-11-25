@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Projects | Cyndi Global Admin</title>
+<style>
+:root{--navy:#0f1f3a;--blue:#1e5a8a;--sky:#eef6fb;--text:#1a2a3a;--muted:#71849a;--line:#dce8f0;--oat:#8C7B66;--orange:#C4763B}
+*{box-sizing:border-box}body{margin:0;background:var(--sky);color:var(--text);font-family:Arial,sans-serif;font-size:13px}
+header{padding:14px 5%;background:var(--navy);color:#fff;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+header strong{font-size:14px;letter-spacing:.04em}
+header nav{display:flex;gap:15px;align-items:center;flex-wrap:wrap}
+header a{color:#cfe0ee;text-decoration:none;font-size:13px}header a.on{color:#fff;font-weight:700;border-bottom:2px solid var(--orange);padding-bottom:2px}
+main{max-width:1280px;margin:22px auto;padding:0 16px}
+.card{background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 6px 20px #0f1f3a10;margin-bottom:16px}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:0 0 12px;color:var(--navy)}h3{font-size:13px;margin:16px 0 8px}
+.sub,.hint{color:var(--muted);font-size:12px}
+.grid{display:grid;grid-template-columns:330px 1fr;gap:16px}
+@media(max-width:980px){.grid{grid-template-columns:1fr}}
+button{border:0;border-radius:8px;padding:9px 14px;background:var(--navy);color:#fff;font-weight:700;cursor:pointer;font-size:12.5px}
+button:hover{filter:brightness(1.12)}button:disabled{opacity:.45;cursor:default}
+button.primary{background:var(--orange)}button.line{background:#fff;color:var(--navy);border:1px solid var(--line)}button.sm{padding:6px 10px;font-size:11.5px}button.danger{background:#9a3d22}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit}
+label{display:block;font-size:11.5px;font-weight:700;color:#57534e;margin:10px 0 5px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>*{min-width:0}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:10.5px;text-transform:uppercase;color:var(--muted)}
+.pill{display:inline-block;padding:3px 9px;border-radius:12px;font-size:10px;font-weight:700;background:#eef1f4;color:#45566a}
+.pill.s1{background:#fff3e8;color:#9a5a1f}.pill.s2{background:#eef6fb;color:#1e5a8a}.pill.s3{background:#e8f8ef;color:#217753}
+.pill.done{background:#e8f8ef;color:#1e7040}
+.proj{border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:.15s}
+.proj:hover{border-color:var(--oat)}.proj.on{border-color:var(--orange);background:#fffaf6}
+.proj b{display:block;font-size:13px}.proj .who{color:var(--muted);font-size:11px;margin-top:3px}
+.stagebar{display:flex;gap:8px;margin-bottom:14px}.stagebar div{flex:1;padding:9px;border-radius:8px;background:#f4f6f8;text-align:center;font-size:11.5px;font-weight:700;color:#8a97a5}
+.stagebar div.on{background:#fff3e8;color:#9a5a1f}.stagebar div.done{background:#e8f8ef;color:#1e7040}
+.picker{max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.picker .it{display:flex;gap:8px;align-items:center;padding:6px 8px;border-bottom:1px solid #f0f3f6;cursor:pointer}
+.picker .it:hover{background:#fafcfd}.picker .it input{width:auto}.picker .it img{width:30px;height:30px;object-fit:cover;border-radius:5px;background:#f2f2f2}
+.picker .it .nm{flex:1}.picker .it .pr{color:var(--oat);font-weight:700}
+.thumb{width:28px;height:28px;border-radius:5px;object-fit:cover;background:#f2f2f2;display:inline-block;vertical-align:middle}
+.msg{padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px;display:none}.msg.err{display:block;background:#fff1eb;color:#9a3d22}.msg.ok{display:block;background:#e8f8ef;color:#1e7040}
+.feed{list-style:none;margin:0;padding:0}.feed li{padding:7px 0;border-bottom:1px solid #f0f3f6;font-size:12px}.feed li .t{color:var(--muted);font-size:10.5px}
+.empty{padding:22px;text-align:center;color:var(--muted)}.hidden{display:none!important}
+.tabs{display:flex;gap:6px;margin-bottom:14px}.tabs button{background:#eef1f4;color:#45566a}.tabs button.on{background:var(--navy);color:#fff}
+</style>
+</head>
+<body>
+<header>
+  <strong>CYNDI GLOBAL — ADMIN</strong>
+  <nav data-admin-auth-slot>
+    <a href="/admin/">Home</a>
+    <a href="/admin/products.html">Products</a>
+    <a href="/admin/orders.html">Orders</a>
+    <a href="/admin/customers.html">Customers</a>
+    <a href="/admin/projects.html" class="on">Projects</a>
+    <a href="/admin/showcase.html">Showcase</a>
+    <a href="/admin/inventory.html">Inventory</a>
+    <a href="/admin/logistics.html">Shipping</a>
+  </nav>
+</header>
+<main>
+  <h1>Projects</h1>
+  <p class="sub" style="margin-bottom:18px">Manage the projects your clients see in their dashboard. Every project moves through <b>Shortlist → Mockup → Order</b>. Upload in each stage, confirm to push it to the client, and they will see the latest action in their portal.</p>
+  <div id="msg" class="msg" role="status"></div>
+  <div class="grid">
+    <!-- LEFT: customer + project list -->
+    <div>
+      <div class="card">
+        <h2>Create project</h2>
+        <label>Customer</label>
+        <select id="newCust"></select>
+        <label>Project title</label>
+        <input id="newTitle" placeholder="e.g. Q1 Onboarding Kit">
+        <label>Brief (optional)</label>
+        <textarea id="newBrief" placeholder="Categories, quantities, event date…"></textarea>
+        <div style="margin-top:12px"><button id="createBtn">Create project</button></div>
+      </div>
+      <div class="card">
+        <h2>Projects <span class="hint" id="pCount"></span></h2>
+        <div id="projList"></div>
+      </div>
+    </div>
+    <!-- RIGHT: project detail -->
+    <div id="detail"><div class="card"><div class="empty">Select a project on the left, or create one to begin.</div></div></div>
+  </div>
+</main>
+<script src="/admin/admin-auth.js"></script>
+<script>
+const API='/api/admin/projects';
+let state={projects:[],customers:[],showcase:{categories:[],products:[]},current:null,tab:1};
+const $=id=>document.getElementById(id);
+function msg(t,ok){const e=$('msg');e.textContent=t;e.className='msg '+(ok?'ok':'err')}
+async function api(url,opts){const r=await fetch(url,Object.assign({credentials:'same-origin',headers:{'Accept':'application/json'}},opts||{}));const b=await r.json().catch(()=>({}));if(r.status===401){AdminAuth.requireLogin();throw new Error('Please sign in')}if(!r.ok)throw new Error(b.error||'Request failed');return b}
+const post=b=>api(API,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(b)});
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function renderCustomers(){
+  const sel=$('newCust');const cur=sel.value;
+  sel.innerHTML=state.customers.map(c=>'<option value="'+c.id+'">'+esc(c.name)+' · '+esc(c.email)+'</option>').join('');
+  if(cur)sel.value=cur;
+}
+function renderList(){
+  $('pCount').textContent='('+state.projects.length+')';
+  $('projList').innerHTML=state.projects.length?state.projects.map(p=>{
+    const label=p.latest?('<span class="who">↳ '+esc(p.latest.action.replace(/_/g,' '))+' · '+esc((p.latest.at||'').slice(0,10))+'</span>'):'';
+    return '<div class="proj '+(state.current===p.id?'on':'')+'" data-id="'+esc(p.id)+'"><b>'+esc(p.title)+' <span class="pill '+('s'+p.stage)+(p.done?' done':'')+'">'+(p.done?'Done':['Shortlist','Mockup','Order'][p.stage-1])+'</span></b><div class="who">'+esc(p.customerName||p.customerEmail||'—')+' · '+esc(p.id)+'</div>'+label+'</div>';
+  }).join(''):'<div class="empty">No projects yet.</div>';
+  document.querySelectorAll('.proj').forEach(el=>el.addEventListener('click',()=>{state.current=el.dataset.id;state.tab=1;renderList();renderDetail()}));
+}
+function stageBar(p){return '<div class="stagebar">'+['Shortlist','Mockup','Order'].map((s,i)=>'<div class="'+((i+1===p.stage&&!p.done)?'on':((i+1<p.stage||p.done)?'done':''))+'">'+(i+1)+' · '+s+'</div>').join('')+'</div>'}
+
+function renderDetail(){
+  const p=state.projects.find(x=>x.id===state.current);
+  if(!p){$('detail').innerHTML='<div class="card"><div class="empty">Select a project on the left, or create one to begin.</div></div>';return}
+  const feed=p.activity.slice(0,12).map(a=>'<li><b>'+esc(a.action.replace(/_/g,' '))+'</b> — '+esc(a.detail)+' <span class="t">· '+esc(a.actor)+' · '+esc((a.at||'').slice(0,16).replace('T',' '))+'</span></li>').join('')||'<li class="hint">No activity yet.</li>';
+  $('detail').innerHTML=
+   '<div class="card">'+stageBar(p)+
+     '<div class="row" style="justify-content:space-between"><div><h2 style="margin:0">'+esc(p.title)+' <span class="hint">'+esc(p.id)+'</span></h2><div class="hint">'+esc(p.customerName||p.customerEmail)+' · created '+esc(p.created)+'</div></div>'+
+     '<div class="row"><button class="line sm" data-act="rename">Rename</button><button class="danger sm" data-act="delete">Delete</button></div></div>'+
+     (p.brief?'<p class="hint" style="margin-top:10px">'+esc(p.brief)+'</p>':'')+
+   '</div>'+
+   '<div class="card"><div class="tabs"><button data-tab="1" class="'+(state.tab===1?'on':'')+'">01 Shortlist</button><button data-tab="2" class="'+(state.tab===2?'on':'')+'">02 Mockup</button><button data-tab="3" class="'+(state.tab===3?'on':'')+'">03 Order & Activity</button></div><div id="tabBody"></div></div>';
+  document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{state.tab=Number(b.dataset.tab);renderDetail()}));
+  document.querySelector('[data-act="rename"]').addEventListener('click',()=>rename(p));
+  document.querySelector('[data-act="delete"]').addEventListener('click',()=>del(p));
+  renderTab(p);
+}
+function renderTab(p){
+  const box=$('tabBody');
+  if(state.tab===1){
+    const picked=new Set(p.shortlist.map(s=>String(s[1])));
+    const cats=state.showcase.categories.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join('');
+    const rows=p.shortlist.map((s,i)=>'<tr><td>'+(s[3]?'<img class="thumb" src="'+esc(s[3])+'">':'')+'</td><td><b>'+esc(s[0])+'</b></td><td>'+esc(s[1])+'</td><td>$'+esc(s[2])+'</td><td><button class="line sm" data-rm="'+i+'">Remove</button></td></tr>').join('')||'<tr><td colspan="5" class="empty">Shortlist is empty. Pick curated showcase products below.</td></tr>';
+    box.innerHTML='<h3>Curated shortlist (a project-specific selection from the showcase)</h3><table><thead><tr><th></th><th>Product</th><th>SKU</th><th>Price</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'+
+      '<div class="row" style="margin-top:10px"><button id="saveSL" class="line">Save draft</button><button id="pushSL" class="primary">Confirm & push to client</button><span class="hint">Pushing sets the stage to Mockup and notifies the client.</span></div>'+
+      '<h3>Pick from showcase</h3><div class="row"><select id="catFilter" style="max-width:220px"><option value="">All categories</option>'+cats+'</select><input id="prodSearch" placeholder="Search name or SKU" style="max-width:260px"></div>'+
+      '<div class="picker" id="picker" style="margin-top:8px"></div>';
+    const drawPicker=()=>{
+      const q=($('prodSearch').value||'').toLowerCase(),cat=$('catFilter').value;
+      const list=state.showcase.products.filter(x=>(!cat||x.categoryId===cat)&&(!q||(x.name+' '+x.sku).toLowerCase().includes(q)));
+      $('picker').innerHTML=list.length?list.map(x=>'<label class="it"><input type="checkbox" data-pid="'+esc(x.id)+'" '+(picked.has(String(x.sku))?'checked':'')+'><img src="'+esc(x.image)+'" alt=""><span class="nm"><b>'+esc(x.name)+'</b><br><span class="hint">'+esc(x.sku)+'</span></span><span class="pr">$'+esc(x.price)+'</span></label>').join(''):'<div class="empty">No showcase products found.</div>';
+      document.querySelectorAll('[data-pid]').forEach(cb=>cb.addEventListener('change',()=>{
+        const x=state.showcase.products.find(y=>y.id===cb.dataset.pid);if(!x)return;
+        if(cb.checked)p.shortlist.push([x.name,x.sku,x.price,x.image]);
+        else{const i=p.shortlist.findIndex(s=>String(s[1])===String(x.sku));if(i>=0)p.shortlist.splice(i,1)}
+        picked.delete(String(x.sku));if(!cb.checked)picked.delete(String(x.sku));
+        renderDetail();
+      }));
+    };
+    $('catFilter').addEventListener('change',drawPicker);$('prodSearch').addEventListener('input',drawPicker);drawPicker();
+    document.querySelectorAll('[data-rm]').forEach(b=>b.addEventListener('click',()=>{p.shortlist.splice(Number(b.dataset.rm),1);saveShortlist(p,false)}));
+    $('saveSL').addEventListener('click',()=>saveShortlist(p,false));
+    $('pushSL').addEventListener('click',()=>saveShortlist(p,true));
+  }else if(state.tab===2){
+    const rows=p.mockups.map((m,i)=>{const o=typeof m==='string'?{label:m,image:''}:m;return '<tr><td>'+(o.image?'<img class="thumb" src="'+esc(o.image)+'">':'')+'</td><td><b>'+esc(o.label)+'</b></td><td><button class="line sm" data-rm="'+i+'">Remove</button></td></tr>'}).join('')||'<tr><td colspan="3" class="empty">No mockups uploaded yet.</td></tr>';
+    box.innerHTML='<h3>Design mockups for client review</h3><table><thead><tr><th></th><th>Design</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'+
+      '<div class="row" style="margin-top:10px"><input id="mkLabel" placeholder="Design description, e.g. Left chest embroidery" style="max-width:340px"><input id="mkFile" type="file" accept="image/*"></div>'+
+      '<div class="row" style="margin-top:8px"><button id="saveMK" class="line">Save draft</button><button id="pushMK" class="primary">Confirm & push to client</button><span class="hint">Pushing sets the stage to Order and notifies the client.</span></div>';
+    document.querySelectorAll('[data-rm]').forEach(b=>b.addEventListener('click',()=>{p.mockups.splice(Number(b.dataset.rm),1);saveMockups(p,false)}));
+    $('saveMK').addEventListener('click',()=>addMockup(p,false));
+    $('pushMK').addEventListener('click',()=>addMockup(p,true));
+  }else{
+    const items=p.shortlist.map((s,i)=>'<tr><td><b>'+esc(s[0])+'</b></td><td>'+esc(s[1])+'</td><td><select data-size="'+i+'">'+['OS','S','M','L','XL','XXL'].map(x=>'<option>'+x+'</option>').join('')+'</select></td><td><input type="number" min="1" value="24" data-qty="'+i+'"></td></tr>').join('')||'<tr><td colspan="4" class="empty">No items in shortlist.</td></tr>';
+    box.innerHTML='<h3>Create order</h3><table><thead><tr><th>Product</th><th>SKU</th><th>Size</th><th>Qty</th></tr></thead><tbody>'+items+'</tbody></table><div class="row" style="margin-top:10px"><button id="orderBtn" class="primary">Create order & complete project</button></div>'+
+      '<h3>Latest actions</h3><ul class="feed">'+feedHtml(p)+'</ul>';
+    $('orderBtn').addEventListener('click',()=>createOrder(p));
+  }
+}
+function feedHtml(p){return (p.activity.slice(0,12).map(a=>'<li><b>'+esc(a.action.replace(/_/g,' '))+'</b> — '+esc(a.detail)+' <span class="t">· '+esc(a.actor)+' · '+esc((a.at||'').slice(0,16).replace('T',' '))+'</span></li>').join('')||'<li class="hint">No activity yet.</li>')}
+async function refresh(){const d=await api(API);state.projects=d.projects;state.customers=d.customers;state.showcase=d.showcase||{categories:[],products:[]};renderCustomers();renderList();renderDetail()}
+async function saveShortlist(p,confirm){
+  try{const r=await post({action:'publishShortlist',projectNo:p.id,products:p.shortlist.map(s=>({name:s[0],sku:s[1],price:s[2],image:s[3]||''})),confirm});await refresh();msg(confirm?'Shortlist pushed to client':'Shortlist draft saved',true)}
+  catch(e){msg(e.message,false)}
+}
+async function addMockup(p,confirm){
+  const label=($('mkLabel').value||'').trim();const file=$('mkFile').files[0];
+  if(!label&&!file){msg('Enter a design description or choose an image',false);return}
+  try{
+    let image='';
+    if(file){const fd=new FormData();fd.append('productNo',p.id.replace(/[^A-Za-z0-9-]/g,''));fd.append('file',file);const up=await api('/api/admin/upload',{method:'POST',body:fd});image=up.url||''}
+    p.mockups.push({label:label||file.name,image,by:'admin'});
+    const r=await post({action:'publishMockups',projectNo:p.id,mockups:p.mockups,confirm});await refresh();msg(confirm?'Mockup pushed to client':'Mockup draft saved',true)
+  }catch(e){msg(e.message,false)}
+}
+async function saveMockups(p,confirm){try{await post({action:'publishMockups',projectNo:p.id,mockups:p.mockups,confirm});await refresh();msg('Draft saved',true)}catch(e){msg(e.message,false)}}
+async function createOrder(p){
+  const items=p.shortlist.map((s,i)=>({size:document.querySelector('[data-size="'+i+'"]')?.value||'OS',qty:Number(document.querySelector('[data-qty="'+i+'"]')?.value)||1}));
+  try{const r=await post({action:'createOrder',projectNo:p.id,items});await refresh();msg('Order '+r.orderNo+' created',true)}catch(e){msg(e.message,false)}
+}
+async function rename(p){const name=window.prompt('Project title',p.title);if(!name||name===p.title)return;try{await post({action:'updateProject',projectNo:p.id,title:name});await refresh();msg('Renamed',true)}catch(e){msg(e.message,false)}}
+async function del(p){if(!window.confirm('Delete '+p.id+'? This cannot be undone.'))return;try{await post({action:'deleteProject',projectNo:p.id});state.current=null;await refresh();msg('Project deleted',true)}catch(e){msg(e.message,false)}}
+$('createBtn').addEventListener('click',async()=>{
+  const customerId=Number($('newCust').value)||0,title=($('newTitle').value||'').trim(),brief=($('newBrief').value||'').trim();
+  if(!customerId){msg('Choose a customer',false);return}
+  try{const r=await post({action:'createProject',customerId,title,brief});$('newTitle').value='';$('newBrief').value='';state.current=r.projectNo;state.tab=1;await refresh();msg('Project '+r.projectNo+' created',true)}catch(e){msg(e.message,false)}
+});
+AdminAuth.require({onReady:refresh});
+</script>
+</body>
+</html>
