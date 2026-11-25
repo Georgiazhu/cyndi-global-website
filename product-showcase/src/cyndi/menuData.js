@@ -90,16 +90,8 @@ export const serviceItems = [
     title: 'Swag Platform',
     blurb: 'Everything you need to manage swag well',
     // One sign-in for the whole portal: Swag Platform opens the same login page as Portal Login.
+    // The showcase is reached from the dashboard, not as a sub-item here.
     href: '/portal/login/',
-    // Child of Swag Platform — the showcase now lives inside the signed-in dashboard.
-    children: [
-      {
-        icon: 'M4 5h16v11H4z M8 20h8 M12 16v4',
-        title: 'Showcase',
-        blurb: 'Product proposals',
-        href: '/portal/login/?next=%2Fportal%2Fdashboard%2F%3Fview%3Dshowcase',
-      },
-    ],
   },
   { icon: 'M1 5h11v11H1z M12 8h5l4 4v4h-9z', title: 'Shipping', blurb: 'Lower costs, better deliverability, fewer problems', href: '/services/shipping.html' },
   { icon: 'M3 21V9l9-5 9 5v12 M8 21v-6h8v6 M8 12h8', title: 'Warehousing & Fulfillment', blurb: 'Vertically integrated warehousing, ships same day', href: '/services/warehousing.html' },
