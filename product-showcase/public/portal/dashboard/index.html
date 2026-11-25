@@ -44,6 +44,20 @@ button{cursor:pointer}
 .band .meta b{color:var(--ink)}
 .section-title{font-size:15px;margin:26px 0 12px;font-weight:600}
 .hint{font-size:11px;color:var(--muted);margin:0 0 14px}
+
+/* Project-area blocks — clear separation between create / current / past */
+.project-block{border:1px solid var(--line);border-top:4px solid var(--accent);border-radius:14px;background:#fff;margin-bottom:22px;overflow:hidden;box-shadow:0 1px 2px rgba(15,31,58,.04)}
+.project-block.past-block{border-top-color:#8C7B66;background:#FFFDFB}
+.project-block>.section-title{margin:0;padding:14px 16px;border-bottom:2px solid var(--line);display:flex;align-items:center;gap:10px}
+.project-block>.section-title:before{content:"";width:6px;height:18px;border-radius:3px;background:var(--accent)}
+.project-block.past-block>.section-title:before{background:#8C7B66}
+.project-block>div:not(.section){padding:16px 16px 4px}
+.project-block .section{border:0;border-radius:0;margin:0;box-shadow:none;background:transparent}
+.project-block .section>h2{border-bottom:1px solid var(--line)}
+.section-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:0;background:#fff;color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;text-align:left;cursor:pointer;transition:background .16s ease}
+.section-toggle:hover{background:var(--band)}
+.section-toggle[aria-expanded="true"]{border-bottom:1px solid var(--line)}
+.toggle-icon{width:24px;height:24px;flex:0 0 24px;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font-size:17px;line-height:1}
 .btn{background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:999px;padding:7px 16px;font-size:11px;font-weight:600;transition:background .16s ease,border-color .16s ease,transform .16s ease,box-shadow .16s ease}
 .btn:hover{background:var(--accent-d);border-color:var(--accent-d);transform:translateY(-1px);box-shadow:0 3px 10px rgba(168,94,44,.22)}
 .btn:active{transform:translateY(0);box-shadow:none}
@@ -76,12 +90,15 @@ button{cursor:pointer}
 .pstep:not(:last-child):after{content:"";position:absolute;top:9px;left:56px;width:38px;height:2px;background:#EAE5DE;z-index:1}
 .pstep.done:not(:last-child):after{background:var(--accent)}
 .acts3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.act{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#FCFBF9;min-height:66px}
+.act{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#FCFBF9;min-height:66px;text-align:left;font-family:inherit;cursor:pointer;transition:border-color .16s ease,background .16s ease,transform .16s ease,box-shadow .16s ease}
+.act:hover{border-color:var(--accent);background:var(--accent-soft);transform:translateY(-1px);box-shadow:0 3px 10px rgba(168,94,44,.12)}
+.act:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .act.current{border-color:var(--accent);background:var(--accent-soft)}
 .act b{display:block;font-size:10px;color:var(--muted);margin-bottom:3px}
 .act.current b{color:var(--accent)}
-.act span{display:block;font-size:10px;color:var(--muted);margin-bottom:7px;min-height:15px}
-.act .btn{width:100%}
+.act>span{display:block;font-size:10px;color:var(--muted);min-height:15px}
+.act-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:7px}
+.view-link{font-size:10px;font-weight:700;color:var(--accent);white-space:nowrap}
 .pill{display:inline-block;font-size:9px;font-weight:700;padding:2px 9px;border:1px solid;border-radius:999px}
 .pill.green{color:var(--green);border-color:var(--green);background:var(--green-soft)}
 .pill.orange{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
@@ -131,16 +148,29 @@ tr:last-child td{border-bottom:0}
 <section class="view active" id="view-projects">
   <div class="band"><h1>Projects</h1><div class="meta">Every project moves through three steps: <b>Shortlist → Mockup → Order</b>. A project may end without an order, or create several orders.</div></div>
   <div class="info">ID logic — <b>PRJ-26-001</b> is the project number; <b>ORD-26-001-01</b> means order 01 of project 001. Every order belongs to one project, while a project may have no order or several orders.</div>
-  <div class="section"><h2>Start a new project</h2><div class="body">
-    <div class="field"><label>Project name</label><input id="npTitle" placeholder="e.g. Q1 Onboarding Kit" /></div>
-    <div class="field" style="margin-top:8px"><label>Brief (optional)</label><textarea id="npBrief" placeholder="Categories, quantities, event date…"></textarea></div>
-    <button class="btn small" style="margin-top:10px" onclick="createProject()">Create project</button>
-    <span class="note" style="margin-left:10px">A new project starts empty — pick its shortlist from your Showcase.</span>
-  </div></div>
-  <h2 class="section-title">Current Projects</h2>
-  <div id="activeProjects"></div>
-  <h2 class="section-title">Past Projects</h2>
-  <div id="pastProjects"></div>
+  <div class="project-block start-block">
+    <div class="section">
+      <button type="button" class="section-toggle" id="newProjectToggle" aria-expanded="false" aria-controls="newProjectBody" onclick="toggleNewProject()">
+        <span>Start a new project</span><span class="toggle-icon" id="newProjectIcon" aria-hidden="true">+</span>
+      </button>
+      <div class="body" id="newProjectBody" hidden>
+        <div class="field"><label>Project name</label><input id="npTitle" placeholder="e.g. Q1 Onboarding Kit" /></div>
+        <div class="field" style="margin-top:8px"><label>Brief (optional)</label><textarea id="npBrief" placeholder="Categories, quantities, event date…"></textarea></div>
+        <button class="btn small" style="margin-top:10px" onclick="createProject()">Create project</button>
+        <span class="note" style="margin-left:10px">A new project starts empty — pick its shortlist from your Showcase.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="project-block current-block">
+    <h2 class="section-title">Current Projects</h2>
+    <div id="activeProjects"></div>
+  </div>
+
+  <div class="project-block past-block">
+    <h2 class="section-title">Past Projects</h2>
+    <div id="pastProjects"></div>
+  </div>
 </section>
 
 <!-- SHORTLIST -->
@@ -318,20 +348,32 @@ function setView(v){
 }
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 
+function toggleNewProject(force){
+  const body=$('newProjectBody'),btn=$('newProjectToggle'),icon=$('newProjectIcon');
+  if(!body||!btn||!icon)return;
+  const open=typeof force==='boolean'?force:body.hidden;
+  body.hidden=!open;
+  btn.setAttribute('aria-expanded',open?'true':'false');
+  icon.textContent=open?'−':'+';
+  if(open)setTimeout(()=>$('npTitle')?.focus(),0);
+}
+
 function projectCard(p){
   const done=p.done;
   const prog=labels.map((l,i)=>'<div class="pstep '+(i<p.stage?'done':'')+'"><span class="dot">'+(i<p.stage?'✓':'')+'</span><span class="lbl">'+l+'</span></div>').join('');
-  let acts='';
-  if(done){
-    acts='<div class="act"><b>01 Shortlist</b><span>Completed</span><span class="pill green">Done</span></div><div class="act"><b>02 Mockup</b><span>Completed</span><span class="pill green">Done</span></div><div class="act current"><b>03 Order</b><span>'+p.orderCount+' order(s) created</span><button class="btn line small" onclick="openOrderForm(\''+p.id+'\')">New Order</button></div>';
-  }else{
-    acts=labels.map((l,i)=>{
-      const cur=i+1===p.stage, fin=i+1<p.stage;
-      const text=fin?'Completed':cur?({1:'View Shortlist',2:'Review Mockup',3:'Go To Order'})[i+1]:'Locked';
-      const fn=['openShortlist','openMockup','openOrderForm'][i];
-      return '<div class="act '+(cur?'current':'')+'"><b>0'+(i+1)+' '+l+'</b><span>'+text+'</span>'+(cur?'<button class="btn small" onclick="'+fn+'(\''+p.id+'\')">'+text+'</button>':fin?'<span class="pill green">Done</span>':'<span class="pill">Pending</span>')+'</div>';
-    }).join('');
-  }
+  // Every stage is viewable regardless of status — status is only a badge,
+  // never a lock. Done / Current / Open all open the same detail views.
+  const acts=labels.map((l,i)=>{
+    const step=i+1;
+    const cur=step===p.stage, fin=step<p.stage;
+    const fn=['openShortlist','openMockup','openOrderForm'][i];
+    const text=fin?'Completed':cur?({1:'View Shortlist',2:'Review Mockup',3:'Go To Order'})[step]:'Available to view';
+    const detail=(step===3&&done)?(p.orderCount+' order(s) created'):text;
+    const pillClass=fin?'green':cur?'orange':'';
+    const pillText=fin?'Done':cur?'Current':'Open';
+    const linkText=(step===3&&done)?'New / view orders →':'View details →';
+    return `<button type="button" class="act ${cur?'current':''}" onclick="${fn}('${p.id}')" aria-label="Open ${l} for ${p.id}"><b>0${step} ${l}</b><span>${detail}</span><span class="act-foot"><span class="pill ${pillClass}">${pillText}</span><span class="view-link">${linkText}</span></span></button>`;
+  }).join('');
   let latest='';
   if(p.latest){
     const who=String(p.latest.actor||'').startsWith('admin')?'Cyndi Global':(p.latest.actor||'Cyndi Global');
@@ -351,6 +393,7 @@ async function createProject(){
     const r=await post({action:'createProject',title,brief});
     $('npTitle').value='';$('npBrief').value='';
     await load();
+    toggleNewProject(false);
     currentProject=r.projectNo;
     openShortlist(r.projectNo);
     toast(r.message||'Project created — pick products from your showcase');
