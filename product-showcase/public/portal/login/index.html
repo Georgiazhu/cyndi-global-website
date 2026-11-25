@@ -48,8 +48,8 @@
     <form class="form" id="f">
       <div id="msg" class="msg" role="alert"></div>
       <div class="field">
-        <label for="email">Work email <span>— your company email address</span></label>
-        <input id="email" type="email" autocomplete="username" placeholder="you@company.com" required>
+        <label for="email">Work email or username <span>— your company email address</span></label>
+        <input id="email" type="text" autocomplete="username" placeholder="you@company.com" required>
       </div>
       <div class="field">
         <label for="pw">Password</label>
@@ -78,19 +78,27 @@ $('#f').addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = $('#submit'), msg = $('#msg');
   btn.disabled = true; btn.textContent = 'Signing in…'; msg.style.display = 'none';
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
   try {
     const res = await fetch('/api/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
       body: JSON.stringify({ email: $('#email').value.trim(), password: $('#pw').value }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Sign-in failed');
     const u = data.user || {};
-    if (u.mustChangePassword) location.href = '/portal/setup-password/?next=' + encodeURIComponent(next);
-    else location.href = next;
+    location.href = u.mustChangePassword
+      ? '/portal/setup-password/?next=' + encodeURIComponent(next)
+      : next;
   } catch (err) {
-    msg.textContent = err.message || 'Sign-in failed'; msg.style.display = 'block';
+    msg.textContent = (err.name === 'AbortError')
+      ? 'Sign-in timed out. Please check your connection and try again.'
+      : (err.message || 'Sign-in failed');
+    msg.className = 'msg err'; msg.style.display = 'block';
     btn.disabled = false; btn.textContent = 'Sign in';
+  } finally {
+    clearTimeout(timer);
   }
 });
 </script>
