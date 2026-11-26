@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Gift redemption | Cyndi Global</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
+<style>
+:root{--bg:#FDFBF9;--band:#F5F1EA;--ink:#1C1917;--ink2:#4A443E;--muted:#8C7B66;--line:#E7E3DC;--accent:#C4763B;--accent-d:#A85E2C;--accent-soft:#FBF0E6;--green:#1E7040;--green-soft:#EAF6EE}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;color:var(--ink);background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3{letter-spacing:-.3px;margin:0}
+button,input,select,textarea{font-family:inherit;font-size:14px}
+button{cursor:pointer}
+.hidden{display:none!important}
+.top{height:64px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 32px;background:#fff}
+.top img{height:30px;width:auto}
+.wrap{max-width:980px;margin:0 auto;padding:34px 24px 80px}
+.hero{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:24px}
+.hero h1{font-size:30px;font-weight:700;margin-bottom:8px}
+.hero p{color:var(--muted);margin:0;max-width:680px}
+.card{border:1px solid var(--line);border-radius:14px;background:#fff;margin-bottom:18px;overflow:hidden}
+.card>h2{font-size:15px;font-weight:700;padding:15px 20px;border-bottom:1px solid var(--line)}
+.card .body{padding:20px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:760px){.grid2,.grid3{grid-template-columns:1fr}}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;outline:none;transition:border-color .15s}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.btn{background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:999px;padding:10px 22px;font-size:14px;font-weight:600;transition:.16s}
+.btn:hover{background:var(--accent-d);border-color:var(--accent-d)}
+.btn:disabled{background:#EFEAE3;border-color:#EFEAE3;color:#B7AFA5;cursor:not-allowed}
+.btn.gray{background:#fff;color:var(--ink2);border-color:var(--line)}
+.product{display:flex;gap:16px;padding:16px 0;border-bottom:1px solid #F1EEE9}
+.product:last-child{border-bottom:0}
+.product img{width:96px;height:96px;object-fit:cover;border-radius:10px;background:var(--band)}
+.product .info{flex:1;min-width:0}
+.product .info h3{font-size:15px;margin-bottom:4px}
+.product .info .sku{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+.product .opts{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.product .opts .field{min-width:130px}
+.limit{display:inline-block;background:var(--accent-soft);color:var(--accent-d);border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:600;margin-bottom:10px}
+.stock{font-size:11.5px;color:var(--green);margin-top:6px}
+.stock.out{color:#B42318}
+.summary{background:var(--band);border-radius:10px;padding:14px 16px;font-size:14px;display:flex;justify-content:space-between;align-items:center;margin-top:14px}
+.summary b{font-size:18px}
+.note{font-size:12px;color:var(--muted)}
+.err{padding:12px 16px;border:1px solid #F3C6BE;background:#FFF4F1;color:#B42318;border-radius:10px;margin-bottom:16px;font-size:13px}
+.done{text-align:center;padding:60px 20px}
+.done .icon{width:64px;height:64px;border-radius:50%;background:var(--green-soft);color:var(--green);display:grid;place-items:center;font-size:30px;margin:0 auto 18px}
+.done h1{font-size:26px;margin-bottom:10px}
+.done p{color:var(--muted);max-width:540px;margin:0 auto 20px}
+.orderno{display:inline-block;background:var(--band);border-radius:8px;padding:8px 16px;font-family:ui-monospace,Menlo,monospace;font-size:14px;margin:12px 0}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--ink);color:#fff;padding:10px 20px;border-radius:999px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:99}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="top"><img src="/cyndi-logo-full-v5.png" alt="Cyndi Global" /></div>
+<div class="wrap">
+  <div id="error" class="err hidden"></div>
+
+  <div id="loading" class="done"><p>Loading your gift page…</p></div>
+
+  <div id="content" class="hidden">
+    <div class="hero">
+      <h1 id="heroTitle">Your gift portal</h1>
+      <p id="heroDesc"></p>
+    </div>
+
+    <form id="redeemForm">
+      <div class="card">
+        <h2>1. Choose your items</h2>
+        <div class="body" id="productList"></div>
+      </div>
+
+      <div class="card">
+        <h2>2. Delivery details</h2>
+        <div class="body">
+          <div class="grid3">
+            <div class="field"><label>Full name *</label><input id="fName" required /></div>
+            <div class="field"><label>Email *</label><input id="fEmail" type="email" required /></div>
+            <div class="field"><label>Phone (with country code) *</label><input id="fPhone" placeholder="+1 212 555 0100" required /></div>
+          </div>
+          <div class="grid2" style="margin-top:16px">
+            <div class="field"><label>Country / region *</label><select id="fCountry" required></select></div>
+            <div class="field"><label>State / province (optional)</label><input id="fState" /></div>
+          </div>
+          <div class="grid2" style="margin-top:16px">
+            <div class="field"><label>Street address *</label><input id="fAddress1" required /></div>
+            <div class="field"><label>Address line 2 (optional)</label><input id="fAddress2" /></div>
+          </div>
+          <div class="grid2" style="margin-top:16px">
+            <div class="field"><label>City *</label><input id="fCity" required /></div>
+            <div class="field"><label>Postal code (optional)</label><input id="fPostal" /></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="summary"><span id="summaryText">Select items to continue</span><b id="summaryTotal">$0.00</b></div>
+      <div style="margin-top:18px;text-align:right"><button type="submit" class="btn" id="submitBtn">Submit my order</button></div>
+    </form>
+  </div>
+
+  <div id="receipt" class="done hidden">
+    <div class="icon">✓</div>
+    <h1 id="receiptTitle">Order submitted</h1>
+    <p id="receiptText"></p>
+    <div class="orderno" id="receiptOrder"></div>
+    <div class="note" id="receiptNote"></div>
+  </div>
+
+  <div id="redeemed" class="done hidden">
+    <div class="icon">✓</div>
+    <h1>This link has already been used</h1>
+    <p id="redeemedText">Your order was already submitted. A confirmation was sent to your email.</p>
+    <div class="orderno" id="redeemedOrder"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>'$'+Number(n||0).toFixed(2);
+const qs=new URLSearchParams(location.search);
+const token=qs.get('token')||'',slug=qs.get('slug')||'';
+const param=token?{token}:slug?{slug}:null;
+let state=null,tt;
+
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2800);}
+function fail(msg){$('loading').classList.add('hidden');$('error').textContent=msg;$('error').classList.remove('hidden');}
+
+async function init(){
+  if(!param){fail('This page needs a valid gift link. Please open the link you received.');return;}
+  try{
+    const r=await fetch('/api/public/redeem?'+new URLSearchParams(param),{cache:'no-store'});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+    state=d;
+    $('loading').classList.add('hidden');
+    if(d.redeemed){
+      $('redeemedOrder').textContent=d.orderId||'';
+      $('redeemedText').textContent='This personal link has already been redeemed'+(d.recipientName?(' by '+d.recipientName):'')+'. Your order is being prepared.';
+      $('redeemed').classList.remove('hidden');
+      return;
+    }
+    $('heroTitle').textContent=d.portal.title||'Your gift portal';
+    $('heroDesc').textContent=d.portal.description||'Choose the items you would like, then enter your delivery address.';
+    if(d.recipient){$('fName').value=d.recipient.name||'';$('fEmail').value=d.recipient.email||'';}
+    $('fCountry').innerHTML='<option value="">Select a country…</option>'+(d.countries||[]).map(c=>'<option value="'+c.code+'">'+esc(c.name)+'</option>').join('');
+    renderProducts();
+    $('content').classList.remove('hidden');
+  }catch(e){fail(e.message||'This portal is not available.');}
+}
+
+function renderProducts(){
+  const products=state.products||[];
+  if(!products.length){$('productList').innerHTML='<div class="note">No products are available in this portal yet.</div>';return;}
+  $('productList').innerHTML=products.map((p,pi)=>{
+    const colors=(p.colors||[]).map(c=>({id:String(c?.id||''),name:c?.name||''}));
+    const hasColors=colors.length>0;
+    const sizes=(p.sizes||[]).length?p.sizes:['OS'];
+    const variants=(p.variants||[]);
+    const limit=p.maxQty==null?'Unlimited':('Max '+p.maxQty+' per person');
+    const colorOpts=hasColors?colors.map((c,i)=>'<option value="'+esc(c.id)+'">'+esc(c.name||'Standard')+'</option>').join(''):'';
+    const sizeOpts=sizes.map(s=>'<option value="'+esc(s)+'">'+esc(s)+'</option>').join('');
+    return '<div class="product">'+(p.image?'<img src="'+esc(p.image)+'" alt="" />':'')
+      +'<div class="info"><h3>'+esc(p.name)+'</h3><div class="sku">SKU '+esc(p.sku)+'</div>'
+      +'<span class="limit">'+esc(limit)+'</span>'
+      +'<div class="opts">'
+      +(hasColors?'<div class="field"><label>Colour</label><select data-color="'+pi+'" onchange="updateStock('+pi+')">'+colorOpts+'</select></div>':'')
+      +'<div class="field"><label>Size</label><select data-size="'+pi+'" onchange="updateStock('+pi+')">'+sizeOpts+'</select></div>'
+      +'<div class="field"><label>Quantity</label><input type="number" data-qty="'+pi+'" min="1" value="1" onchange="recalc()" /></div>'
+      +'</div><div class="stock" id="stock-'+pi+'"></div></div></div>';
+  }).join('');
+  products.forEach((_,i)=>updateStock(i));
+  recalc();
+}
+function variantFor(pi){
+  const p=state.products[pi];
+  const colorEl=document.querySelector('[data-color="'+pi+'"]');
+  const sizeEl=document.querySelector('[data-size="'+pi+'"]');
+  const colorId=colorEl?colorEl.value:'';
+  const size=sizeEl?sizeEl.value:'OS';
+  const v=(p.variants||[]).find(x=>x.colorId===colorId&&x.size===size);
+  return {colorId,size,v};
+}
+function updateStock(pi){
+  const p=state.products[pi],{v}=variantFor(pi);
+  const el=$('stock-'+pi);if(!el)return;
+  if(!v||v.available===null){el.textContent='Available';el.className='stock';return;}
+  if(v.available<=0){el.textContent='Out of stock';el.className='stock out';}
+  else{el.textContent=v.available+' in stock';el.className='stock';}
+  recalc();
+}
+function selectedItems(){
+  return (state.products||[]).map((p,pi)=>{
+    const qty=Number(document.querySelector('[data-qty="'+pi+'"]')?.value)||0;
+    if(qty<1)return null;
+    const {colorId,size,v}=variantFor(pi);
+    if(v&&v.available!==null&&qty>v.available)return {error:p.name+' — only '+v.available+' left'};
+    if(p.maxQty!=null&&qty>p.maxQty)return {error:p.name+' — limit is '+p.maxQty};
+    return {productId:p.id,colorId,size,qty};
+  }).filter(Boolean);
+}
+function recalc(){
+  const items=selectedItems();
+  let total=0;
+  items.forEach(it=>{
+    if(it.error)return;
+    const p=state.products.find(x=>x.id===it.productId);
+    const tiers=(p?.tiers||[]).slice().sort((a,b)=>Number(a.quantity)-Number(b.quantity));
+    let unit=tiers.length?Number(tiers[0].price)||0:0;
+    for(const t of tiers)if(it.qty>=Number(t.quantity))unit=Number(t.price)||0;
+    total+=unit*it.qty;
+  });
+  $('summaryText').textContent=items.length?(items.length+' item'+(items.length===1?'':'s')+' selected'):'Select items to continue';
+  $('summaryTotal').textContent=money(total);
+}
+
+$('redeemForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const items=selectedItems();
+  const bad=items.find(i=>i.error);
+  if(bad){toast(bad.error);return;}
+  if(!items.length){toast('Choose at least one item');return;}
+  const btn=$('submitBtn');btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Submitting…';
+  try{
+    const r=await fetch('/api/public/redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      ...param,
+      contact:{name:$('fName').value.trim(),email:$('fEmail').value.trim()},
+      shipping:{name:$('fName').value.trim(),email:$('fEmail').value.trim(),phone:$('fPhone').value.trim(),
+        countryCode:$('fCountry').value,state:$('fState').value.trim(),address1:$('fAddress1').value.trim(),
+        address2:$('fAddress2').value.trim(),city:$('fCity').value.trim(),postalCode:$('fPostal').value.trim()},
+      items,
+    })});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+    $('content').classList.add('hidden');
+    $('receiptTitle').textContent=d.approvalStatus==='PENDING'?'Request submitted for approval':'Order submitted';
+    $('receiptText').textContent=d.message||'Thank you. Your order has been received.';
+    $('receiptOrder').textContent=d.orderNo||'';
+    $('receiptNote').textContent='Keep this order number for your records.';
+    $('receipt').classList.remove('hidden');
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(err){toast(err.message||'Could not submit your order');}
+  finally{btn.disabled=false;btn.textContent='Submit my order';}
+});
+init();
+</script>
+</body>
+</html>

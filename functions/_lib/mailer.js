@@ -78,3 +78,63 @@ export async function sendPortalCodeEmail(env, to, code, purpose = 'reset') {
 export async function sendPasswordResetEmail(env, to, code) {
   return sendPortalCodeEmail(env, to, code, 'reset');
 }
+
+// Personal-link invitation email (M3 redemption portal). The link is unique per recipient.
+export async function sendRedemptionInviteEmail(env, to, recipientName, link, portalTitle) {
+  const from = env?.EMAIL_FROM || DEFAULT_FROM;
+  const title = portalTitle || 'Your Cyndi Global gift portal';
+  const subject = `Your personal gift link — ${title}`;
+  const text = [
+    `Hi ${recipientName || 'there'},`,
+    '',
+    `You have a personal gift link for ${title}. Open it to choose your items and enter your delivery address:`,
+    link,
+    '',
+    'This link is unique to you and can be used once. If you were not expecting this, you can ignore this email.',
+    '',
+    'Cyndi Global',
+  ].join('\n');
+  const html = `
+    <div style="font-family:Arial,sans-serif;color:#1c1917;line-height:1.6;max-width:560px">
+      <p>Hi ${escapeHtml(recipientName || 'there')},</p>
+      <p>You have a personal gift link for <b>${escapeHtml(title)}</b>. Open it to choose your items and enter your delivery address:</p>
+      <p style="margin:22px 0"><a href="${escapeHtml(link)}" style="background:#e07a3a;color:#fff;padding:11px 20px;border-radius:8px;text-decoration:none;display:inline-block">Open my gift link</a></p>
+      <p style="font-size:12px;color:#8C7B66">Or copy this URL: ${escapeHtml(link)}</p>
+      <p style="font-size:12px;color:#8C7B66">This link is unique to you and can be used once.</p>
+      <p style="color:#8C7B66;font-size:12px">Cyndi Global</p>
+    </div>`;
+  const apiKey = env?.RESEND_API_KEY || env?.MAIL_API_KEY;
+  const apiUrl = env?.MAIL_API_URL;
+  if (!apiKey && !apiUrl) return { sent: false, reason: 'not_configured' };
+  try {
+    let res;
+    if (apiUrl) {
+      res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) },
+        body: JSON.stringify({ from, to, subject, text, html }),
+      });
+    } else {
+      res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ from, to: [to], subject, text, html }),
+      });
+    }
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      console.error(`redemption invite email: provider ${res.status}`, detail.slice(0, 300));
+      return { sent: false, reason: 'provider_error' };
+    }
+    return { sent: true };
+  } catch (e) {
+    console.error('redemption invite email: send failed', e?.message);
+    return { sent: false, reason: 'send_failed' };
+  }
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}

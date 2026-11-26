@@ -136,7 +136,50 @@ tr:last-child td{border-bottom:0}
 .upload{border:1px dashed var(--line);border-radius:10px;padding:14px;text-align:center;font-size:11.6px;color:var(--muted);margin-top:10px}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--ink);color:#fff;padding:9px 18px;border-radius:999px;font-size:11.6px;opacity:0;pointer-events:none;transition:.2s;z-index:99}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-@media(max-width:960px){.pcard .pbody{grid-template-columns:1fr}.mainnav nav{gap:14px}}
+
+/* Redemption portals — four delivery methods */
+.ways-head{font-size:23.1px;font-weight:700;letter-spacing:-.6px;margin:0 0 8px}
+.ways-sub{font-size:12.6px;color:var(--muted);margin:0 0 22px}
+.ways{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px}
+.way{border:1px solid var(--line);border-radius:13px;background:#fff;padding:17px 16px 16px;min-height:188px;display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(15,31,58,.04);transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.way:hover{border-color:var(--accent);box-shadow:0 4px 14px rgba(168,94,44,.12);transform:translateY(-2px)}
+.way .wtag{align-self:flex-start;background:var(--band);color:var(--muted);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:700;margin-bottom:16px}
+.way h3{font-size:13.7px;font-weight:700;margin-bottom:8px}
+.way p{font-size:11.6px;color:var(--muted);margin:0;line-height:1.55;flex:1}
+.way .way-actions{margin-top:14px}
+.way .btn{width:100%}
+@media(max-width:1100px){.ways{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:620px){.ways{grid-template-columns:1fr}}
+.portal-card{border:1px solid var(--line);border-radius:12px;background:#fff;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px}
+.portal-card .pc-main{flex:1;min-width:0}
+.portal-card .pc-main b{font-size:13.7px;display:block}
+.portal-card .pc-main .pc-sub{font-size:10.5px;color:var(--muted);margin-top:3px}
+.portal-card .pc-stats{display:flex;gap:14px;font-size:10.5px;color:var(--muted)}
+.portal-card .pc-stats b{color:var(--ink);font-size:12.6px;display:block}
+.portal-card .pc-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.badge{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 9px;border-radius:999px;border:1px solid}
+.badge.active{color:var(--green);border-color:var(--green);background:var(--green-soft)}
+.badge.paused{color:#A85E2C;border-color:#E8C9AC;background:#FFF4E9}
+.badge.archived{color:var(--muted);border-color:var(--line);background:var(--band)}
+.badge.pending{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.cfg-grid{grid-template-columns:1fr}}
+.cfg-grid .full{grid-column:1/-1}
+.item-pick{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F1EEE9}
+.item-pick:last-child{border-bottom:0}
+.item-pick img{width:38px;height:38px;object-fit:cover;border-radius:7px;background:var(--band)}
+.item-pick .nm{flex:1;font-size:11.6px}
+.item-pick .nm small{display:block;color:var(--muted);font-size:9.5px}
+.item-pick input[type=number]{width:74px;padding:5px 7px;border:1px solid var(--line);border-radius:6px}
+.link-box{display:flex;gap:8px;align-items:center;background:var(--band);border-radius:8px;padding:9px 11px;font-size:10.5px;word-break:break-all;margin:8px 0}
+.link-box code{flex:1;font-family:ui-monospace,Menlo,monospace;color:var(--ink2)}
+.review-card{border:1px solid var(--line);border-radius:11px;background:#fff;padding:13px 15px;margin-bottom:10px}
+.review-card .rh{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-bottom:8px}
+.review-card .rh b{font-size:12.6px}
+.review-card .rh span{font-size:10.5px;color:var(--muted)}
+.review-card .addr{font-size:10.5px;color:var(--ink2);line-height:1.6;background:var(--band);border-radius:7px;padding:8px 10px;margin:8px 0}
+.review-card .ritems{font-size:10.5px;color:var(--muted)}
+@media(max-width:960px){.pcard .pbody{grid-template-columns:1fr}.mainnav nav{gap:14px}.portal-card{flex-wrap:wrap}}
 
 </style>
 </head>
@@ -233,8 +276,79 @@ tr:last-child td{border-bottom:0}
 <!-- PORTALS -->
 <section class="view" id="view-portals">
   <div class="backbar"><button type="button" class="back-btn" onclick="backToProjects()">← Back to Projects</button></div>
-  <div class="band"><h1>Portals</h1><div class="meta">View and edit the portals in your program.</div></div>
+  <h1 class="ways-head">Four ways to get swag to your people</h1>
+  <p class="ways-sub">All four draw from the same inventory, so stock always adds up.</p>
+
+  <div class="ways">
+    <div class="way">
+      <span class="wtag">M1</span>
+      <h3>Bulk shipment</h3>
+      <p>One order delivered to your event; your team distributes on site.</p>
+      <div class="way-actions"><button class="btn line small" onclick="startBulkPortal()">Create bulk order</button></div>
+    </div>
+    <div class="way">
+      <span class="wtag">M2</span>
+      <h3>Employee rewards store</h3>
+      <p>You issue points; employees redeem them for gifts from a catalog you choose. Each redemption approved by your admin.</p>
+      <div class="way-actions"><button class="btn line small" onclick="startPortal('REWARDS_STORE')">Set up store</button></div>
+    </div>
+    <div class="way">
+      <span class="wtag">M3</span>
+      <h3>Personal links</h3>
+      <p>A unique link per person. Each order approved by your admin.</p>
+      <div class="way-actions"><button class="btn line small" onclick="startPortal('PERSONAL_LINK')">Set up links</button></div>
+    </div>
+    <div class="way">
+      <span class="wtag">M4</span>
+      <h3>Open portal</h3>
+      <p>One shared link. Every order approved by your admin before fulfillment.</p>
+      <div class="way-actions"><button class="btn line small" onclick="startPortal('OPEN_PORTAL')">Set up portal</button></div>
+    </div>
+  </div>
+
+  <!-- create / edit portal form -->
+  <div class="section hidden" id="portalEditor">
+    <h2 id="portalEditorTitle">Set up a portal</h2>
+    <div class="body">
+      <div class="cfg-grid">
+        <div class="field"><label>Portal name (internal)</label><input id="ptName" placeholder="e.g. Holiday 2026 Gifts" /></div>
+        <div class="field"><label>Page title (shown to recipients)</label><input id="ptTitle" placeholder="e.g. Pick your holiday gift" /></div>
+        <div class="field full"><label>Description</label><textarea id="ptDesc" placeholder="A short note for recipients…"></textarea></div>
+        <div class="field" id="ptSlugField"><label>Shared link slug</label><input id="ptSlug" placeholder="e.g. holiday-2026" /></div>
+      </div>
+      <h3 style="font-size:11.6px;margin:18px 0 6px;color:var(--muted)">Products people can choose from</h3>
+      <div id="ptItems"></div>
+      <div class="footbar">
+        <button class="btn" id="ptSaveBtn" onclick="savePortal()">Save portal</button>
+        <button class="btn gray" onclick="closePortalEditor()">Cancel</button>
+        <span class="note" id="ptNote"></span>
+      </div>
+      <div class="np-error hidden" id="ptError"></div>
+    </div>
+  </div>
+
+  <!-- portal detail / invites / approvals -->
+  <div class="section hidden" id="portalDetail">
+    <h2 id="ptDetailTitle">Portal</h2>
+    <div class="body">
+      <div id="ptDetailLinks"></div>
+      <div class="footbar" style="margin-top:8px">
+        <button class="btn line small" onclick="copyPortalLink()">Copy link</button>
+        <button class="btn gray small" onclick="togglePortalStatus()">Pause / Resume</button>
+        <button class="btn gray small" onclick="closePortalDetail()">Close</button>
+      </div>
+      <div id="ptInviteBlock" class="hidden" style="margin-top:20px">
+        <h3 style="font-size:13.7px;font-weight:600;margin-bottom:8px">Personal links — recipient list</h3>
+        <div class="field"><label>Paste recipients, one per line: Name, email</label><textarea id="ptInviteText" placeholder="Jane Doe, jane@example.com&#10;John Smith, john@example.com" style="min-height:80px"></textarea></div>
+        <div class="footbar"><button class="btn small" onclick="addInvites()">Add recipients</button><button class="btn line small" onclick="sendInvites()">Send emails</button><span class="note" id="ptInviteNote"></span></div>
+        <div style="margin-top:14px" id="ptInviteRows"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="section"><h2>Your Portals</h2><div class="body" id="portalRows"></div></div>
+
+  <div class="section"><h2>Pending approvals</h2><div class="body tight"><div id="portalPending"></div></div></div>
 </section>
 
 <!-- INVENTORY -->
@@ -565,9 +679,209 @@ function renderOrders(){
   $('idInfo').innerHTML=orders.length+' orders · '+withOrders+' projects with orders · '+(projects.length-withOrders)+' projects without an order. Order ID = project number + sequence, so one project can create multiple orders.';
 }
 function renderInventory(){$('invRows').innerHTML=inventory.map(r=>'<tr><td><b>'+esc(r.sku)+'</b></td><td>'+esc(r.name)+'</td><td>'+esc(r.color||'—')+'</td><td>'+esc(r.size)+'</td><td><b>'+r.onHand.toLocaleString()+'</b></td><td>'+esc(r.source||'Confirmed orders')+'</td></tr>').join('')||'<tr><td colspan="6" style="color:var(--muted)">No stock yet.</td></tr>';}
-function renderPortals(){$('portalRows').innerHTML=portals.map(p=>'<div style="padding:12px 0;border-bottom:1px solid #EFEFEF"><b>'+p+'</b><div style="margin-top:4px"><button class="link-btn" onclick="toast(\'Portal opened\')">View portal</button> &nbsp; <button class="link-btn" onclick="toast(\'Portal editing\')">Edit portal</button></div></div>').join('');}
+/* ---- Redemption portals (M1–M4) ---- */
+const METHOD_LABELS={BULK_SHIPMENT:'Bulk shipment',REWARDS_STORE:'Employee rewards store',PERSONAL_LINK:'Personal links',OPEN_PORTAL:'Open portal'};
+let portalData={portals:[],products:[],pending:[],countries:[]},editingPortal=null,activePortal=null;
+
+async function loadPortals(){
+  try{
+    const r=await fetch('/api/portal/portals/',{cache:'no-store'});
+    if(!r.ok)return;
+    const d=await r.json();
+    if(d.error)return;
+    portalData={portals:d.portals||[],products:d.products||[],pending:d.pending||[],countries:d.countries||[]};
+    if(activePortal){
+      const found=portalData.portals.find(p=>p.id===activePortal.id);
+      if(found)activePortal=found;
+    }
+  }catch(e){console.warn('Portals load failed:',e.message);}
+  renderPortals();
+}
+async function portalPost(body){
+  const r=await fetch('/api/portal/portals/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||d.error)throw new Error(d.error||('HTTP '+r.status));
+  return d;
+}
+function renderPortals(){
+  const list=portalData.portals||[];
+  $('portalRows').innerHTML=list.map(p=>{
+    const badge='<span class="badge '+p.status.toLowerCase()+'">'+esc(p.status.toLowerCase())+'</span>';
+    const link=p.slug?('<div class="pc-sub">Link: /redeem/?slug='+esc(p.slug)+'</div>'):'';
+    return '<div class="portal-card"><div class="pc-main"><b>'+esc(p.name||p.id)+'</b> '
+      +'<span class="badge" style="border-color:var(--line);background:var(--band)">'+esc(METHOD_LABELS[p.type]||p.type)+'</span> '+badge
+      +'<div class="pc-sub">'+esc(METHOD_LABELS[p.type]||p.type)+' · created '+esc(p.created||'')+'</div>'+link+'</div>'
+      +'<div class="pc-stats"><div><b>'+p.inviteCount+'</b>invites</div><div><b>'+p.redeemedCount+'</b>redeemed</div><div><b>'+p.pendingCount+'</b>pending</div></div>'
+      +'<div class="pc-actions"><button class="btn line small" onclick="openPortalDetail(\''+p.id+'\')">Manage</button>'
+      +'<button class="btn gray small" onclick="editPortal(\''+p.id+'\')">Edit</button></div></div>';
+  }).join('')||'<div style="color:var(--muted);font-size:11.6px">No portals yet — choose a method above to set one up.</div>';
+
+  const pending=portalData.pending||[];
+  $('portalPending').innerHTML=pending.map(o=>{
+    const sh=o.shipping||{};
+    const addr=[sh.address1,sh.address2,sh.city,sh.state,sh.postalCode,sh.countryCode].filter(Boolean).join(', ');
+    const items=(o.items||[]).map(i=>esc(i.name)+' ('+esc(i.color||'')+' · '+esc(i.size||'')+') × '+i.qty).join('<br>');
+    return '<div class="review-card"><div class="rh"><b>'+esc(o.orderNo)+' · '+esc(o.name)+'</b><span>'+esc(o.created)+' · '+money(o.total)+'</span></div>'
+      +'<div class="addr">'+esc(addr||'—')+' · '+esc(o.email||'')+' · '+esc(o.phone||'')+'</div>'
+      +'<div class="ritems">'+items+'</div>'
+      +'<div class="footbar"><button class="btn small" onclick="reviewOrder(\''+o.orderNo+'\',\'approve\')">Approve</button>'
+      +'<button class="btn gray small" onclick="reviewOrder(\''+o.orderNo+'\',\'reject\')">Reject</button></div></div>';
+  }).join('')||'<div style="padding:12px;font-size:11.6px;color:var(--muted)">Nothing waiting for approval.</div>';
+}
+
+function startBulkPortal(){toast('Bulk shipments use a normal order — go to a project and use Go To Order.');setView('projects');}
+function startPortal(type){
+  editingPortal={type};activePortal=null;
+  $('portalEditorTitle').textContent='Set up a '+(METHOD_LABELS[type]||type).toLowerCase();
+  $('ptName').value='';$('ptTitle').value='';$('ptDesc').value='';$('ptSlug').value='';
+  $('ptSlugField').classList.toggle('hidden',type==='PERSONAL_LINK');
+  $('ptNote').textContent=type==='PERSONAL_LINK'?'One unique link per recipient — add the list after saving.':type==='OPEN_PORTAL'?'One shared link — every order waits for your approval.':'';
+  $('ptError').classList.add('hidden');
+  renderItemPicker([]);
+  $('portalEditor').classList.remove('hidden');
+  $('portalDetail').classList.add('hidden');
+  $('portalEditor').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function closePortalEditor(){$('portalEditor').classList.add('hidden');editingPortal=null;}
+function renderItemPicker(selected){
+  const picked=new Map((selected||[]).map(x=>[String(x.productId||x.id),x.maxQty]));
+  $('ptItems').innerHTML=(portalData.products||[]).map(p=>{
+    const sel=picked.has(String(p.id)),val=picked.get(String(p.id));
+    return '<label class="item-pick">'+(p.image?'<img src="'+esc(p.image)+'" alt="" />':'')
+      +'<span class="nm">'+esc(p.name)+'<small>'+esc(p.sku)+' · '+money(p.price)+'</small></span>'
+      +'<input type="checkbox" data-pid="'+esc(p.id)+'" '+(sel?'checked':'')+' onchange="togglePickItem(this)" />'
+      +'<input type="number" min="1" placeholder="limit" data-max="'+esc(p.id)+'" value="'+(val===null||val===undefined?'':esc(val))+'" '+(sel?'':'disabled')+' title="Leave empty for unlimited" />'
+      +'</label>';
+  }).join('')||'<div style="color:var(--muted);font-size:11.6px">No products in your showcase yet.</div>';
+}
+function togglePickItem(box){
+  const max=document.querySelector('[data-max="'+CSS.escape(box.dataset.pid)+'"]');
+  if(max)max.disabled=!box.checked;
+}
+async function savePortal(){
+  if(!editingPortal)return;
+  const name=$('ptName').value.trim();
+  if(!name){$('ptError').textContent='Enter a portal name.';$('ptError').classList.remove('hidden');return;}
+  const items=[...document.querySelectorAll('#ptItems input[type=checkbox]:checked')].map(box=>{
+    const maxEl=document.querySelector('[data-max="'+CSS.escape(box.dataset.pid)+'"]');
+    const raw=(maxEl?.value||'').trim();
+    return {productId:box.dataset.pid,maxQty:raw===''?null:Number(raw)};
+  });
+  const payload={name,customTitle:$('ptTitle').value.trim(),customDescription:$('ptDesc').value.trim(),items};
+  if(editingPortal.id){
+    payload.action='updatePortal';payload.portalId=editingPortal.id;
+    if($('ptSlug').value.trim())payload.slug=$('ptSlug').value.trim();
+  }else{
+    payload.action='createPortal';payload.type=editingPortal.type;payload.slug=$('ptSlug').value.trim();
+  }
+  const btn=$('ptSaveBtn');btn.disabled=true;btn.textContent='Saving…';
+  try{
+    await portalPost(payload);
+    await loadPortals();
+    closePortalEditor();
+    toast('Portal saved');
+  }catch(e){$('ptError').textContent=e.message;$('ptError').classList.remove('hidden');}
+  finally{btn.disabled=false;btn.textContent='Save portal';}
+}
+async function editPortal(id){
+  const r=await fetch('/api/portal/portals/?portalId='+encodeURIComponent(id),{cache:'no-store'});
+  const d=await r.json().catch(()=>({}));
+  if(!d.portal){toast('Could not open portal');return;}
+  const p=d.portal;
+  editingPortal={type:p.type,id:p.id};
+  $('portalEditorTitle').textContent='Edit '+p.name;
+  $('ptName').value=p.name;$('ptTitle').value=p.customTitle;$('ptDesc').value=p.customDescription;
+  $('ptSlug').value=p.slug;$('ptSlugField').classList.toggle('hidden',p.type==='PERSONAL_LINK');
+  $('ptNote').textContent='';$('ptError').classList.add('hidden');
+  renderItemPicker(p.items||[]);
+  $('portalEditor').classList.remove('hidden');
+  $('portalEditor').scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function openPortalDetail(id){
+  const p=portalData.portals.find(x=>x.id===id);if(!p)return;
+  activePortal=p;
+  $('ptDetailTitle').textContent=p.name+' · '+(METHOD_LABELS[p.type]||p.type);
+  const link=p.slug?location.origin+'/redeem/?slug='+encodeURIComponent(p.slug):'Add recipients to generate personal links';
+  $('ptDetailLinks').innerHTML='<div class="link-box"><code id="ptLinkText">'+esc(link)+'</code></div>';
+  const isPersonal=p.type==='PERSONAL_LINK';
+  $('ptInviteBlock').classList.toggle('hidden',!isPersonal);
+  $('portalDetail').classList.remove('hidden');
+  if(isPersonal){
+    try{
+      const r=await fetch('/api/portal/portals/?portalId='+encodeURIComponent(id),{cache:'no-store'});
+      const d=await r.json().catch(()=>({}));
+      renderInvites(d.invites||[]);
+    }catch(e){renderInvites([]);}
+  }
+  $('portalDetail').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function closePortalDetail(){$('portalDetail').classList.add('hidden');activePortal=null;}
+function renderInvites(list){
+  $('ptInviteRows').innerHTML=list.length?('<table><thead><tr><th>Name</th><th>Email</th><th>Email</th><th>Status</th><th>Link</th></tr></thead><tbody>'+list.map(i=>{
+    const badge=i.redeemed?'<span class="badge active">redeemed</span>':'<span class="badge pending">open</span>';
+    const mail=i.emailStatus==='SENT'?'<span class="badge active">sent</span>':i.emailStatus==='FAILED'?'<span class="badge paused">failed</span>':'<span class="badge archived">pending</span>';
+    return '<tr><td>'+esc(i.name)+'</td><td>'+esc(i.email)+'</td><td>'+mail+'</td><td>'+badge+'</td>'
+      +'<td><button class="link-btn" onclick="copyInviteLink(\''+i.id+'\')">Copy</button></td></tr>';
+  }).join('')+'</tbody></table>'):'<div style="color:var(--muted);font-size:11.6px">No recipients yet.</div>';
+}
+async function addInvites(){
+  if(!activePortal)return;
+  const lines=$('ptInviteText').value.split('\n').map(x=>x.trim()).filter(Boolean);
+  const invites=lines.map(line=>{
+    const i=line.indexOf(',');
+    return i>0?{name:line.slice(0,i).trim(),email:line.slice(i+1).trim()}:{name:line,email:''};
+  });
+  if(!invites.length){toast('Paste at least one recipient');return;}
+  try{
+    const r=await portalPost({action:'importInvites',portalId:activePortal.id,invites});
+    $('ptInviteNote').textContent=r.added+' added'+(r.skipped?' · '+r.skipped+' skipped':'');
+    $('ptInviteText').value='';
+    await loadPortals();
+    const rr=await fetch('/api/portal/portals/?portalId='+encodeURIComponent(activePortal.id),{cache:'no-store'});
+    renderInvites(((await rr.json()).invites)||[]);
+    toast(r.added+' recipient(s) added');
+  }catch(e){$('ptInviteNote').textContent=e.message;}
+}
+async function sendInvites(){
+  if(!activePortal)return;
+  try{
+    const r=await portalPost({action:'sendInvites',portalId:activePortal.id});
+    if(r.reason==='not_configured')toast('Mail service is not configured yet — copy the links instead');
+    else toast(r.sent+' sent'+(r.failed?' · '+r.failed+' failed':''));
+    const rr=await fetch('/api/portal/portals/?portalId='+encodeURIComponent(activePortal.id),{cache:'no-store'});
+    renderInvites(((await rr.json()).invites)||[]);
+  }catch(e){toast(e.message);}
+}
+async function copyInviteLink(inviteId){
+  // The token is only returned by a dedicated call; fetch it here.
+  const r=await portalPost({action:'getInviteTokens',portalId:activePortal.id});
+  const inv=(r.invites||[]).find(x=>x.id===inviteId);
+  if(!inv){toast('Link not found');return;}
+  copyText(location.origin+'/redeem/?token='+encodeURIComponent(inv.token),'Personal link copied');
+}
+function copyPortalLink(){
+  const el=$('ptLinkText');if(!el)return;
+  copyText(el.textContent,'Link copied');
+}
+function copyText(value,message){
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(value).then(()=>toast(message)).catch(()=>toast('Copy failed'));}
+  else{const t=document.createElement('textarea');t.value=value;document.body.appendChild(t);t.select();try{document.execCommand('copy');toast(message);}catch(e){toast('Copy failed');}t.remove();}
+}
+async function togglePortalStatus(){
+  if(!activePortal)return;
+  const next=activePortal.status==='ACTIVE'?'PAUSED':'ACTIVE';
+  try{await portalPost({action:'updatePortal',portalId:activePortal.id,status:next});await loadPortals();closePortalDetail();toast('Portal '+(next==='ACTIVE'?'resumed':'paused'));}
+  catch(e){toast(e.message);}
+}
+async function reviewOrder(orderNo,decision){
+  try{
+    await portalPost({action:decision==='approve'?'approveOrder':'rejectOrder',orderNo});
+    await loadPortals();
+    toast(decision==='approve'?'Order approved':'Order rejected');
+  }catch(e){toast(e.message);}
+}
 let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2600);}
-function renderAll(){renderProjects();renderOrders();renderInventory();renderPortals();}
+function renderAll(){renderProjects();renderOrders();renderInventory();renderPortals();loadPortals();}
 load();
 // Keep admin pushes visible without a manual refresh.
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
