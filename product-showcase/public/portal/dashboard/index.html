@@ -465,7 +465,8 @@ async function load(){
   }catch(e){
     if(location.protocol==='file:'){apply(DEMO);return;}
     console.warn('Dashboard API unavailable:',e.message);
-    document.querySelector('.wrap').innerHTML='<div class="section"><div class="body"><b>Could not load your projects.</b><div class="hint">Please refresh the page or contact Cyndi Global if this continues.</div></div></div>';
+    if(/not signed in|401/i.test(String(e.message||''))){location.replace('/portal/login/?next=/portal/dashboard/');return;}
+    document.querySelector('.wrap').innerHTML='<div class="section"><div class="body"><b>Could not load your projects.</b><div class="hint">'+esc(e.message||'The dashboard service did not respond.')+' <button class="btn line small" onclick="location.reload()">Refresh</button></div></div></div>';
   }
 }
 async function post(body){
@@ -521,7 +522,7 @@ function projectCard(p){
     const cur=step===p.stage && !done, fin=step<p.stage || done;
     const fn=['openShortlist','openMockup','openOrderForm'][i];
     const text=fin?'Completed':cur?({1:'View Shortlist',2:'Review Mockup',3:'Go To Purchase Order'})[step]:'Available to view';
-    const detail=(step===3&&done)?(p.orderCount+' purchase order(s) created'):text;
+    const detail=(step===3&&done)?((p.orderCount||0)+' purchase order(s) created'):text;
     const pillClass=fin?'green':cur?'orange':'';
     const pillText=fin?'Done':cur?'Current':'Open';
     const linkText=(step===3&&done)?'New / view purchase orders →':'View details →';
@@ -932,7 +933,8 @@ async function reviewOrder(orderNo,decision){
   }catch(e){toast(e.message);}
 }
 let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2600);}
-function renderAll(){renderProjects();renderOrders();renderRequisitions();renderInventory();renderPortals();loadPortals();}
+function safeRender(fn,name){try{fn()}catch(e){console.error('Render failed:',name,e)}}
+function renderAll(){safeRender(renderProjects,'projects');safeRender(renderOrders,'purchase-orders');safeRender(renderRequisitions,'requisitions');safeRender(renderInventory,'inventory');safeRender(renderPortals,'portals');loadPortals();}
 load();
 // Keep admin pushes visible without a manual refresh.
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});

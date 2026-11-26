@@ -309,24 +309,52 @@ export async function loadDashboard(db, user) {
 
   // Dashboard stock is the net of purchase orders (in) and requisitions (out).
   // The warehouse table is the source of truth for admin; this is the client-facing view.
-  const stock = new Map();
-  for (const o of orders) {
-    const cancelled = ['cancelled', 'rejected'].includes(String(o.status || '').toLowerCase())
-      || String(o.approvalStatus || '').toUpperCase() === 'REJECTED';
-    if (cancelled) continue;
-    const isReq = o.kind === 'REQUISITION';
-    for (const it of o.items) {
-      const color = it[4] || '';
-      const key = `${it[1]}::${it[2]}::${color}`;
-      const row = stock.get(key) || {
-        sku: it[1], name: it[0], color, size: it[2], onHand: 0,
-        purchaseOrders: 0, requisitions: 0, source: 'Purchase orders − requisitions',
-      };
-      const qty = int(it[3], 0);
-      row.purchaseOrders += isReq ? 0 : qty;
-      row.requisitions += isReq ? qty : 0;
-      row.onHand += isReq ? -qty : qty;
-      stock.set(key, row);
+  // Never let a stock-shaping edge case take down the whole Projects page.
+  let inventory = [];
+  try {
+    const stock = new Map();
+    for (const o of orders) {
+      const cancelled = ['cancelled', 'rejected'].includes(String(o.status || '').toLowerCase())
+        || String(o.approvalStatus || '').toUpperCase() === 'REJECTED';
+      if (cancelled) continue;
+      const isReq = o.kind === 'REQUISITION';
+      for (const it of o.items) {
+        const color = it[4] || '';
+        const key = `${it[1]}::${it[2]}::${color}`;
+        const row = stock.get(key) || {
+          sku: it[1], name: it[0], color, size: it[2], onHand: 0,
+          purchaseOrders: 0, requisitions: 0, source: 'Purchase orders − requisitions',
+        };
+        const qty = int(it[3], 0);
+        row.purchaseOrders += isReq ? 0 : qty;
+        row.requisitions += isReq ? qty : 0;
+        row.onHand += isReq ? -qty : qty;
+        stock.set(key, row);
+      }
+    }
+    inventory = [...stock.values()].sort((a, b) => b.onHand - a.onHand);
+  } catch (e) {
+    console.error('dashboard stock:', e?.message);
+    // Fallback: keep the old positive-only view so Projects / Orders still load.
+    try {
+      const stock = new Map();
+      for (const o of orders) {
+        if (!Array.isArray(o.items)) continue;
+        for (const it of o.items) {
+          if (!Array.isArray(it)) continue;
+          const color = it[4] || '';
+          const key = `${it[1]}::${it[2]}::${color}`;
+          const row = stock.get(key) || {
+            sku: it[1], name: it[0], color, size: it[2], onHand: 0,
+            purchaseOrders: int(it[3], 0), requisitions: 0, source: 'Purchase orders',
+          };
+          row.onHand += int(it[3], 0);
+          stock.set(key, row);
+        }
+      }
+      inventory = [...stock.values()].sort((a, b) => b.onHand - a.onHand);
+    } catch {
+      inventory = [];
     }
   }
 
@@ -335,7 +363,7 @@ export async function loadDashboard(db, user) {
     projects,
     showcase: await showcaseForDashboard(db, id),
     orders,
-    inventory: [...stock.values()].sort((a, b) => b.onHand - a.onHand),
+    inventory,
     showcases: [
       ['Cyndi Design | Global Onboarding', '74', '04/08/2026'],
       ['Brand Refresh | Holiday Event', '73', '04/02/2026'],
