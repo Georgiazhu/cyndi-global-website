@@ -52,6 +52,20 @@ export function channelLabel(channel) {
   return c ? `${c.code} · ${c.label}` : channel;
 }
 
+/**
+ * Purchase orders replenish stock; requisitions draw it down.
+ * Any order created through a redemption portal carries portal_id / source_type,
+ * so it is a requisition even when its channel is M2 (company rewards store).
+ * Legacy project orders have neither field and stay purchase orders.
+ */
+export function orderKind(order) {
+  const portalId = order?.portalId ?? order?.portal_id;
+  if (portalId) return 'REQUISITION';
+  const source = String(order?.sourceType ?? order?.source_type ?? '').toUpperCase();
+  if (['REWARDS_STORE', 'PERSONAL_LINK', 'OPEN_PORTAL'].includes(source)) return 'REQUISITION';
+  return 'PURCHASE_ORDER';
+}
+
 // Who may approve a pending order. Company orders never reach this queue;
 // individual orders may be approved by the client organisation's portal admin
 // or by Cyndi admin. The recipient themselves never gets an approval button.

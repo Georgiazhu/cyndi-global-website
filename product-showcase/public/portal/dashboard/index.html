@@ -193,9 +193,9 @@ tr:last-child td{border-bottom:0}
   <a class="logo" href="/portal/login/" aria-label="Cyndi — back to homepage" onclick="portalExit(event)"><img src="https://www.cyndiglobal.com/cyndi-logo-mark-v5.png" alt="Cyndi" /><img src="https://www.cyndiglobal.com/cyndi-logo-word-v5.png" alt="Cyndiglobal" /></a>
   <nav>
     <button data-view="projects" class="active">Projects</button>
-    <button data-view="orders">Orders</button>
+    <button data-view="purchase-orders">Purchase Orders</button>
     <a href="/showcase/">Showcase</a>
-    <button data-view="portals">Portals</button>
+    <button data-view="requisitions">Requisitions</button>
     <button data-view="inventory">Inventory</button>
   </nav>
   <div class="right"><span class="avatar">AL</span><span class="user-meta">Alex Lin<small>alex.lin@cyndiglobal.com</small><a href="#" onclick="portalExit(event)">Logout</a></span></div>
@@ -205,7 +205,7 @@ tr:last-child td{border-bottom:0}
 
 <!-- PROJECTS -->
 <section class="view active" id="view-projects">
-  <div class="band"><h1>Projects</h1><div class="meta">Every project moves through three steps: <b>Shortlist → Mockup → Order</b>. A project may end without an order, or create several orders.</div></div>
+  <div class="band"><h1>Projects</h1><div class="meta">Every project moves through three steps: <b>Shortlist → Mockup → Purchase Order</b>. A project may end without a purchase order, or create several.</div></div>
   <div class="project-block start-block">
     <div class="section">
       <button type="button" class="section-toggle" id="newProjectToggle" aria-expanded="false" aria-controls="newProjectBody" onclick="toggleNewProject()">
@@ -247,7 +247,7 @@ tr:last-child td{border-bottom:0}
 <section class="view" id="view-mockup">
   <div class="backbar"><button type="button" class="back-btn" onclick="backToProjects()">← Back to Projects</button></div>
   <div class="band"><h1>Review Mockup</h1><div class="meta" id="mkMeta"></div></div>
-  <div class="info">Remove designs you dislike and give a reason, or upload a mockup you want. Confirm to continue to Go To Order.</div>
+  <div class="info">Remove designs you dislike and give a reason, or upload a mockup you want. Confirm to continue to Go To Purchase Order.</div>
   <div class="section"><h2>Designs for review</h2><div class="body tight"><table><thead><tr><th></th><th>Design</th><th>Reason for removal</th><th></th></tr></thead><tbody id="mkRows"></tbody></table></div></div>
   <div class="section"><h2>Upload a mockup you want</h2><div class="body">
     <div class="upload"><input type="file" id="mkFile" accept="image/*" onchange="document.getElementById('mkFileName').textContent=this.files[0]?this.files[0].name:''" /><div id="mkFileName" style="margin-top:6px;color:var(--ink)"></div></div>
@@ -257,67 +257,66 @@ tr:last-child td{border-bottom:0}
     <div class="field"><label>What should Cyndi change?</label><textarea id="mkReturnNote" placeholder="e.g. Make the logo larger on the hoodie, use navy instead of black…"></textarea></div>
     <span class="note">You can also write a note next to any design above. All notes are sent to Cyndi.</span>
   </div></div>
-  <div class="footbar"><button class="btn gray" onclick="sendBackMockup()">Send Back Mockup</button><button class="btn" onclick="confirmMockup()">Confirm Mockup</button><span class="note">Confirm to continue to Go To Order.</span></div>
+  <div class="footbar"><button class="btn gray" onclick="sendBackMockup()">Send Back Mockup</button><button class="btn" onclick="confirmMockup()">Confirm Mockup</button><span class="note">Confirm to continue to Go To Purchase Order.</span></div>
 </section>
 
 <!-- GO TO ORDER -->
 <section class="view" id="view-orderform">
   <div class="backbar"><button type="button" class="back-btn" onclick="backToProjects()">← Back to Projects</button></div>
-  <div class="band"><h1>Go To Order</h1><div class="meta" id="ofMeta"></div></div>
-  <div class="info">Choose color, size and quantity for each line. Use <b>+ Add row</b> to order the same product in another variant. Prices below use your Showcase tiers; Cyndi adds setup and per-piece decoration fees to the final order.</div>
-  <div class="section"><h2>Delivery method</h2><div class="body"><div class="field"><label for="ofChannel">This is a company order (M1 / M2)</label><select id="ofChannel"><option value="M1">M1 · Bulk shipment — delivered to one address</option><option value="M2">M2 · Employee rewards store — company catalog order</option></select></div><div class="hint">Individual orders (M3 / M4) are created by recipients through their personal link or the open portal. They appear in Orders with an approval step and are not created here.</div></div></div>
-  <div class="section"><h2>Order items</h2><div class="body tight"><table><thead><tr><th></th><th>Product</th><th>SKU</th><th>Color</th><th>Size</th><th>Quantity</th><th>Unit</th><th>Line total</th><th></th></tr></thead><tbody id="ofRows"></tbody></table></div></div>
-  <div class="footbar"><button class="btn" onclick="confirmOrder()">Confirm Order</button><span class="note" id="ofNote"></span><span class="note" id="ofTotal" style="font-weight:700;color:var(--ink)"></span></div>
+  <div class="band"><h1>Go To Purchase Order</h1><div class="meta" id="ofMeta"></div></div>
+  <div class="info">Choose color, size and quantity for each line. Use <b>+ Add row</b> to order the same product in another variant. Prices below use your Showcase tiers; Cyndi adds setup and per-piece decoration fees to the final purchase order. Confirming it adds the units to your stock.</div>
+  <div class="section"><h2>Delivery method</h2><div class="body"><div class="field"><label for="ofChannel">This is a company purchase order (M1 / M2)</label><select id="ofChannel"><option value="M1">M1 · Bulk shipment — delivered to one address</option><option value="M2">M2 · Employee rewards store — company catalog order</option></select></div><div class="hint">Individual requests (M3 / M4) are created by recipients through a requisition link or portal. They appear under Requisitions, reduce stock and are not created here.</div></div></div>
+  <div class="section"><h2>Purchase order items</h2><div class="body tight"><table><thead><tr><th></th><th>Product</th><th>SKU</th><th>Color</th><th>Size</th><th>Quantity</th><th>Unit</th><th>Line total</th><th></th></tr></thead><tbody id="ofRows"></tbody></table></div></div>
+  <div class="footbar"><button class="btn" onclick="confirmOrder()">Confirm Purchase Order</button><span class="note" id="ofNote"></span><span class="note" id="ofTotal" style="font-weight:700;color:var(--ink)"></span></div>
 </section>
 
-<!-- ORDERS -->
+<!-- PURCHASE ORDERS -->
 <section class="view" id="view-orders">
   <div class="backbar"><button type="button" class="back-btn" onclick="backToProjects()">← Back to Projects</button></div>
-  <div class="band"><h1>Orders</h1><div class="meta" id="ordersMeta">M1/M2 are company orders. M3/M4 are individual requests that need your approval before Cyndi can dispatch.</div></div>
+  <div class="band"><h1>Purchase Orders</h1><div class="meta" id="ordersMeta">Company purchase orders from projects. Confirming one adds units to your stock.</div></div>
   <div class="info" id="idInfo"></div>
-  <div class="section"><h2>Individual requests awaiting your approval (M3 / M4)</h2><div class="body tight"><div id="ordersPending"></div></div></div>
-  <div class="section"><h2>Order pool</h2><div class="body tight"><table><thead><tr><th>Order ID</th><th>Channel</th><th>Project / Portal</th><th>Items</th><th>Units</th><th>Total</th><th>Created</th><th>Approval</th><th>Status</th><th>Action</th></tr></thead><tbody id="orderRows"></tbody></table></div></div>
+  <div class="section"><h2>Purchase order pool</h2><div class="body tight"><table><thead><tr><th>PO ID</th><th>Channel</th><th>Project</th><th>Items</th><th>Units</th><th>Total</th><th>Created</th><th>Status</th><th>Stock effect</th></tr></thead><tbody id="orderRows"></tbody></table></div></div>
 </section>
 
-<!-- PORTALS -->
+<!-- REQUISITIONS -->
 <section class="view" id="view-portals">
   <div class="backbar"><button type="button" class="back-btn" onclick="backToProjects()">← Back to Projects</button></div>
-  <h1 class="ways-head">Four ways to get swag to your people</h1>
-  <p class="ways-sub">All four draw from the same inventory, so stock always adds up.</p>
+  <h1 class="ways-head">Requisitions</h1>
+  <p class="ways-sub">Requisitions are requests to use stock: submitting one reserves / reduces units, while rejecting or cancelling it releases them back. Purchase Orders replenish stock.</p>
 
   <div class="ways">
     <div class="way">
       <span class="wtag">M1</span>
       <h3>Bulk shipment</h3>
-      <p>One order delivered to your event; your team distributes on site.</p>
-      <div class="way-actions"><button class="btn line small" onclick="startBulkPortal()">Create bulk order</button></div>
+      <p>Purchase order delivered to your event; confirming it adds units to stock.</p>
+      <div class="way-actions"><button class="btn line small" onclick="startBulkPortal()">Create purchase order</button></div>
     </div>
     <div class="way">
       <span class="wtag">M2</span>
       <h3>Employee rewards store</h3>
-      <p>You issue points; employees redeem them for gifts from a company-controlled catalog. Company-origin orders go straight to dispatch.</p>
+      <p>You issue points; employees redeem gifts from a company-controlled catalog. Each redemption is a requisition that draws down stock.</p>
       <div class="way-actions"><button class="btn line small" onclick="startPortal('REWARDS_STORE')">Set up store</button></div>
     </div>
     <div class="way">
       <span class="wtag">M3</span>
       <h3>Personal links</h3>
-      <p>A unique link per person. Each order approved by your admin.</p>
+      <p>A unique requisition link per person. Named recipients are pre-approved; units are reserved when submitted.</p>
       <div class="way-actions"><button class="btn line small" onclick="startPortal('PERSONAL_LINK')">Set up links</button></div>
     </div>
     <div class="way">
       <span class="wtag">M4</span>
       <h3>Open portal</h3>
-      <p>One shared link. Every order approved by your admin before fulfillment.</p>
+      <p>One shared requisition link. Every request waits for your approval before fulfillment and reduces stock until released.</p>
       <div class="way-actions"><button class="btn line small" onclick="startPortal('OPEN_PORTAL')">Set up portal</button></div>
     </div>
   </div>
 
-  <!-- create / edit portal form -->
+  <!-- create / edit requisition portal form -->
   <div class="section hidden" id="portalEditor">
-    <h2 id="portalEditorTitle">Set up a portal</h2>
+    <h2 id="portalEditorTitle">Set up a requisition portal</h2>
     <div class="body">
       <div class="cfg-grid">
-        <div class="field"><label>Portal name (internal)</label><input id="ptName" placeholder="e.g. Holiday 2026 Gifts" /></div>
+        <div class="field"><label>Requisition portal name (internal)</label><input id="ptName" placeholder="e.g. Holiday 2026 Gifts" /></div>
         <div class="field"><label>Page title (shown to recipients)</label><input id="ptTitle" placeholder="e.g. Pick your holiday gift" /></div>
         <div class="field full"><label>Description</label><textarea id="ptDesc" placeholder="A short note for recipients…"></textarea></div>
         <div class="field" id="ptSlugField"><label>Shared link slug</label><input id="ptSlug" placeholder="e.g. holiday-2026" /></div>
@@ -325,7 +324,7 @@ tr:last-child td{border-bottom:0}
       <h3 style="font-size:11.6px;margin:18px 0 6px;color:var(--muted)">Products people can choose from</h3>
       <div id="ptItems"></div>
       <div class="footbar">
-        <button class="btn" id="ptSaveBtn" onclick="savePortal()">Save portal</button>
+        <button class="btn" id="ptSaveBtn" onclick="savePortal()">Save requisition portal</button>
         <button class="btn gray" onclick="closePortalEditor()">Cancel</button>
         <span class="note" id="ptNote"></span>
       </div>
@@ -333,9 +332,9 @@ tr:last-child td{border-bottom:0}
     </div>
   </div>
 
-  <!-- portal detail / invites / approvals -->
+  <!-- requisition portal detail / invites / approvals -->
   <div class="section hidden" id="portalDetail">
-    <h2 id="ptDetailTitle">Portal</h2>
+    <h2 id="ptDetailTitle">Requisition portal</h2>
     <div class="body">
       <div id="ptDetailLinks"></div>
       <div class="footbar" style="margin-top:8px">
@@ -352,16 +351,18 @@ tr:last-child td{border-bottom:0}
     </div>
   </div>
 
-  <div class="section"><h2>Your Portals</h2><div class="body" id="portalRows"></div></div>
+  <div class="section"><h2>Your requisition portals</h2><div class="body" id="portalRows"></div></div>
 
-  <div class="section"><h2>Pending approvals</h2><div class="body tight"><div id="portalPending"></div></div></div>
+  <div class="section"><h2>Requisitions awaiting your approval (M4)</h2><div class="body tight"><div id="reqPending"></div></div></div>
+
+  <div class="section"><h2>Requisition history (M2 – M4)</h2><div class="body tight"><table><thead><tr><th>Req ID</th><th>Channel</th><th>Portal / Ship to</th><th>Items</th><th>Units</th><th>Total</th><th>Created</th><th>Approval</th><th>Status</th><th>Action</th></tr></thead><tbody id="reqRows"></tbody></table></div></div>
 </section>
 
 <!-- INVENTORY -->
 <section class="view" id="view-inventory">
   <div class="backbar"><button type="button" class="back-btn" onclick="backToProjects()">← Back to Projects</button></div>
-  <div class="band"><h1>Inventory</h1><div class="meta">Confirmed orders add stock here. Outbound shipments reduce it.</div></div>
-  <div class="section"><h2>Stock on hand</h2><div class="body tight"><table><thead><tr><th>SKU</th><th>Product</th><th>Color</th><th>Size</th><th>On hand</th><th>Source</th></tr></thead><tbody id="invRows"></tbody></table></div></div>
+  <div class="band"><h1>Inventory</h1><div class="meta">Purchase Orders add stock; Requisitions draw it down. Rejected or cancelled requests release stock back.</div></div>
+  <div class="section"><h2>Stock on hand</h2><div class="body tight"><table><thead><tr><th>SKU</th><th>Product</th><th>Color</th><th>Size</th><th>PO in</th><th>Req out</th><th>On hand</th></tr></thead><tbody id="invRows"></tbody></table></div></div>
 </section>
 
 </div>
@@ -385,17 +386,19 @@ const DEMO={
    shortlist:[['Insulated Bottle','BT-BTL-08',22]],mockups:['Deboss · Bottle']}
  ],
  orders:[
-  {id:'ORD-26-004-01',project:'PRJ-26-004',created:'2026-10-18',status:'confirmed',
+  {id:'ORD-26-004-01',project:'PRJ-26-004',created:'2026-10-18',status:'confirmed',kind:'PURCHASE_ORDER',channel:'M1',
    items:[['Organic Cotton Tee','CW-TEE-04','M',600],['Recycled Tote Bag','BG-TP-12','OS',320]]},
-  {id:'ORD-26-005-01',project:'PRJ-26-005',created:'2026-09-02',status:'confirmed',
-   items:[['Insulated Bottle','BT-BTL-08','OS',280]]}
+  {id:'ORD-26-005-01',project:'PRJ-26-005',created:'2026-09-02',status:'confirmed',kind:'PURCHASE_ORDER',channel:'M1',
+   items:[['Insulated Bottle','BT-BTL-08','OS',280]]},
+  {id:'RDM-26-OP-003',portalId:'demo',created:'2026-11-20',status:'processing',kind:'REQUISITION',channel:'M4',approvalStatus:'PENDING',
+   shipping:{city:'New York',countryCode:'US'},items:[['Embroidered Cap','KP-CAP-02','OS',12]]}
  ],
  inventory:[
-  {sku:'CW-HOOD-01',name:'Heavyweight Hoodie',size:'S–XXL',onHand:1240,source:'Preview'},
-  {sku:'CW-TEE-04',name:'Organic Cotton Tee',size:'S–XXL',onHand:860,source:'Preview'},
-  {sku:'BG-TP-12',name:'Recycled Tote Bag',size:'OS',onHand:320,source:'Preview'},
-  {sku:'BT-BTL-08',name:'Insulated Bottle',size:'OS',onHand:540,source:'Preview'},
-  {sku:'KP-CAP-02',name:'Embroidered Cap',size:'OS',onHand:90,source:'Preview'}
+  {sku:'CW-HOOD-01',name:'Heavyweight Hoodie',size:'S–XXL',purchaseOrders:1240,requisitions:0,onHand:1240},
+  {sku:'CW-TEE-04',name:'Organic Cotton Tee',size:'S–XXL',purchaseOrders:860,requisitions:0,onHand:860},
+  {sku:'BG-TP-12',name:'Recycled Tote Bag',size:'OS',purchaseOrders:320,requisitions:0,onHand:320},
+  {sku:'BT-BTL-08',name:'Insulated Bottle',size:'OS',purchaseOrders:540,requisitions:0,onHand:540},
+  {sku:'KP-CAP-02',name:'Embroidered Cap',size:'OS',purchaseOrders:102,requisitions:12,onHand:90}
  ],
  showcases:[['Cyndi Design | Global Onboarding','74','04/08/2026'],['Brand Refresh | Holiday Event','73','04/02/2026'],['EMEA Client Gifts | Swag','143','03/25/2026']],
  showcase:[
@@ -407,7 +410,7 @@ const DEMO={
  portals:['New Hire Kits (/newhire-welcome)','Employee Swag (/employeeswag)','Client Gifts (/clientgifts)','EMEA Portal (/emea)']
 };
 let projects=[],orders=[],inventory=[],showcases=[],showcase=[],portals=[],currentProject=null,live=false,orderLines=[],lineSeq=0;
-const labels=['Shortlist','Mockup','Order'];
+const labels=['Shortlist','Mockup','Purchase Order'];
 const $ = id=>document.getElementById(id);
 const esc = s => String(s==null?'':s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -449,7 +452,7 @@ function apply(d){
   projects=d.projects||[];orders=d.orders||[];inventory=d.inventory||[];
   showcases=d.showcases||DEMO.showcases;showcase=d.showcase||DEMO.showcase;portals=d.portals||DEMO.portals;
   live=!!d.user;
-  $('ordersMeta').textContent=(live?'Live D1 data · ':'Preview data · ')+'M1/M2 are company orders. M3/M4 are individual requests that need your approval before Cyndi can dispatch.';
+  $('ordersMeta').textContent=(live?'Live D1 data · ':'Preview data · ')+'Company purchase orders from projects. Confirming one adds units to your stock; requisitions are under Requisitions.';
   renderAll();
 }
 async function load(){
@@ -481,6 +484,8 @@ async function act(body,after){
 }
 
 function setView(v){
+  // New labels use purchase-orders / requisitions; keep old deep links working.
+  v=v==='purchase-orders'?'orders':v==='requisitions'?'portals':v;
   document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+v));
   document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===v));
   window.scrollTo(0,0);
@@ -515,11 +520,11 @@ function projectCard(p){
     const step=i+1;
     const cur=step===p.stage && !done, fin=step<p.stage || done;
     const fn=['openShortlist','openMockup','openOrderForm'][i];
-    const text=fin?'Completed':cur?({1:'View Shortlist',2:'Review Mockup',3:'Go To Order'})[step]:'Available to view';
-    const detail=(step===3&&done)?(p.orderCount+' order(s) created'):text;
+    const text=fin?'Completed':cur?({1:'View Shortlist',2:'Review Mockup',3:'Go To Purchase Order'})[step]:'Available to view';
+    const detail=(step===3&&done)?(p.orderCount+' purchase order(s) created'):text;
     const pillClass=fin?'green':cur?'orange':'';
     const pillText=fin?'Done':cur?'Current':'Open';
-    const linkText=(step===3&&done)?'New / view orders →':'View details →';
+    const linkText=(step===3&&done)?'New / view purchase orders →':'View details →';
     return `<button type="button" class="act ${cur?'current':fin?'done':''}" onclick="${fn}('${p.id}')" aria-label="Open ${l} for ${p.id}"><b>0${step} ${l}</b><span>${detail}</span><span class="act-foot"><span class="pill ${pillClass}">${pillText}</span><span class="view-link">${linkText}</span></span></button>`;
   }).join('');
   let latest='';
@@ -675,7 +680,7 @@ function confirmOrder(){
   if(!orderLines.length){toast('Add at least one product to the order');return;}
   const items=orderLines.map(ln=>({productIndex:ln.productIndex,color:ln.color,size:ln.size,qty:Number(ln.qty)||1}));
   const channel=document.getElementById('ofChannel')?.value||'M1';
-  act({action:'confirmOrder',projectNo:p.id,items,channel},()=>setView('orders'));
+  act({action:'confirmOrder',projectNo:p.id,items,channel},()=>setView('purchase-orders'));
 }
 const CHANNEL_NAMES={M1:'M1 · Bulk',M2:'M2 · Rewards',M3:'M3 · Personal',M4:'M4 · Open'};
 function channelPill(ch){const c=['M3','M4'].includes(ch)?'individual':'company';return '<span class="pill '+c+'">'+esc(CHANNEL_NAMES[ch]||ch||'M1')+'</span>';}
@@ -689,45 +694,52 @@ function approvalPill(status){
 function personalRequestCard(o){
   const sh=o.shipping||{},addr=[sh.address1,sh.address2,sh.city,sh.state,sh.postalCode,sh.countryCode].filter(Boolean).join(', ');
   const items=(o.items||[]).map(i=>esc(i.name)+' ('+esc(i.color||'')+' · '+esc(i.size||'')+') × '+i.qty).join('<br>');
-  return '<div class="review-card"><div class="rh"><b>'+esc(o.orderNo)+' · '+esc(o.name||'')+'</b><span>'+channelPill(o.channel||'M4')+' '+esc(o.created)+' · '+money(o.total)+'</span></div>'
+  return '<div class="review-card"><div class="rh"><b>Requisition '+esc(o.orderNo)+' · '+esc(o.name||'')+'</b><span>'+channelPill(o.channel||'M4')+' '+esc(o.created)+' · '+money(o.total)+'</span></div>'
     +'<div class="addr">'+esc(addr||'—')+' · '+esc(o.email||'')+' · '+esc(o.phone||'')+'</div>'
     +'<div class="ritems">'+items+'</div>'
     +'<div class="footbar"><button class="btn small" onclick="reviewOrder(\''+o.orderNo+'\',\'approve\')">Approve for dispatch</button>'
     +'<button class="btn gray small" onclick="reviewOrder(\''+o.orderNo+'\',\'reject\')">Reject & release stock</button></div></div>';
 }
+function isReqOrder(o){return o?.kind==='REQUISITION'||(!o?.kind&&!!o?.portalId);}
 function renderOrders(){
-  const pending=portalData.pending||[];
-  $('ordersPending').innerHTML=pending.map(personalRequestCard).join('')||'<div style="padding:12px;font-size:11.6px;color:var(--muted)">Nothing waiting for approval. M1/M2 company orders never appear here.</div>';
-  $('orderRows').innerHTML=orders.map(o=>{
-    const ch=o.channel||'M1',personal=['M3','M4'].includes(ch);
-    const approval=approvalPill(o.approvalStatus);
-    const statusClass=['pending','cancelled'].includes(o.status)?'orange':'green';
+  const purchase=orders.filter(o=>!isReqOrder(o));
+  $('orderRows').innerHTML=purchase.map(o=>{
     const items=o.items.map(i=>{
       const fees=[i[7]?('setup '+money(i[7])):'',i[8]?('print '+money(i[8])+'/pc'):''].filter(Boolean).join(', ');
       return esc(i[0])+' ('+esc(i[4]?i[4]+' · ':'')+esc(i[2])+' × '+i[3]+') · '+money(i[6]||0)+(fees?' ['+esc(fees)+']':'');
     }).join('<br>');
-    const destination=o.project||o.shipping?esc(o.shipping?.city?('Ship to '+o.shipping.city+', '+o.shipping.countryCode):'Personal portal'):'—';
-    let action='<span style="color:var(--muted)">Cyndi handles fulfilment</span>';
-    if(personal&&String(o.approvalStatus).toUpperCase()==='PENDING'){
-      action='<button class="btn small" onclick="reviewOrder(\''+o.id+'\',\'approve\')">Approve</button> '
-        +'<button class="btn gray small" onclick="reviewOrder(\''+o.id+'\',\'reject\')">Reject</button>';
-    }else if(personal&&String(o.approvalStatus).toUpperCase()==='APPROVED'){
-      action='<span class="pill ok">Approved · queued for dispatch</span>';
-    }else if(personal&&String(o.approvalStatus).toUpperCase()==='NOT_REQUIRED'){
-      action='<span class="pill ok">Pre-approved · ready for dispatch</span>';
-    }else if(personal&&String(o.approvalStatus).toUpperCase()==='REJECTED'){
-      action='<span style="color:var(--muted)">Stock released</span>';
-    }
-    return '<tr><td><b>'+esc(o.id)+'</b></td><td>'+channelPill(ch)+'</td><td>'+destination+'</td><td>'+items+'</td>'
+    const cancelled=String(o.status||'').toLowerCase()==='cancelled';
+    return '<tr><td><b>'+esc(o.id)+'</b></td><td>'+channelPill(o.channel||'M1')+'</td><td>'+esc(o.project||'—')+'</td><td>'+items+'</td>'
       +'<td><b>'+o.items.reduce((a,b)=>a+b[3],0)+'</b></td><td><b>'+money(o.total)+'</b></td><td>'+esc(o.created)+'</td>'
-      +'<td>'+approval+'</td><td><span class="pill '+statusClass+'">'+esc(o.status||'Confirmed')+'</span></td><td>'+action+'</td></tr>';
-  }).join('')||'<tr><td colspan="10" style="color:var(--muted)">No orders yet.</td></tr>';
-  const company=orders.filter(o=>['M1','M2'].includes(o.channel)).length;
-  const individual=orders.length-company;
-  $('idInfo').innerHTML=orders.length+' orders · '+company+' company (M1/M2) · '+individual+' individual (M3/M4) · '+pending.length+' awaiting your approval. Company orders are created from a project; individual orders arrive through a portal link.';
+      +'<td><span class="pill '+(cancelled?'orange':'green')+'">'+esc(o.status||'Confirmed')+'</span></td>'
+      +'<td>'+(cancelled?'<span style="color:var(--muted)">No change</span>':'<span class="pill ok">+ Add to stock</span>')+'</td></tr>';
+  }).join('')||'<tr><td colspan="9" style="color:var(--muted)">No purchase orders yet. Create one from a project.</td></tr>';
+  const units=purchase.filter(o=>String(o.status||'').toLowerCase()!=='cancelled').reduce((a,o)=>a+o.items.reduce((x,i)=>x+i[3],0),0);
+  $('idInfo').innerHTML=purchase.length+' purchase orders · '+units+' units added to stock. Individual requests are under Requisitions, where they reduce stock.';
 }
-function renderInventory(){$('invRows').innerHTML=inventory.map(r=>'<tr><td><b>'+esc(r.sku)+'</b></td><td>'+esc(r.name)+'</td><td>'+esc(r.color||'—')+'</td><td>'+esc(r.size)+'</td><td><b>'+r.onHand.toLocaleString()+'</b></td><td>'+esc(r.source||'Confirmed orders')+'</td></tr>').join('')||'<tr><td colspan="6" style="color:var(--muted)">No stock yet.</td></tr>';}
-/* ---- Redemption portals (M1–M4) ---- */
+function renderRequisitions(){
+  const reqs=orders.filter(isReqOrder);
+  const pending=portalData.pending||[];
+  $('reqPending').innerHTML=pending.map(personalRequestCard).join('')||'<div style="padding:12px;font-size:11.6px;color:var(--muted)">Nothing waiting for approval. Pre-approved M2/M3 requests still appear in the history below.</div>';
+  $('reqRows').innerHTML=reqs.map(o=>{
+    const approval=approvalPill(o.approvalStatus);
+    const statusClass=['pending','cancelled'].includes(o.status)?'orange':'green';
+    const items=o.items.map(i=>esc(i[0])+' ('+esc(i[4]?i[4]+' · ':'')+esc(i[2])+' × '+i[3]+')').join('<br>');
+    const destination=o.shipping?.city?('Ship to '+esc(o.shipping.city)+', '+esc(o.shipping.countryCode)):'Portal requisition';
+    const a=String(o.approvalStatus||'').toUpperCase();
+    let action='<span style="color:var(--muted)">Cyndi handles fulfilment</span>';
+    if(a==='PENDING')action='<button class="btn small" onclick="reviewOrder(\''+o.id+'\',\'approve\')">Approve</button> '
+      +'<button class="btn gray small" onclick="reviewOrder(\''+o.id+'\',\'reject\')">Reject & release stock</button>';
+    else if(a==='APPROVED')action='<span class="pill ok">Approved · queued for dispatch</span>';
+    else if(a==='NOT_REQUIRED')action='<span class="pill ok">Pre-approved · stock reserved</span>';
+    else if(a==='REJECTED')action='<span style="color:var(--muted)">Stock released</span>';
+    return '<tr><td><b>'+esc(o.id)+'</b></td><td>'+channelPill(o.channel||'M4')+'</td><td>'+destination+'</td><td>'+items+'</td>'
+      +'<td><b>'+o.items.reduce((a,b)=>a+b[3],0)+'</b></td><td><b>'+money(o.total)+'</b></td><td>'+esc(o.created)+'</td>'
+      +'<td>'+approval+'</td><td><span class="pill '+statusClass+'">'+esc(o.status||'Received')+'</span></td><td>'+action+'</td></tr>';
+  }).join('')||'<tr><td colspan="10" style="color:var(--muted)">No requisitions yet.</td></tr>';
+}
+function renderInventory(){$('invRows').innerHTML=inventory.map(r=>'<tr><td><b>'+esc(r.sku)+'</b></td><td>'+esc(r.name)+'</td><td>'+esc(r.color||'—')+'</td><td>'+esc(r.size)+'</td><td>'+(r.purchaseOrders||0).toLocaleString()+'</td><td>'+(r.requisitions||0).toLocaleString()+'</td><td><b>'+r.onHand.toLocaleString()+'</b></td></tr>').join('')||'<tr><td colspan="7" style="color:var(--muted)">No stock yet.</td></tr>';}
+/* ---- Requisition portals (M1–M4) ---- */
 const METHOD_LABELS={BULK_SHIPMENT:'Bulk shipment',REWARDS_STORE:'Employee rewards store',PERSONAL_LINK:'Personal links',OPEN_PORTAL:'Open portal'};
 let portalData={portals:[],products:[],pending:[],countries:[]},editingPortal=null,activePortal=null;
 
@@ -744,7 +756,7 @@ async function loadPortals(){
     }
   }catch(e){console.warn('Portals load failed:',e.message);}
   renderPortals();
-  renderOrders();
+  renderRequisitions();
 }
 async function portalPost(body){
   const r=await fetch('/api/portal/portals/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -768,7 +780,7 @@ function renderPortals(){
   $('portalPending').innerHTML=(portalData.pending||[]).map(personalRequestCard).join('')||'<div style="padding:12px;font-size:11.6px;color:var(--muted)">Nothing waiting for approval.</div>';
 }
 
-function startBulkPortal(){toast('Bulk shipments use a normal order — go to a project and use Go To Order.');setView('projects');}
+function startBulkPortal(){toast('Bulk shipments use a purchase order — go to a project and use Go To Purchase Order.');setView('projects');}
 function startPortal(type){
   editingPortal={type};activePortal=null;
   $('portalEditorTitle').textContent='Set up a '+(METHOD_LABELS[type]||type).toLowerCase();
@@ -920,12 +932,12 @@ async function reviewOrder(orderNo,decision){
   }catch(e){toast(e.message);}
 }
 let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2600);}
-function renderAll(){renderProjects();renderOrders();renderInventory();renderPortals();loadPortals();}
+function renderAll(){renderProjects();renderOrders();renderRequisitions();renderInventory();renderPortals();loadPortals();}
 load();
 // Keep admin pushes visible without a manual refresh.
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 setInterval(()=>{if(!document.hidden)load()},30000);
-// Deep links from the showcase header: /portal/dashboard/?view=orders|portals|inventory.
+// Deep links: ?view=purchase-orders|requisitions|inventory (old orders/portals still work).
 (function(){const v=new URLSearchParams(location.search).get('view');
   if(v==='showcase'){location.replace('/showcase/');return;}
   if(v && document.getElementById('view-'+v))setView(v);})();

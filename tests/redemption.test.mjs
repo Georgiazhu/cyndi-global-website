@@ -326,3 +326,33 @@ test('individual M3/M4 orders carry channel, owner and different approval rights
   assert.equal(finalRow.reviewed_by, 'client');
   assert.equal(finalRow.review_note, 'looks good');
 });
+
+test('dashboard inventory nets purchase orders in and requisitions out', async () => {
+  const { db, customer } = await fixture();
+  const created = await mutateDashboard(db, customer, { action: 'createProject', title: 'Stock flow' });
+  const projectNo = created.projectNo;
+  await mutateDashboard(db, customer, { action: 'addShortlist', projectNo, productIds: ['p1'] });
+  await adminPublishMockups(db, projectNo, [{ label: 'mockup' }], 'admin', true);
+  await mutateDashboard(db, customer, {
+    action: 'confirmOrder', projectNo, channel: 'M1',
+    items: [{ productIndex: 0, qty: 2, color: 'Black', size: 'S' }],
+  });
+
+  const portal = await createPortal(db, customer, { type: 'OPEN_PORTAL', name: 'Req', slug: 'stock-req' }, 'admin');
+  await setPortalItems(db, customer, portal.portalId, [{ productId: 'p1', maxQty: 1 }]);
+  await submitRedemption(db, {}, {
+    slug: portal.slug, contact: { name: 'Jane', email: 'jane@example.com' }, shipping: addr(),
+    items: [{ productId: 'p1', colorId: 'blk', size: 'S', qty: 1 }],
+  });
+
+  const dash = await loadDashboard(db, customer);
+  const po = dash.orders.filter((o) => o.kind === 'PURCHASE_ORDER');
+  const req = dash.orders.filter((o) => o.kind === 'REQUISITION');
+  assert.equal(po.length, 1);
+  assert.equal(req.length, 1);
+  const row = dash.inventory.find((r) => r.sku === 'HD-01' && r.size === 'S');
+  assert.ok(row, 'inventory row exists');
+  assert.equal(row.purchaseOrders, 2, 'purchase order adds stock');
+  assert.equal(row.requisitions, 1, 'requisition draws stock');
+  assert.equal(row.onHand, 1, 'on hand is the net');
+});

@@ -12,7 +12,7 @@
 import { logActivity, listActivity } from './project-activity.js';
 import { getCustomerPool, filterByPool } from './client-showcase.js';
 import {
-  CHANNELS, ensureOrderChannelSchema, normalizeChannel, channelLabel,
+  CHANNELS, ensureOrderChannelSchema, normalizeChannel, channelLabel, orderKind,
 } from './order-channels.js';
 
 // Per-binding cache: previews and tests use several D1 bindings in one isolate.
@@ -98,7 +98,7 @@ function shapeOrderItems(raw) {
       String(it?.sku || it?.stockSku || it?.id || 'ITEM'),
       String(it?.selectedSize || it?.size || 'OS'),
       int(it?.quantity, 1),
-      String(it?.color || ''),
+      String(it?.colorName || it?.color || ''),
     ];
     if (Array.isArray(it)) {
       return [
@@ -266,6 +266,8 @@ export async function loadDashboard(db, user) {
       total: Number(r.total || 0),
       channel,
       channelLabel: channelLabel(channel),
+      kind: orderKind(r),
+      portalId: r.portal_id || '',
       origin: r.origin_type || meta.origin,
       sourceType: r.source_type || meta.sourceType,
       approvalStatus: r.approval_status || 'NOT_REQUIRED',
@@ -305,16 +307,25 @@ export async function loadDashboard(db, user) {
     latest: (byProject.get(r.project_no) || [])[0] || null,
   }));
 
-  // Stock is derived from confirmed orders in D1 — no separate fake inventory table.
+  // Dashboard stock is the net of purchase orders (in) and requisitions (out).
+  // The warehouse table is the source of truth for admin; this is the client-facing view.
   const stock = new Map();
   for (const o of orders) {
+    const cancelled = ['cancelled', 'rejected'].includes(String(o.status || '').toLowerCase())
+      || String(o.approvalStatus || '').toUpperCase() === 'REJECTED';
+    if (cancelled) continue;
+    const isReq = o.kind === 'REQUISITION';
     for (const it of o.items) {
       const color = it[4] || '';
       const key = `${it[1]}::${it[2]}::${color}`;
       const row = stock.get(key) || {
-        sku: it[1], name: it[0], color, size: it[2], onHand: 0, source: 'Confirmed orders',
+        sku: it[1], name: it[0], color, size: it[2], onHand: 0,
+        purchaseOrders: 0, requisitions: 0, source: 'Purchase orders − requisitions',
       };
-      row.onHand += int(it[3], 0);
+      const qty = int(it[3], 0);
+      row.purchaseOrders += isReq ? 0 : qty;
+      row.requisitions += isReq ? qty : 0;
+      row.onHand += isReq ? -qty : qty;
       stock.set(key, row);
     }
   }
