@@ -6,7 +6,7 @@
 //     setStatus     { portalId, status }
 import { getAdminSecret, isAuthenticated, json, readSession } from '../../_lib/auth.js';
 import {
-  ensureRedemptionSchema, listPendingApprovals, reviewRedemptionOrder,
+  ensureRedemptionSchema, listPendingApprovals, listRedemptionOrders, reviewRedemptionOrder,
 } from '../../_lib/redemption.js';
 
 const NO_STORE = { 'Cache-Control': 'no-store', Vary: 'Cookie' };
@@ -39,7 +39,11 @@ export async function onRequestGet({ request, env }) {
       inviteCount: Number(r.invite_count) || 0, redeemedCount: Number(r.redeemed_count) || 0,
       pendingCount: Number(r.pending_count) || 0,
     }));
-    return reply({ portals, pending: await listPendingApprovals(env.DB) });
+    const [pending, orders] = await Promise.all([
+      listPendingApprovals(env.DB),
+      listRedemptionOrders(env.DB),
+    ]);
+    return reply({ portals, pending, orders });
   } catch (e) {
     console.error('admin redemptions GET:', e?.message);
     return reply({ error: 'Could not load redemption portals' }, 500);
@@ -57,10 +61,10 @@ export async function onRequestPost({ request, env }) {
     let result;
     switch (String(body?.action || '')) {
       case 'approveOrder':
-        result = await reviewRedemptionOrder(env.DB, body.orderNo, 'APPROVE', actor, body.note || '');
+        result = await reviewRedemptionOrder(env.DB, body.orderNo, 'APPROVE', actor, body.note || '', { role: 'admin' });
         break;
       case 'rejectOrder':
-        result = await reviewRedemptionOrder(env.DB, body.orderNo, 'REJECT', actor, body.note || '');
+        result = await reviewRedemptionOrder(env.DB, body.orderNo, 'REJECT', actor, body.note || '', { role: 'admin' });
         break;
       case 'setStatus': {
         const status = String(body.status || '').toUpperCase();

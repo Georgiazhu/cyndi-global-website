@@ -35,6 +35,11 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 code{font-size:12px}
 .pill{display:inline-block;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700;background:#eef1f4;color:#45566a;white-space:nowrap}
 .pill.type{background:#eef6fb;color:var(--blue)}
+.pill.ch-company{background:#e6efff;color:#1d4f9a}.pill.ch-individual{background:#efe8ff;color:#5b3aa6}
+.pill.ap-pending{background:#fff4e0;color:#8a5a00}.pill.ap-approved{background:#e8f8ef;color:#217753}
+.pill.ap-rejected{background:#f1e3e3;color:#9a3d22}
+.personal-row{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+.personal-row .addr{font-size:12px;background:#f7fafc;border-radius:7px;padding:8px 10px;margin:6px 0;word-break:break-word}
 .st-pending{background:#fff4e0;color:#8a5a00}.st-processing{background:#e6efff;color:#1d4f9a}
 .st-shipped{background:#efe8ff;color:#5b3aa6}.st-in_transit{background:#e3f4f7;color:#17707f}
 .st-delivered{background:#e8f8ef;color:#217753}.st-cancelled{background:#f1e3e3;color:#9a3d22}
@@ -111,6 +116,10 @@ textarea:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
           <button type="button" data-type="all" aria-pressed="true">All</button>
           <button type="button" data-type="SW" aria-pressed="false">Shop (SW)</button>
           <button type="button" data-type="SC" aria-pressed="false">Showcase</button>
+          <button type="button" data-type="M1" aria-pressed="false">M1 Bulk</button>
+          <button type="button" data-type="M2" aria-pressed="false">M2 Rewards</button>
+          <button type="button" data-type="M3" aria-pressed="false">M3 Personal</button>
+          <button type="button" data-type="M4" aria-pressed="false">M4 Open</button>
         </div>
         <label for="statusFilter" class="hidden">Status</label>
         <select id="statusFilter" aria-label="Filter by status"><option value="">All statuses</option></select>
@@ -119,6 +128,10 @@ textarea:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
         <span id="count" style="color:var(--muted);font-size:12px" aria-live="polite"></span>
       </div>
       <div id="msg" class="msg hidden" role="status"></div>
+      <section id="personalPanel" class="card" style="box-shadow:none;border:1px solid var(--line);margin-bottom:16px">
+        <div class="row" style="justify-content:space-between"><h2 style="margin:0;font-size:15px">Personal requests · M3 / M4</h2><span class="sub">Client org approves · Cyndi dispatches</span></div>
+        <div id="personalRows" style="margin-top:10px"></div>
+      </section>
       <table>
         <thead><tr>
           <th scope="col">Order no</th><th scope="col">Type</th><th scope="col" class="hide-sm">Created</th>
@@ -184,6 +197,7 @@ async function api(url,opts){
 
 function label(s){return LABELS[s]||String(s||'—')}
 function badge(s){return h('span',{class:'pill '+(KNOWN.includes(s)?'st-'+s:''),text:label(s)})}
+function approvalBadge(s){const k=String(s||'').toLowerCase();return h('span',{class:'pill ap-'+k,style:'margin-left:6px',text:'Approval '+(k||'—')})}
 function sym(c){if(!c)return '';if(c==='USD'||c==='$')return '$';if(c==='CNY'||c==='¥')return '¥';return String(c)+' '}
 function money(v,c){const n=Number(v);return Number.isFinite(n)?sym(c)+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}
 function fmtDate(v){if(!v)return '—';const d=new Date(v);return isNaN(d)?String(v):d.toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'})}
@@ -231,12 +245,13 @@ function renderRows(){
     const who=[o.customerName,o.company].filter(Boolean).join(' · ');
     const tr=h('tr',{tabindex:'0','data-no':o.orderNo,class:o.orderNo===state.openNo?'sel':null,'aria-label':'Open order '+o.orderNo},
       h('td',null,h('code',{text:o.orderNo})),
-      h('td',null,h('span',{class:'pill type',text:o.type||'—'})),
+      h('td',null,h('span',{class:'pill type',text:o.type||'—'}),
+        o.channel?h('span',{class:'pill '+(o.origin==='INDIVIDUAL'?'ch-individual':'ch-company'),style:'margin-left:6px',text:o.channel}):null),
       h('td',{class:'hide-sm'},fmtDate(o.createdAt)),
       h('td',null,h('div',{text:who||'—'}),h('div',{class:'sub',text:o.customerEmail||''})),
       h('td',{class:'num',text:String(o.itemCount??'—')}),
       h('td',{class:'num',text:money(o.total,o.currency)}),
-      h('td',null,badge(o.status)));
+      h('td',null,badge(o.status),o.approvalStatus&&o.approvalStatus!=='NOT_REQUIRED'?approvalBadge(o.approvalStatus):null));
     tr.addEventListener('click',()=>openOrder(o.orderNo,tr));
     tr.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openOrder(o.orderNo,tr)}});
     tb.appendChild(tr);
@@ -249,6 +264,73 @@ function renderPager(pages){
   el.appendChild(h('button',{type:'button',class:'secondary small',disabled:state.page<=1?'':null,onclick:()=>{state.page--;load()}},'‹ Prev'));
   el.appendChild(h('span',{class:'pageinfo',text:'Page '+state.page+' / '+pages}));
   el.appendChild(h('button',{type:'button',class:'secondary small',disabled:state.page>=pages?'':null,onclick:()=>{state.page++;load()}},'Next ›'));
+}
+
+// ---------- M3/M4 personal requests ----------
+const PERSONAL_API='../api/admin/redemptions';
+let personalOrders=[];
+async function loadPersonal(){
+  try{
+    const b=await api(PERSONAL_API);
+    personalOrders=b.orders||[];
+    renderPersonal();
+  }catch(e){if(!(e instanceof AuthError))show($('msg'),e.message,true)}
+}
+function renderPersonal(){
+  const box=$('personalRows');clear(box);
+  if(!personalOrders.length){box.appendChild(h('div',{class:'sub',text:'No individual orders yet. M3/M4 requests arrive from portals; M1/M2 company orders do not appear here.'}));return;}
+  const rank={PENDING:0,APPROVED:1,REJECTED:2};
+  const list=[...personalOrders].sort((a,b)=>(rank[a.approvalStatus]??9)-(rank[b.approvalStatus]??9));
+  for(const o of list){
+    const sh=o.shipping||{};
+    const addr=[sh.address1,sh.address2,sh.city,sh.state,sh.postalCode,sh.countryCode].filter(Boolean).join(', ');
+    const card=h('div',{class:'personal-row'},
+      h('div',{class:'row',style:'justify-content:space-between'},
+        h('div',null,
+          h('code',{text:o.orderNo}),h('span',{class:'pill '+(o.channel==='M4'?'ch-individual':'ch-company'),style:'margin-left:6px',text:o.channel||'M3'}),
+          h('span',{class:'sub',style:'margin-left:8px',text:(o.channel==='M4'?'Open portal':'Personal link')+' · '+o.created+' · '+fmtDate(o.created)+' · '+money(o.total)})),
+        approvalBadge(o.approvalStatus)),
+      h('div',{class:'addr',text:addr+(sh.phone?' · '+sh.phone:'')}),
+      h('div',{class:'sub',text:(o.items||[]).map(i=>(i.name||'Product')+' ('+(i.color||'')+' · '+(i.size||'')+') × '+i.qty).join(' · ')||'—'}),
+      h('div',{class:'row',style:'margin-top:8px'}));
+    const actions=card.lastChild;
+    if(o.approvalStatus==='PENDING'){
+      actions.appendChild(h('button',{type:'button',class:'small',onclick:()=>personalReview(o.orderNo,'approve')},'Approve for dispatch'));
+      actions.appendChild(h('button',{type:'button',class:'secondary small',onclick:()=>personalReview(o.orderNo,'reject')},'Reject & release stock'));
+    }else if(o.approvalStatus==='APPROVED'||o.approvalStatus==='NOT_REQUIRED'){
+      if(o.status==='processing')actions.appendChild(h('button',{type:'button',class:'small',onclick:()=>dispatchPersonal(o,'shipped')},'Mark dispatched'));
+      if(['shipped','in_transit'].includes(o.status))actions.appendChild(h('button',{type:'button',class:'small',onclick:()=>dispatchPersonal(o,'delivered')},'Mark delivered'));
+      if(!['delivered','cancelled'].includes(o.status))actions.appendChild(h('button',{type:'button',class:'secondary small',onclick:()=>dispatchPersonal(o,'cancelled')},'Cancel & release stock'));
+      actions.appendChild(h('span',{class:'sub',text:o.approvalStatus==='NOT_REQUIRED'?'Pre-approved personal link':'Client org approved'+(o.reviewedBy?' by '+o.reviewedBy:'')}));
+    }else{
+      actions.appendChild(h('span',{class:'sub',text:'Rejected · stock released'}));
+    }
+    actions.appendChild(h('button',{type:'button',class:'secondary small',onclick:()=>openOrder(o.orderNo,card)},'Open order'));
+    box.appendChild(card);
+  }
+}
+async function refreshPersonal(){
+  await loadPersonal();
+  await load();
+  if(state.openNo)openOrder(state.openNo,state.lastFocus);
+}
+async function personalReview(no,decision){
+  if(!confirm((decision==='approve'?'Approve ':'Reject ')+no+'?'))return;
+  try{
+    const b=await api(PERSONAL_API,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:decision==='approve'?'approveOrder':'rejectOrder',orderNo:no})});
+    show($('msg'),no+' '+(b.approvalStatus||'').toLowerCase(),false);
+    await refreshPersonal();
+  }catch(e){if(!(e instanceof AuthError))show($('msg'),e.message,true)}
+}
+async function dispatchPersonal(o,to){
+  if(!confirm('Change '+o.orderNo+' to '+label(to)+'?'))return;
+  try{
+    await api(API,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({orderNo:o.orderNo,status:to,expectedStatus:o.status})});
+    show($('msg'),o.orderNo+' is now '+label(to),false);
+    await refreshPersonal();
+  }catch(e){if(!(e instanceof AuthError))show($('msg'),e.message,true)}
 }
 
 // ---------- Detail ----------
@@ -279,7 +361,9 @@ function emailNode(email){
 
 function renderDetail(o){
   $('dTitle').textContent=o.orderNo;
-  $('dSub').textContent=(o.type==='SC'?'Showcase order':o.type==='SW'?'Shop order':'Order')+' · created '+fmtDate(o.createdAt)+' · updated '+fmtDate(o.statusUpdatedAt);
+  $('dSub').textContent=(o.channel?o.channel+' · ':'')+(o.channelLabel||(o.type==='SC'?'Showcase order':o.type==='SW'?'Shop order':'Order'))
+    +' · '+(o.origin==='INDIVIDUAL'?'Individual request':'Company order')
+    +' · created '+fmtDate(o.createdAt)+' · updated '+fmtDate(o.statusUpdatedAt);
   const root=$('dBody');clear(root);
   const c=o.contact||{};
 
@@ -313,7 +397,20 @@ function renderDetail(o){
 
   // Status
   const box=h('div',{class:'status-box'});
-  box.appendChild(h('div',{class:'row'},h('span',{class:'sub',text:'Current status'}),badge(o.status)));
+  box.appendChild(h('div',{class:'row'},h('span',{class:'sub',text:'Current status'}),badge(o.status),
+    o.approvalStatus&&o.approvalStatus!=='NOT_REQUIRED'?approvalBadge(o.approvalStatus):null,
+    o.fulfilmentStatus?h('span',{class:'pill',text:'Fulfilment '+String(o.fulfilmentStatus).replaceAll('_',' ')}):null));
+  if(o.channel&&['M3','M4'].includes(o.channel)){
+    box.appendChild(h('p',{class:'sub',style:'margin:10px 0 0',
+      text:o.approvalStatus==='PENDING'
+        ? 'Individual order: client organisation approval is required before dispatch. Use Approve / Reject in the Personal requests panel.'
+        : o.approvalStatus==='REJECTED'
+          ? 'Rejected — stock was released. Use the Personal requests panel to review details.'
+          : 'Approved — Cyndi may now dispatch. Status options below are limited to fulfilment actions.'}));
+    if(o.shipping){
+      box.appendChild(h('div',{class:'addr',text:[o.shipping.name,o.shipping.address1,o.shipping.address2,o.shipping.city,o.shipping.state,o.shipping.postalCode,o.shipping.countryCode].filter(Boolean).join(', ')}));
+    }
+  }
   const next=Array.isArray(o.allowedNext)?o.allowedNext:[];
   if(!next.length){
     box.appendChild(h('p',{class:'sub',style:'margin:10px 0 0',text:'This is a final status and cannot be changed.'}));
@@ -321,7 +418,12 @@ function renderDetail(o){
     const sel=h('select',{id:'nextStatus','aria-label':'New status'},h('option',{value:'',text:'Change status to…'}),
       next.map(s=>h('option',{value:s.value,text:s.label||label(s.value)})));
     const btn=h('button',{type:'button',disabled:''},'Update status');
-    sel.addEventListener('change',()=>{btn.disabled=!sel.value});
+    sel.addEventListener('change',()=>{
+      btn.disabled=!sel.value;
+      btn.textContent=sel.value==='shipped'?'Mark dispatched'
+        :sel.value==='delivered'?'Mark delivered'
+          :sel.value==='cancelled'?'Cancel & release stock':'Update status';
+    });
     btn.addEventListener('click',()=>changeStatus(o,sel.value,btn));
     box.appendChild(h('div',{class:'row',style:'margin-top:10px'},h('label',{for:'nextStatus',class:'hidden',text:'New status'}),sel,btn));
   }
@@ -752,14 +854,14 @@ document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',
 $('statusFilter').addEventListener('change',()=>{state.status=$('statusFilter').value;state.page=1;load()});
 let searchTimer=null;
 $('search').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{state.q=$('search').value.trim().slice(0,100);state.page=1;load()},300)});
-$('reload').addEventListener('click',()=>{hide($('msg'));load();if(state.openNo)openOrder(state.openNo,state.lastFocus)});
+$('reload').addEventListener('click',()=>{hide($('msg'));load();loadPersonal();if(state.openNo)openOrder(state.openNo,state.lastFocus)});
 $('dClose').addEventListener('click',closeDrawer);
 $('overlay').addEventListener('click',closeDrawer);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
 
 
 // Shared sign-in (admin-auth.js): valid session -> straight to the list; a 401 shows the shared login overlay.
-AdminAuth.require({onReady(){showEditor();load();}});
+AdminAuth.require({onReady(){showEditor();load();loadPersonal();}});
 </script>
 </body>
 </html>

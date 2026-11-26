@@ -283,13 +283,14 @@ function renderTab(p){
         '<td><select data-dec="'+o.id+'-'+i+'">'+['','print','embroidery'].map(x=>'<option'+(String(it[9]||'')===x?' selected':'')+'>'+x+'</option>').join('')+'</select></td>'+
         '<td><input type="number" min="0" step="0.01" value="'+Number(it[7]||0)+'" data-setup="'+o.id+'-'+i+'"></td>'+
         '<td><input type="number" min="0" step="0.01" value="'+Number(it[8]||0)+'" data-print="'+o.id+'-'+i+'"></td><td><b>'+money(it[6])+'</b></td></tr>').join('');
-      return '<div style="border:1px solid var(--line);border-radius:9px;padding:10px;margin-top:10px"><h3>'+esc(o.id)+' · '+esc(o.created)+' · current total '+money(o.total)+'</h3>'+
+      return '<div style="border:1px solid var(--line);border-radius:9px;padding:10px;margin-top:10px"><h3>'+esc(o.id)+' · <span class="pill">'+esc(o.channelLabel||o.channel||'M1')+'</span> · '+esc(o.created)+' · current total '+money(o.total)+'</h3>'+
         '<table><thead><tr><th>Product</th><th>SKU</th><th>Variant</th><th>Qty</th><th>Unit</th><th>Decoration</th><th>Setup fee</th><th>Print fee / pc</th><th>Line</th></tr></thead><tbody>'+lines+'</tbody></table>'+
         '<div class="row" style="margin-top:8px"><button class="line sm" data-price-order="'+esc(o.id)+'">Save fees & update total</button><span class="hint">Clients see the updated total in their Orders page.</span></div></div>';
     }).join('')||'<div class="hint">No orders for this project yet.</div>';
     box.innerHTML='<h3>Create order</h3><div class="hint">Base unit prices come from this customer\'s Showcase tiers. Add setup and per-piece decoration fees below; clients see base prices while ordering and the final total here.</div>'+
       '<table><thead><tr><th>Product</th><th>SKU</th><th>Color</th><th>Size</th><th>Qty</th><th>Decoration</th><th>Setup fee</th><th>Print fee / pc</th><th>Line</th><th></th></tr></thead><tbody id="orderLineBody"></tbody></table>'+
-      '<div class="row" style="margin-top:10px"><span id="adminOrderTotal" style="font-weight:700"></span><button id="orderBtn" class="primary">Create order & complete project</button></div>'+
+      '<div class="row" style="margin-top:10px"><label for="adminOrderChannel" style="margin:0;width:auto;font-size:12px">Delivery method</label><select id="adminOrderChannel" style="width:auto;min-width:260px"><option value="M1">M1 · Bulk shipment</option><option value="M2">M2 · Employee rewards store</option></select><span id="adminOrderTotal" style="font-weight:700"></span><button id="orderBtn" class="primary">Create order & complete project</button></div>'+
+      '<div class="hint" style="margin-top:6px">M1/M2 are company orders and need no recipient approval. M3/M4 arrive from personal/open portals and are handled in Orders → Personal requests.</div>'+
       '<h3>Existing orders · final pricing</h3>'+ordersHtml+
       '<h3>Latest actions</h3><ul class="feed">'+feedHtml(p)+'</ul>';
     adminRenderOrderLines(p);
@@ -339,7 +340,8 @@ async function addMockupPdf(p){
 async function saveMockups(p,confirm){try{await post({action:'publishMockups',projectNo:p.id,mockups:p.mockups,confirm});await refresh();msg('Mockups saved',true)}catch(e){msg(e.message,false)}}
 async function createOrder(p){
   const items=orderLines.map(ln=>({productIndex:ln.productIndex,color:ln.color,size:ln.size,qty:Number(ln.qty)||1,decoration:ln.decoration,setupFee:Number(ln.setupFee)||0,printFee:Number(ln.printFee)||0}));
-  try{const r=await post({action:'createOrder',projectNo:p.id,items});await refresh();msg('Order '+r.orderNo+' created · '+money(r.total||0),true)}catch(e){msg(e.message,false)}
+  const channel=document.getElementById('adminOrderChannel')?.value||'M1';
+  try{const r=await post({action:'createOrder',projectNo:p.id,items,channel});await refresh();msg(channel+' order '+r.orderNo+' created · '+money(r.total||0),true)}catch(e){msg(e.message,false)}
 }
 async function saveOrderPricing(p,orderNo){
   const lines=[];

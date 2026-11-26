@@ -6,9 +6,10 @@ import { DatabaseSync } from 'node:sqlite';
 import {
   ensureRedemptionSchema, createPortal, listPortals, getPortal, setPortalItems,
   importInvites, getInviteTokens, listInvites, getPublicRedemption, submitRedemption,
-  listPendingApprovals, reviewRedemptionOrder, shippingCountries,
+  listPendingApprovals, listRedemptionOrders, reviewRedemptionOrder, shippingCountries,
 } from '../functions/_lib/redemption.js';
-import { ensureDashboardSchema } from '../functions/_lib/dashboard.js';
+import { ensureDashboardSchema, mutateDashboard, adminPublishMockups, loadDashboard } from '../functions/_lib/dashboard.js';
+import { allowedNextStatuses } from '../functions/_lib/order-channels.js';
 
 // D1-compatible wrapper over node:sqlite with batch() support.
 function d1(sqlite) {
@@ -237,3 +238,91 @@ async function updateStatus(db, customer, portalId, status) {
   const { updatePortal } = await import('../functions/_lib/redemption.js');
   await updatePortal(db, customer, portalId, { status }, 'admin');
 }
+
+test('company orders are M1/M2: pre-approved, no recipient approval', async () => {
+  const { db, customer } = await fixture();
+  const created = await mutateDashboard(db, customer, { action: 'createProject', title: 'Channels' });
+  const projectNo = created.projectNo;
+  await mutateDashboard(db, customer, { action: 'addShortlist', projectNo, productIds: ['p1'] });
+  await adminPublishMockups(db, projectNo, [{ label: 'mockup' }], 'admin', true);
+  const first = await mutateDashboard(db, customer, {
+    action: 'confirmOrder', projectNo, channel: 'M1',
+    items: [{ productIndex: 0, qty: 2, color: 'Black', size: 'S' }],
+  });
+  const second = await mutateDashboard(db, customer, {
+    action: 'confirmOrder', projectNo, channel: 'M2',
+    items: [{ productIndex: 0, qty: 1, color: 'Black', size: 'M' }],
+  });
+  const rows = await db.prepare('SELECT order_no, order_channel, origin_type, source_type, approval_status FROM orders ORDER BY order_no').all();
+  const byNo = new Map(rows.results.map((r) => [r.order_no, r]));
+  assert.equal(byNo.get(first.orderNo).order_channel, 'M1');
+  assert.equal(byNo.get(first.orderNo).source_type, 'INTERNAL_TEAM');
+  assert.equal(byNo.get(second.orderNo).order_channel, 'M2');
+  assert.equal(byNo.get(second.orderNo).source_type, 'REWARDS_STORE');
+  for (const r of rows.results) {
+    assert.equal(r.origin_type, 'COMPANY');
+    assert.equal(r.approval_status, 'NOT_REQUIRED');
+  }
+  const dash = await loadDashboard(db, customer);
+  assert.deepEqual(dash.orders.map((o) => o.channel).sort(), ['M1', 'M2']);
+  assert.ok(dash.orders.every((o) => o.origin === 'COMPANY'));
+  assert.equal((await listPendingApprovals(db)).length, 0, 'company orders never enter the approval queue');
+});
+
+test('individual M3/M4 orders carry channel, owner and different approval rights', async () => {
+  const { db, customer } = await fixture();
+  // M3: named personal link — pre-approved and immediately dispatchable.
+  const m3 = await createPortal(db, customer, { type: 'PERSONAL_LINK', name: 'Candidates' }, 'admin');
+  await setPortalItems(db, customer, m3.portalId, [{ productId: 'p2', maxQty: 1 }]);
+  const [invite] = await getInviteTokens(db, customer, m3.portalId).then(async (tokens) => {
+    if (!tokens.length) {
+      await importInvites(db, customer, m3.portalId, [{ name: 'Jane', email: 'jane@example.com' }], 'admin');
+      return getInviteTokens(db, customer, m3.portalId);
+    }
+    return tokens;
+  });
+  const personal = await submitRedemption(db, {}, {
+    token: invite.token, contact: { name: 'Jane', email: 'jane@example.com' }, shipping: addr(),
+    items: [{ productId: 'p2', size: 'OS', qty: 1 }],
+  });
+  // M4: shared open portal — pending client approval.
+  const m4 = await createPortal(db, customer, { type: 'OPEN_PORTAL', name: 'Open', slug: 'gift-open' }, 'admin');
+  await setPortalItems(db, customer, m4.portalId, [{ productId: 'p2', maxQty: 1 }]);
+  const open = await submitRedemption(db, {}, {
+    slug: m4.slug, contact: { name: 'Alex', email: 'alex@example.com' }, shipping: addr(),
+    items: [{ productId: 'p2', size: 'OS', qty: 1 }],
+  });
+
+  const rows = await db.prepare('SELECT order_no, order_channel, origin_type, customer_id, approval_status FROM orders').all();
+  const byNo = new Map(rows.results.map((r) => [r.order_no, r]));
+  assert.equal(byNo.get(personal.orderNo).order_channel, 'M3');
+  assert.equal(byNo.get(open.orderNo).order_channel, 'M4');
+  assert.ok(rows.results.every((r) => r.origin_type === 'INDIVIDUAL' && Number(r.customer_id) === 1));
+  assert.equal(byNo.get(personal.orderNo).approval_status, 'NOT_REQUIRED');
+  assert.equal(byNo.get(open.orderNo).approval_status, 'PENDING');
+
+  const all = await listRedemptionOrders(db);
+  assert.deepEqual(all.map((o) => o.channel).sort(), ['M3', 'M4']);
+  const dash = await loadDashboard(db, customer);
+  assert.deepEqual(dash.orders.map((o) => o.channel).sort(), ['M3', 'M4']);
+  assert.ok(dash.orders.every((o) => o.origin === 'INDIVIDUAL' && o.shipping?.city === 'New York'));
+  assert.equal((await listPendingApprovals(db)).length, 1, 'only M4 waits for approval');
+
+  assert.deepEqual(allowedNextStatuses({ orderChannel: 'M3', approvalStatus: 'NOT_REQUIRED', status: 'processing' }), ['shipped', 'cancelled']);
+  assert.deepEqual(allowedNextStatuses({ orderChannel: 'M4', approvalStatus: 'PENDING', status: 'pending' }), ['cancelled']);
+
+  // Client approval is scoped to their own portal and only to pending M4 orders.
+  await assert.rejects(() => reviewRedemptionOrder(db, open.orderNo, 'APPROVE', 'client', '', {
+    role: 'client', customerId: '999',
+  }), /another customer|not found/);
+  await assert.rejects(() => reviewRedemptionOrder(db, personal.orderNo, 'APPROVE', 'client', '', {
+    role: 'client', customerId: '1',
+  }), /not found/);
+  const approved = await reviewRedemptionOrder(db, open.orderNo, 'APPROVE', 'client', 'looks good', {
+    role: 'client', customerId: '1',
+  });
+  assert.equal(approved.approvalStatus, 'APPROVED');
+  const finalRow = await db.prepare('SELECT reviewed_by, review_note FROM orders WHERE order_no=?1').bind(open.orderNo).first();
+  assert.equal(finalRow.reviewed_by, 'client');
+  assert.equal(finalRow.review_note, 'looks good');
+});

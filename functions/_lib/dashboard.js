@@ -11,10 +11,15 @@
 
 import { logActivity, listActivity } from './project-activity.js';
 import { getCustomerPool, filterByPool } from './client-showcase.js';
+import {
+  CHANNELS, ensureOrderChannelSchema, normalizeChannel, channelLabel,
+} from './order-channels.js';
 
-let schemaPromise = null;
+// Per-binding cache: previews and tests use several D1 bindings in one isolate.
+const schemaByDb = new WeakMap();
 
 export async function ensureDashboardSchema(db) {
+  let schemaPromise = schemaByDb.get(db);
   if (!schemaPromise) {
     schemaPromise = (async () => {
       await db.prepare(`CREATE TABLE IF NOT EXISTS client_projects (
@@ -56,7 +61,9 @@ export async function ensureDashboardSchema(db) {
           console.error('dashboard schema (orders.project_no):', e?.message);
         }
       }
-    })().catch((e) => { schemaPromise = null; throw e; });
+      await ensureOrderChannelSchema(db);
+    })().catch((e) => { schemaByDb.delete(db); throw e; });
+    schemaByDb.set(db, schemaPromise);
   }
   return schemaPromise;
 }
@@ -246,14 +253,31 @@ export async function loadDashboard(db, user) {
     'SELECT * FROM orders WHERE customer_id = ?1 ORDER BY created_at DESC LIMIT 200'
   ).bind(Number(id)).all();
 
-  const orders = (oRes.results || []).map((r) => ({
-    id: r.order_no,
-    project: r.project_no || '',
-    created: day(r.created_at),
-    items: shapeOrderItems(r.items_json),
-    status: r.status || 'received',
-    total: Number(r.total || 0),
-  }));
+  const orders = (oRes.results || []).map((r) => {
+    const channel = normalizeChannel(r.order_channel, r.source_type === 'REWARDS_STORE' ? 'M2'
+      : r.source_type === 'PERSONAL_LINK' ? 'M3' : r.source_type === 'OPEN_PORTAL' ? 'M4' : 'M1');
+    const meta = CHANNELS[channel];
+    return {
+      id: r.order_no,
+      project: r.project_no || '',
+      created: day(r.created_at),
+      items: shapeOrderItems(r.items_json),
+      status: r.status || 'received',
+      total: Number(r.total || 0),
+      channel,
+      channelLabel: channelLabel(channel),
+      origin: r.origin_type || meta.origin,
+      sourceType: r.source_type || meta.sourceType,
+      approvalStatus: r.approval_status || 'NOT_REQUIRED',
+      fulfilmentStatus: r.fulfilment_status || 'READY_FOR_DISPATCH',
+      shipping: r.shipping_name ? {
+        name: r.shipping_name, email: r.shipping_email || '', phone: r.shipping_phone || '',
+        countryCode: r.shipping_country_code || '', state: r.shipping_state || '',
+        city: r.shipping_city || '', postalCode: r.shipping_postal_code || '',
+        address1: r.shipping_address_line1 || '', address2: r.shipping_address_line2 || '',
+      } : null,
+    };
+  });
 
   const projectRows = pRes.results || [];
   const feed = await listActivity(db, projectRows.map((r) => r.project_no));
@@ -454,15 +478,22 @@ export async function mutateDashboard(db, user, body) {
           priced.unitPrice, priced.lineTotal, priced.setupFee, priced.printFee, priced.decoration];
       });
       const orderNo = await orderNoForProject(db, projectNo);
+      const channel = normalizeChannel(body?.channel, 'M1');
+      if (!['M1', 'M2'].includes(channel)) {
+        throw Object.assign(new Error('Only M1/M2 orders can be created from a project'), { status: 400 });
+      }
+      const meta = CHANNELS[channel];
       const snapshot = items.map((it) => ({
         name: it[0], sku: it[1], size: it[2], quantity: it[3], color: it[4],
         unitPrice: it[5], lineTotal: it[6], setupFee: it[7], printFee: it[8], decoration: it[9],
       }));
       await db.prepare(`INSERT INTO orders
-        (order_no,customer_id,customer_name,customer_email,items_json,item_count,total,status,created_at,status_updated_at,project_no)
-        VALUES (?1,?2,?3,?4,?5,?6,?7,'confirmed',?8,?8,?9)`).bind(
+        (order_no,customer_id,customer_name,customer_email,items_json,item_count,total,status,created_at,status_updated_at,project_no,
+         source_type,approval_status,fulfilment_status,order_channel,origin_type)
+        VALUES (?1,?2,?3,?4,?5,?6,?7,'confirmed',?8,?8,?9,?10,'NOT_REQUIRED','READY_FOR_DISPATCH',?11,?12)`).bind(
         orderNo, Number(uid(user)), uname(user), user.email,
-        JSON.stringify(snapshot), units(items), orderTotal(items), ts, projectNo
+        JSON.stringify(snapshot), units(items), orderTotal(items), ts, projectNo,
+        meta.sourceType, channel, meta.origin
       ).run();
       await save({ status: 'completed' });
       await logActivity(db, projectNo, uname(user), 'order_created',
@@ -505,9 +536,12 @@ export async function listAdminProjects(db) {
   const ordersByProject = new Map();
   for (const o of orderRes.results || []) {
     if (!ordersByProject.has(o.project_no)) ordersByProject.set(o.project_no, []);
+    const channel = normalizeChannel(o.order_channel, o.source_type === 'REWARDS_STORE' ? 'M2' : 'M1');
     ordersByProject.get(o.project_no).push({
       id: o.order_no, total: Number(o.total || 0), status: o.status || 'confirmed',
       created: day(o.created_at), items: shapeOrderItems(o.items_json),
+      channel, channelLabel: channelLabel(channel),
+      approvalStatus: o.approval_status || 'NOT_REQUIRED',
     });
   }
   const feed = await listActivity(db, rows.map((r) => r.project_no));
@@ -663,10 +697,15 @@ export async function adminUpdateProject(db, projectNo, data, adminName) {
 }
 
 /** Admin creates a production order for a project from its shortlist. */
-export async function adminCreateOrder(db, projectNo, items, adminName) {
+export async function adminCreateOrder(db, projectNo, items, adminName, channelInput) {
   await ensureDashboardSchema(db);
   const row = await db.prepare('SELECT * FROM client_projects WHERE project_no = ?1').bind(projectNo).first();
   if (!row) throw Object.assign(new Error('Project not found'), { status: 404 });
+  const channel = normalizeChannel(channelInput, 'M1');
+  if (!['M1', 'M2'].includes(channel)) {
+    throw Object.assign(new Error('Only M1/M2 orders can be created from a project'), { status: 400 });
+  }
+  const meta = CHANNELS[channel];
   const selections = Array.isArray(items) ? items : [];
   if (!selections.length) throw Object.assign(new Error('No items to order'), { status: 400 });
   const shortlist = arrayOf(parseJson(row.shortlist_json, []));
@@ -692,10 +731,12 @@ export async function adminCreateOrder(db, projectNo, items, adminName) {
   const ts = now();
   const customerId = Number(uid({ id: row.user_id })) || 0;
   await db.prepare(`INSERT INTO orders
-    (order_no,customer_id,customer_name,customer_email,items_json,item_count,total,status,created_at,status_updated_at,project_no)
-    VALUES (?1,?2,?3,?4,?5,?6,?7,'confirmed',?8,?8,?9)`).bind(
+    (order_no,customer_id,customer_name,customer_email,items_json,item_count,total,status,created_at,status_updated_at,project_no,
+     source_type,approval_status,fulfilment_status,order_channel,origin_type)
+    VALUES (?1,?2,?3,?4,?5,?6,?7,'confirmed',?8,?8,?9,?10,'NOT_REQUIRED','READY_FOR_DISPATCH',?11,?12)`).bind(
     orderNo, customerId, row.creator || 'Cyndi Global', '',
-    JSON.stringify(snapshot), units(mapped), orderTotal(mapped), ts, projectNo
+    JSON.stringify(snapshot), units(mapped), orderTotal(mapped), ts, projectNo,
+    meta.sourceType, channel, meta.origin
   ).run();
   await db.prepare("UPDATE client_projects SET stage=3, status='completed', updated_at=?1 WHERE project_no=?2").bind(ts, projectNo).run();
   await logActivity(db, projectNo, adminName, 'order_created',
@@ -708,6 +749,9 @@ export async function adminUpdateOrderPricing(db, orderNo, lines, adminName) {
   await ensureDashboardSchema(db);
   const row = await db.prepare('SELECT * FROM orders WHERE order_no = ?1').bind(orderNo).first();
   if (!row) throw Object.assign(new Error('Order not found'), { status: 404 });
+  if (['M3', 'M4'].includes(normalizeChannel(row.order_channel))) {
+    throw Object.assign(new Error('Personal redemption prices are fixed; only company orders can be repriced'), { status: 403 });
+  }
   const items = shapeOrderItems(row.items_json);
   const updates = Array.isArray(lines) ? lines : [];
   for (const update of updates) {

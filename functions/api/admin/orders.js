@@ -2,6 +2,10 @@ import { getAdminSecret, json, readSession } from '../../_lib/auth.js';
 import { ORDER_STATUSES, allowedNext, statusLabel, transitionError } from '../../_lib/order-status.js';
 import { SHOWCASE_ORDERS_WHERE, SHOWCASE_ORDER_NO_RE, isShowcaseOrderNo } from '../../_lib/orders.js';
 import { invClassifyError, invStockEffect, invTransitionStatements } from '../../_lib/inventory.js';
+import {
+  CHANNELS, allowedNextStatuses, ensureOrderChannelSchema, isPersonalChannel,
+  normalizeChannel, channelLabel,
+} from '../../_lib/order-channels.js';
 
 /**
  * /api/admin/orders — admin view of every order in the `orders` table
@@ -20,7 +24,10 @@ import { invClassifyError, invStockEffect, invTransitionStatements } from '../..
 
 const NO_STORE = { 'Cache-Control': 'no-store', Vary: 'Cookie' };
 const SW_ORDER_NO_RE = /^SW-\d{8}-[A-Z0-9]{1,12}$/;
-const isValidOrderNo = (no) => SW_ORDER_NO_RE.test(no) || SHOWCASE_ORDER_NO_RE.test(no);
+const REDEMPTION_ORDER_NO_RE = /^RDM-(?:PL-|OP-)?\d{4,}$/;
+const PROJECT_ORDER_NO_RE = /^ORD-\d{2,4}-\d+-\d{2,}$/;
+const isValidOrderNo = (no) => SW_ORDER_NO_RE.test(no) || SHOWCASE_ORDER_NO_RE.test(no)
+  || REDEMPTION_ORDER_NO_RE.test(no) || PROJECT_ORDER_NO_RE.test(no);
 const MAX_BODY_BYTES = 4 * 1024;
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -46,7 +53,42 @@ function orderType(orderNo) {
   const s = String(orderNo || '');
   if (s.startsWith('SW-')) return 'SW';
   if (isShowcaseOrderNo(s)) return 'SC';
+  if (s.startsWith('RDM-')) return 'M3/M4';
+  if (s.startsWith('ORD-')) return 'M1/M2';
   return null;
+}
+
+function channelOfRow(row) {
+  return normalizeChannel(row?.order_channel, row?.source_type === 'REWARDS_STORE' ? 'M2' : 'M1');
+}
+
+function channelFields(row) {
+  const channel = channelOfRow(row);
+  const meta = CHANNELS[channel];
+  const approvalStatus = row?.approval_status || meta.approval;
+  const status = row?.status || '';
+  const next = allowedNextStatuses({ orderChannel: channel, approvalStatus, status });
+  const allowed = next === null
+    ? allowedNext(status).map((s) => ({ value: s, label: statusLabel(s) }))
+    : next.map((s) => ({ value: s, label: statusLabel(s) }));
+  return {
+    channel,
+    channelLabel: channelLabel(channel),
+    sourceType: row?.source_type || meta.sourceType,
+    origin: row?.origin_type || meta.origin,
+    approvalStatus,
+    fulfilmentStatus: row?.fulfilment_status || 'READY_FOR_DISPATCH',
+    reviewedBy: row?.reviewed_by || '',
+    reviewedAt: row?.reviewed_at || '',
+    reviewNote: row?.review_note || '',
+    shipping: row?.shipping_name ? {
+      name: row.shipping_name, email: row.shipping_email || '', phone: row.shipping_phone || '',
+      countryCode: row.shipping_country_code || '', state: row.shipping_state || '',
+      city: row.shipping_city || '', postalCode: row.shipping_postal_code || '',
+      address1: row.shipping_address_line1 || '', address2: row.shipping_address_line2 || '',
+    } : null,
+    allowedNext: allowed,
+  };
 }
 
 function itemsCurrency(items) {
@@ -71,7 +113,7 @@ function rowToDetail(row) {
     type: orderType(row.order_no),
     status: row.status,
     statusLabel: statusLabel(row.status),
-    allowedNext: allowedNext(row.status).map((s) => ({ value: s, label: statusLabel(s) })),
+    ...channelFields(row),
     createdAt: row.created_at,
     statusUpdatedAt: row.status_updated_at,
     customerId: row.customer_id ?? null,
@@ -107,6 +149,11 @@ function rowToDetail(row) {
 // Requires migration 0011 (clients table, customers.username/client_id).
 const DETAIL_SQL = `SELECT o.order_no, o.customer_name, o.customer_email, o.customer_phone, o.company, o.notes,
                            o.items_json, o.item_count, o.total, o.status, o.created_at, o.status_updated_at, o.customer_id,
+                           o.source_type, o.order_channel, o.origin_type, o.approval_status, o.fulfilment_status,
+                           o.reviewed_by, o.reviewed_at, o.review_note,
+                           o.shipping_name, o.shipping_email, o.shipping_phone, o.shipping_country_code,
+                           o.shipping_state, o.shipping_city, o.shipping_postal_code,
+                           o.shipping_address_line1, o.shipping_address_line2,
                            c.email AS account_email, c.username AS account_username, c.display_name AS account_display_name,
                            c.status AS account_status, cl.code AS client_code, cl.name AS client_name
                     FROM orders o
@@ -127,6 +174,7 @@ export async function onRequestGet({ request, env }) {
   if (!env.DB) return reply({ error: 'Database binding is not configured' }, 503);
   if (!await requireAdmin(request, env)) return reply({ error: 'Unauthorized' }, 401);
 
+  await ensureOrderChannelSchema(env.DB);
   const params = new URL(request.url).searchParams;
 
   // ---- One order ----
@@ -145,8 +193,10 @@ export async function onRequestGet({ request, env }) {
   }
 
   // ---- List ----
-  const type = (params.get('type') || 'all').trim();
-  if (!['all', 'SW', 'SC'].includes(type)) return reply({ error: 'type must be all, SW or SC' }, 400);
+  const type = (params.get('type') || 'all').trim().toUpperCase();
+  if (!['all', 'SW', 'SC', 'M1', 'M2', 'M3', 'M4'].includes(type)) {
+    return reply({ error: 'type must be all, SW, SC, M1, M2, M3 or M4' }, 400);
+  }
   const status = (params.get('status') || '').trim();
   if (status.length > 40) return reply({ error: 'Invalid status filter' }, 400);
   const q = (params.get('q') || '').trim();
@@ -161,6 +211,7 @@ export async function onRequestGet({ request, env }) {
   const bind = (v) => { binds.push(v); return `?${binds.length}`; };
   if (type === 'SW') where.push(`order_no LIKE 'SW-%'`);
   else if (type === 'SC') where.push(SHOWCASE_ORDERS_WHERE);
+  else if (['M1', 'M2', 'M3', 'M4'].includes(type)) where.push(`order_channel = ${bind(type)}`);
   if (q) {
     const p = bind(`%${escapeLike(q)}%`);
     where.push(`(order_no LIKE ${p} ESCAPE '\\' OR customer_name LIKE ${p} ESCAPE '\\'`
@@ -187,7 +238,8 @@ export async function onRequestGet({ request, env }) {
     const offsetP = bind((page - 1) * pageSize);
     const res = await env.DB.prepare(
       `SELECT order_no, customer_name, customer_email, company, items_json, item_count, total,
-              status, created_at, status_updated_at
+              status, created_at, status_updated_at, source_type, order_channel, origin_type,
+              approval_status, fulfilment_status
        FROM orders ${listWhere}
        ORDER BY created_at DESC, order_no DESC
        LIMIT ${limitP} OFFSET ${offsetP}`
@@ -198,6 +250,7 @@ export async function onRequestGet({ request, env }) {
       type: orderType(r.order_no),
       status: r.status,
       statusLabel: statusLabel(r.status),
+      ...channelFields(r),
       createdAt: r.created_at,
       statusUpdatedAt: r.status_updated_at,
       customerName: r.customer_name,
@@ -331,6 +384,7 @@ export async function onRequestPost({ request, env }) {
   if (!env.DB) return reply({ error: 'Database binding is not configured' }, 503);
   const admin = await requireAdmin(request, env);
   if (!admin) return reply({ error: 'Unauthorized' }, 401);
+  await ensureOrderChannelSchema(env.DB);
 
   const parsed = await readJsonBody(request);
   if (parsed.error) return reply({ error: parsed.error }, parsed.status);
@@ -350,6 +404,27 @@ export async function onRequestPost({ request, env }) {
     const row = await env.DB.prepare(DETAIL_SQL).bind(no).first();
     if (!row) return reply({ error: 'Order not found' }, 404);
 
+    const channel = channelOfRow(row);
+    const approval = String(row.approval_status || CHANNELS[channel].approval).toUpperCase();
+    if (isPersonalChannel(channel)) {
+      if (approval === 'PENDING') {
+        return reply({
+          error: 'Individual order is waiting for approval. Use Approve / Reject in the Personal requests panel first.',
+          order: rowToDetail(row),
+        }, 409);
+      }
+      if (approval === 'REJECTED') {
+        return reply({ error: 'This individual order was rejected and its stock was released.', order: rowToDetail(row) }, 409);
+      }
+      const personalNext = allowedNextStatuses({ orderChannel: channel, approvalStatus: approval, status: row.status });
+      if (!personalNext.includes(to)) {
+        return reply({
+          error: `Individual orders may only move to: ${personalNext.length ? personalNext.map(statusLabel).join(', ') : 'no further status'}.`,
+          order: rowToDetail(row),
+        }, 409);
+      }
+    }
+
     const from = row.status;
     if (expected !== from) {
       return reply({
@@ -362,13 +437,19 @@ export async function onRequestPost({ request, env }) {
     if (invalid) return reply({ error: invalid }, 400);
 
     const now = new Date().toISOString();
-    const update = env.DB.prepare(
-      'UPDATE orders SET status = ?3, status_updated_at = ?4 WHERE order_no = ?1 AND status = ?2'
-    ).bind(no, from, to, now);
+    const fulfilment = to === 'shipped' || to === 'in_transit' ? 'ON_THE_WAY'
+      : to === 'delivered' ? 'DELIVERED' : to === 'cancelled' ? 'CANCELLED' : null;
+    const update = isPersonalChannel(channel) && fulfilment
+      ? env.DB.prepare(
+        'UPDATE orders SET status=?3, status_updated_at=?4, fulfilment_status=?5 WHERE order_no=?1 AND status=?2'
+      ).bind(no, from, to, now, fulfilment)
+      : env.DB.prepare(
+        'UPDATE orders SET status = ?3, status_updated_at = ?4 WHERE order_no = ?1 AND status = ?2'
+      ).bind(no, from, to, now);
     // Showcase orders only: release / ship / unship reserved stock in the same batch, with
     // the order UPDATE last (its meta.changes stays the optimistic lock). Shop orders and
     // transitions without a stock effect keep the single UPDATE.
-    const effect = isShowcaseOrderNo(no) ? invStockEffect(from, to) : null;
+    const effect = (isShowcaseOrderNo(no) || isPersonalChannel(channel)) ? invStockEffect(from, to) : null;
     let res;
     if (effect) {
       try {

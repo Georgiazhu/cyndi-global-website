@@ -149,7 +149,7 @@ export async function onRequestPost({ request, env }) {
       }
       case 'createOrder': {
         if (!body.projectNo) return reply({ error: 'projectNo is required' }, 400);
-        out = await adminCreateOrder(env.DB, body.projectNo, body.items, who);
+        out = await adminCreateOrder(env.DB, body.projectNo, body.items, who, body.channel);
         break;
       }
       case 'updateOrderPricing': {

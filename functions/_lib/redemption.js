@@ -14,10 +14,13 @@ import {
   invReserveStatements,
   invTransitionStatements,
 } from './inventory.js';
+import {
+  CHANNELS, ensureOrderChannelSchema, normalizeChannel, canReviewOrder,
+} from './order-channels.js';
 
 export const PORTAL_TYPES = ['BULK_SHIPMENT', 'REWARDS_STORE', 'PERSONAL_LINK', 'OPEN_PORTAL'];
 export const PORTAL_STATUSES = ['ACTIVE', 'PAUSED', 'ARCHIVED'];
-export const ORDER_SOURCES = ['INTERNAL_TEAM', 'PERSONAL_LINK', 'OPEN_PORTAL'];
+export const ORDER_SOURCES = ['INTERNAL_TEAM', 'REWARDS_STORE', 'PERSONAL_LINK', 'OPEN_PORTAL'];
 export const APPROVAL_STATUSES = ['NOT_REQUIRED', 'PENDING', 'APPROVED', 'REJECTED'];
 export const FULFILMENT_STATUSES = ['READY_FOR_DISPATCH', 'ON_THE_WAY', 'DELIVERED', 'CANCELLED', 'REJECTED'];
 
@@ -136,6 +139,7 @@ export async function ensureRedemptionSchema(db) {
       }
       await db.prepare("CREATE INDEX IF NOT EXISTS idx_orders_source ON orders(source_type, status)").run().catch(() => {});
       await db.prepare("CREATE INDEX IF NOT EXISTS idx_orders_portal ON orders(portal_id, created_at DESC)").run().catch(() => {});
+      await ensureOrderChannelSchema(db);
 
       // In-memory rate limits reset on isolate restart; adequate for a shared link
       // where the goal is to stop accidental / casual double submission bursts.
@@ -498,7 +502,7 @@ function nextOrderNo(db) {
     const rows = await db.prepare("SELECT order_no FROM orders WHERE source_type IN ('PERSONAL_LINK','OPEN_PORTAL')").all();
     let max = 0;
     for (const r of rows.results || []) {
-      const m = /RDM-(?:PL|OP)-(\d+)/.exec(String(r.order_no || ''));
+      const m = /^RDM-(?:PL-|OP-)?(\d+)$/.exec(String(r.order_no || ''));
       if (m) max = Math.max(max, int(m[1], 0));
     }
     return `RDM-${String(max + 1).padStart(5, '0')}`;
@@ -613,12 +617,18 @@ export async function submitRedemption(db, env, { token, slug, contact, shipping
   });
   total = round2(total);
 
-  const requiresApproval = portal.type === 'OPEN_PORTAL' || portal.type === 'REWARDS_STORE';
+  // Channel is derived from the portal type server-side — never from the public request.
+  const channel = normalizeChannel({
+    REWARDS_STORE: 'M2', PERSONAL_LINK: 'M3', OPEN_PORTAL: 'M4',
+  }[portal.type] || 'M4');
+  const ch = CHANNELS[channel];
+  const requiresApproval = ch.approval === 'PENDING';
   const approvalStatus = requiresApproval ? 'PENDING' : 'NOT_REQUIRED';
   const orderStatus = requiresApproval ? 'pending' : 'processing';
   const fulfilmentStatus = requiresApproval ? 'PENDING_APPROVAL' : 'READY_FOR_DISPATCH';
-  const sourceType = portal.type === 'PERSONAL_LINK' ? 'PERSONAL_LINK' : 'OPEN_PORTAL';
-  const notes = `[redemption:${portal.slug || portal.id}] ${invite ? invite.recipient_name : name}`;
+  const sourceType = ch.sourceType;
+  const customerId = Number(portal.customer_id);
+  const notes = `[redemption:${channel}:${portal.slug || portal.id}] ${invite ? invite.recipient_name : name}`;
   const actor = invite ? `invite:${invite.id}` : 'public';
 
   // Order no + INSERT + stock reserve in one batch (spec §2.2 atomic conditional deduct).
@@ -629,14 +639,17 @@ export async function submitRedemption(db, env, { token, slug, contact, shipping
       orderNo = await nextOrderNo(db);
       createdAt = now();
       const insert = db.prepare(`INSERT INTO orders
-        (order_no,customer_name,customer_email,customer_phone,company,notes,items_json,item_count,total,
+        (order_no,customer_id,customer_name,customer_email,customer_phone,company,notes,items_json,item_count,total,
          status,created_at,status_updated_at,source_type,portal_id,invite_id,approval_status,fulfilment_status,
+         order_channel,origin_type,
          shipping_name,shipping_email,shipping_phone,shipping_country_code,shipping_state,shipping_city,
          shipping_postal_code,shipping_address_line1,shipping_address_line2)
-        VALUES (?1,?2,?3,?4,NULL,?5,?6,?7,?8,?9,?10,?10,?11,?12,?13,?14,?15,
-                ?16,?17,?18,?19,?20,?21,?22,?23,?24)`).bind(
-        orderNo, name, email, ship.phone, notes, JSON.stringify(snapshot), itemCount, total,
+        VALUES (?1,?2,?3,?4,?5,NULL,?6,?7,?8,?9,?10,?11,?11,?12,?13,?14,?15,?16,?17,?18,
+                ?19,?20,?21,?22,?23,?24,?25,?26,?27)`).bind(
+        orderNo, Number.isFinite(customerId) ? customerId : null,
+        name, email, ship.phone, notes, JSON.stringify(snapshot), itemCount, total,
         orderStatus, createdAt, sourceType, portal.id, invite?.id || null, approvalStatus, fulfilmentStatus,
+        channel, ch.origin,
         ship.name, ship.email, ship.phone, ship.countryCode, ship.state, ship.city,
         ship.postalCode, ship.address1, ship.address2
       );
@@ -682,23 +695,21 @@ export async function submitRedemption(db, env, { token, slug, contact, shipping
   };
 }
 
-// ---------------- Admin approval queue ----------------
+// ---------------- Approval queue (M3 / M4 individual orders) ----------------
 
-export async function listPendingApprovals(db, customerId) {
-  await ensureRedemptionSchema(db);
-  const where = customerId ? 'AND p.customer_id = ?2' : '';
-  const binds = customerId ? [customerId] : [];
-  const res = await db.prepare(`
-    SELECT o.*, p.name AS portal_name, p.customer_id AS portal_customer,
-           p.custom_title AS portal_title
-    FROM orders o JOIN redemption_portals p ON p.id = o.portal_id
-    WHERE o.approval_status = 'PENDING' ${where}
-    ORDER BY o.created_at ASC LIMIT 500`).bind(...binds).all();
-  return (res.results || []).map((r) => ({
+function shapeApprovalRow(r) {
+  return {
     orderNo: r.order_no,
     created: day(r.created_at),
     name: r.customer_name, email: r.customer_email, phone: r.customer_phone || '',
     portalId: r.portal_id, portalName: r.portal_name || r.portal_title || '',
+    portalType: r.portal_type || '',
+    channel: String(r.order_channel || (r.source_type === 'PERSONAL_LINK' ? 'M3' : 'M4')).toUpperCase(),
+    sourceType: r.source_type || '',
+    origin: r.origin_type || 'INDIVIDUAL',
+    fulfilmentStatus: r.fulfilment_status || '',
+    reviewedBy: r.reviewed_by || '', reviewedAt: r.reviewed_at ? day(r.reviewed_at) : '',
+    reviewNote: r.review_note || '',
     shipping: {
       name: r.shipping_name || '', email: r.shipping_email || '', phone: r.shipping_phone || '',
       countryCode: r.shipping_country_code || '', state: r.shipping_state || '',
@@ -712,15 +723,55 @@ export async function listPendingApprovals(db, customerId) {
     })),
     itemCount: int(r.item_count, 0), total: Number(r.total) || 0,
     status: r.status, approvalStatus: r.approval_status,
-  }));
+  };
 }
 
-export async function reviewRedemptionOrder(db, orderNo, decision, actor, note = '') {
+const APPROVAL_SELECT = `
+    SELECT o.*, p.name AS portal_name, p.customer_id AS portal_customer,
+           p.custom_title AS portal_title, p.type AS portal_type
+    FROM orders o JOIN redemption_portals p ON p.id = o.portal_id`;
+
+export async function listPendingApprovals(db, customerId) {
   await ensureRedemptionSchema(db);
-  const order = await db.prepare(
-    "SELECT * FROM orders WHERE order_no = ?1 AND approval_status = 'PENDING' AND source_type IN ('PERSONAL_LINK','OPEN_PORTAL')"
+  const where = customerId ? 'AND p.customer_id = ?2' : '';
+  const binds = customerId ? [customerId] : [];
+  const res = await db.prepare(`${APPROVAL_SELECT}
+    WHERE o.approval_status = 'PENDING' ${where}
+    ORDER BY o.created_at ASC LIMIT 500`).bind(...binds).all();
+  return (res.results || []).map(shapeApprovalRow);
+}
+
+// Full M3/M4 order list for the admin Orders screen: pending, approved and rejected.
+export async function listRedemptionOrders(db, customerId) {
+  await ensureRedemptionSchema(db);
+  const where = customerId ? 'AND p.customer_id = ?2' : '';
+  const binds = customerId ? [customerId] : [];
+  const res = await db.prepare(`${APPROVAL_SELECT}
+    WHERE o.source_type IN ('PERSONAL_LINK','OPEN_PORTAL') ${where}
+    ORDER BY o.created_at DESC LIMIT 500`).bind(...binds).all();
+  return (res.results || []).map(shapeApprovalRow);
+}
+
+// options: { customerId, role } — client callers must be scoped to their own portal.
+export async function reviewRedemptionOrder(db, orderNo, decision, actor, note = '', options = {}) {
+  await ensureRedemptionSchema(db);
+  const role = String(options?.role || 'admin').toLowerCase();
+  if (!['client', 'admin'].includes(role)) {
+    throw Object.assign(new Error('This account cannot approve orders'), { status: 403 });
+  }
+  const order = await db.prepare(`
+    SELECT o.*, p.customer_id AS portal_customer
+    FROM orders o JOIN redemption_portals p ON p.id = o.portal_id
+    WHERE o.order_no = ?1 AND o.approval_status = 'PENDING'
+      AND o.source_type IN ('PERSONAL_LINK','OPEN_PORTAL')`
   ).bind(orderNo).first();
   if (!order) throw Object.assign(new Error('Pending redemption order not found'), { status: 404 });
+  if (!canReviewOrder({ orderChannel: order.order_channel, approvalStatus: order.approval_status }, role)) {
+    throw Object.assign(new Error('This account cannot approve this order'), { status: 403 });
+  }
+  if (options?.customerId != null && String(options.customerId) !== String(order.portal_customer)) {
+    throw Object.assign(new Error('This order belongs to another customer'), { status: 404 });
+  }
   const ts = now();
   if (decision === 'APPROVE') {
     // Spec §2.2: stock was already deducted on submit — approval must NOT deduct again.

@@ -130,10 +130,14 @@ export async function onRequestPost({ request, env }) {
         break;
       }
       case 'approveOrder':
-        result = await reviewRedemptionOrder(env.DB, body.orderNo, 'APPROVE', actor, body.note || '');
+        result = await reviewRedemptionOrder(env.DB, body.orderNo, 'APPROVE', actor, body.note || '', {
+          role: 'client', customerId: String(s.customer.id),
+        });
         break;
       case 'rejectOrder':
-        result = await reviewRedemptionOrder(env.DB, body.orderNo, 'REJECT', actor, body.note || '');
+        result = await reviewRedemptionOrder(env.DB, body.orderNo, 'REJECT', actor, body.note || '', {
+          role: 'client', customerId: String(s.customer.id),
+        });
         break;
       case 'pendingApprovals':
         result = { pending: await listPendingApprovals(env.DB, String(s.customer.id)) };
